@@ -11,9 +11,6 @@
 
 namespace Primrose {
 	// gameplay
-	extern glm::vec3 playerPos;
-	extern glm::vec3 playerDir;
-
 	extern float yaw;
 	extern float pitch;
 

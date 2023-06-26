@@ -17,7 +17,6 @@
 #include <fstream>
 #include <cstring>
 
-#include <glm/gtx/rotate_vector.hpp>
 namespace Primrose {
 	VkInstance instance; // used as global vulkan state
 	VkPhysicalDevice physicalDevice; // graphics device
@@ -46,6 +45,8 @@ namespace Primrose {
 
 	VkDebugUtilsMessengerEXT debugMessenger; // handles logging validation details
 
+	void(*mouseMovementCallback)(float xpos, float ypos, bool refocused) = nullptr;
+
 	// glfw callbacks
 	namespace {
 		void windowResizedCallback(GLFWwindow*, int, int) {
@@ -57,32 +58,9 @@ namespace Primrose {
 			}
 		}
 		void cursorPosCallback(GLFWwindow*, double xpos, double ypos) {
-			static float lastX = 0;
-			static float lastY = 0;
-
-			if (!windowFocused && glfwGetWindowAttrib(window, GLFW_FOCUSED) == GL_TRUE) {
-				// if re-entering focus, zero mouse positions
-				windowFocused = true;
-				lastX = xpos;
-				lastY = ypos;
-			}
-
-			yaw -= Settings::mouseSens * (xpos - lastX);
-			pitch -= Settings::mouseSens * (ypos - lastY);
-
-			yaw = fmod(yaw, glm::radians(360.f));
-			pitch = std::clamp(pitch, glm::radians(-89.99f), glm::radians(89.99f));
-
-
-
-			float dPitch = Settings::mouseSens * (ypos - lastY);
-			float dYaw = Settings::mouseSens * (xpos - lastX);
-			playerDir = glm::rotate(playerDir, dPitch, glm::normalize(glm::cross(uniforms.camUp, playerDir)));
-			playerDir = glm::rotate(playerDir, dYaw, uniforms.camUp);
-
-
-			lastX = xpos;
-			lastY = ypos;
+			bool refocused = !windowFocused && glfwGetWindowAttrib(window, GLFW_FOCUSED) == GL_TRUE;
+			if (refocused) windowFocused = true;
+			if (mouseMovementCallback != nullptr) mouseMovementCallback(xpos, ypos, refocused);
 		}
 		void keyCallback(GLFWwindow*, int key, int, int, int) {
 			if (key == GLFW_KEY_ESCAPE) {

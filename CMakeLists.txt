@@ -36,6 +36,11 @@ add_custom_target(delete_shaders ALL
 	COMMENT "Deleting shaders")
 
 # build demo application
-add_executable(PrimroseDemo PrimroseDemo/main.cpp)
-target_include_directories(PrimroseDemo PUBLIC Primrose/)
+add_executable(PrimroseDemo PrimroseDemo/main.cpp LevelEditor/player_movement.cpp)
+target_include_directories(PrimroseDemo PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(PrimroseDemo LINK_PUBLIC Primrose)
+
+# build level editor
+add_executable(LevelEditor LevelEditor/main.cpp LevelEditor/player_movement.cpp)
+target_include_directories(LevelEditor PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(LevelEditor LINK_PUBLIC Primrose)

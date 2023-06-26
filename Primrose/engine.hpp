@@ -53,6 +53,10 @@ namespace Primrose {
 
 	extern VkDebugUtilsMessengerEXT debugMessenger; // handles logging validation details
 
+	// application functions
+	extern void(*mouseMovementCallback)(float xpos, float ypos, bool refocused);
+
+	// main functions
 	void setup(const char* appName, unsigned int appVer);
 
 	// glfw setup

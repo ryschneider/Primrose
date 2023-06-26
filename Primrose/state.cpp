@@ -2,9 +2,6 @@
 
 namespace Primrose {
 	// gameplay
-	glm::vec3 playerPos = glm::vec3(0.f, 0.f, 0.f);
-	glm::vec3 playerDir = glm::vec3(0.f, 0.f, 1.f);
-
 	float yaw = M_PI / 2.f;
 	float pitch = 0;
 

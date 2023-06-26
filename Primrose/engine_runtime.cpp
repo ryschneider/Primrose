@@ -98,10 +98,6 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 }
 
 void Primrose::updateUniforms(FrameInFlight& frame) {
-	// per-frame updates
-	uniforms.camPos = playerPos;
-	uniforms.camDir = playerDir;
-
 	//Runtime::uniforms.numPrimitives = Scene::primitives.size();
 	//Primitive* p = Scene::primitives.data();
 
