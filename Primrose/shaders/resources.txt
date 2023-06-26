@@ -1,0 +1,6 @@
+https://www.youtube.com/watch?v=62-pRVZuS5c
+https://iquilezles.org/articles/distfunctions/
+https://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions
+http://rodolphe-vaillant.fr/entry/86/implicit-surface-aka-signed-distance-field-definition#:~:text=An%20implicit%20surface%20is%20defined,signed)%20distance%20%2F%20density%20field.
+https://jasmcole.com/2019/10/03/signed-distance-fields/
+https://www.youtube.com/watch?v=BNZtUB7yhX4
