@@ -17,6 +17,7 @@
 #include <fstream>
 #include <cstring>
 
+#include <glm/gtx/rotate_vector.hpp>
 namespace Primrose {
 	VkInstance instance; // used as global vulkan state
 	VkPhysicalDevice physicalDevice; // graphics device
@@ -71,6 +72,14 @@ namespace Primrose {
 
 			yaw = fmod(yaw, glm::radians(360.f));
 			pitch = std::clamp(pitch, glm::radians(-89.99f), glm::radians(89.99f));
+
+
+
+			float dPitch = Settings::mouseSens * (ypos - lastY);
+			float dYaw = Settings::mouseSens * (xpos - lastX);
+			playerDir = glm::rotate(playerDir, dPitch, glm::normalize(glm::cross(uniforms.camUp, playerDir)));
+			playerDir = glm::rotate(playerDir, dYaw, uniforms.camUp);
+
 
 			lastX = xpos;
 			lastY = ypos;
@@ -350,6 +359,18 @@ void Primrose::initWindow() {
 	window = glfwCreateWindow(Settings::windowWidth, Settings::windowHeight, Settings::windowTitle, nullptr, nullptr);
 	if (window == nullptr) {
 		throw std::runtime_error("failed to create window");
+	}
+
+	{
+		int count;
+		GLFWmonitor* monitor = glfwGetMonitors(&count)[0];
+		const GLFWvidmode* mSize = glfwGetVideoMode(monitor);
+		int mx, my;
+		glfwGetMonitorPos(monitor, &mx, &my);
+
+		glfwSetWindowPos(window,
+			mx + (mSize->width - Settings::windowWidth)/2,
+			my + (mSize->height - Settings::windowHeight)/2);
 	}
 
 	glfwSetFramebufferSizeCallback(window, windowResizedCallback);

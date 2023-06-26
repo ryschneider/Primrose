@@ -93,7 +93,7 @@ void Primrose::addTranslate(float x, float y, float z) {
 		glm::vec3(1.f),
 		0.f, glm::vec3(1.f)));
 }
-void Primrose::addScalar(float scalar) {
+void Primrose::addScale(float scalar) {
 	addTransform(transformMatrix(
 		glm::vec3(0.f),
 		glm::vec3(scalar),

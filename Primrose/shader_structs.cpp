@@ -4,6 +4,12 @@ namespace Primrose {
 	const unsigned int PRIM_1 = 101;
 	const unsigned int PRIM_2 = 102;
 	const unsigned int PRIM_3 = 103;
+	const unsigned int PRIM_4 = 104;
+	const unsigned int PRIM_5 = 105;
+	const unsigned int PRIM_6 = 106;
+	const unsigned int PRIM_7 = 107;
+	const unsigned int PRIM_8 = 108;
+	const unsigned int PRIM_9 = 109;
 
 	const unsigned int PRIM_SPHERE = 201;
 	const unsigned int PRIM_BOX = 202;

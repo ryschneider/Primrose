@@ -12,7 +12,7 @@ namespace Primrose {
 
 	void addTransform(glm::mat4 matrix);
 	void addTranslate(float x, float y, float z);
-	void addScalar(float scalar);
+	void addScale(float scalar);
 	void addScale(float x, float y, float z);
 	void addRotate(float angle, glm::vec3 axis);
 

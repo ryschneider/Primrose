@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 
 namespace Primrose {
-	extern const unsigned int PRIM_1, PRIM_2, PRIM_3;
+	extern const unsigned int PRIM_1, PRIM_2, PRIM_3, PRIM_4, PRIM_5, PRIM_6, PRIM_7, PRIM_8, PRIM_9;
 	extern const unsigned int PRIM_SPHERE, PRIM_BOX, PRIM_TORUS, PRIM_LINE, PRIM_CYLINDER;
 	extern const unsigned int MAT_1, MAT_2, MAT_3;
 	extern const unsigned int OP_UNION, OP_INTERSECTION, OP_DIFFERENCE, OP_IDENTITY, OP_TRANSFORM;
@@ -34,6 +34,7 @@ struct Transformation {
 struct EngineUniforms {
 	alignas(16) glm::vec3 camPos;
 	alignas(16) glm::vec3 camDir;
+	alignas(16) glm::vec3 camUp = glm::vec3(0, 1, 0);
 	alignas(4) float screenHeight;
 
 	alignas(4) float focalLength;

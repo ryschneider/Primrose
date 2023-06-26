@@ -8,6 +8,12 @@ layout(location = 0) out vec4 fragColor;
 const uint PRIM_1 = 101;
 const uint PRIM_2 = 102;
 const uint PRIM_3 = 103;
+const uint PRIM_4 = 104;
+const uint PRIM_5 = 105;
+const uint PRIM_6 = 106;
+const uint PRIM_7 = 107;
+const uint PRIM_8 = 108;
+const uint PRIM_9 = 109;
 const uint PRIM_SPHERE = 201;
 const uint PRIM_BOX = 202;
 const uint PRIM_TORUS = 203; // params: minor radius
@@ -48,6 +54,7 @@ struct Transformation {
 layout(set = 0, binding = 0) uniform GlobalUniforms {
 	vec3 camPos;
 	vec3 camDir;
+	vec3 camUp;
 	float screenHeight;
 
 	float focalLength;
@@ -254,6 +261,12 @@ float prim3SDF(vec3 p) {
 	return -prim2SDF(p, 40.f);
 }
 
+float prim4SDF(vec3 p) {
+	float c = 10;
+	vec3 q = mod(p + 0.5*c, vec3(c)) - vec3(0.5*c);
+	return torusSDF(q, 0.3f);
+}
+
 float primSDF(vec3 p, Primitive prim) {
 	switch (prim.type) {
 		case PRIM_SPHERE: return sphereSDF(p);
@@ -264,6 +277,7 @@ float primSDF(vec3 p, Primitive prim) {
 		case PRIM_1: return prim1SDF(p, prim.a);
 		case PRIM_2: return prim2SDF(p, prim.a);
 		case PRIM_3: return prim3SDF(p);
+		case PRIM_4: return prim4SDF(p);
 	}
 }
 
@@ -358,7 +372,7 @@ Hit march(Ray ray) {
 // main
 void main() {
 	const vec3 forward = u.camDir;
-	const vec3 right = normalize(cross(vec3(0.f, 1.f, 0.f), forward));
+	const vec3 right = normalize(cross(u.camUp, forward));
 	const vec3 up = cross(forward, right);
 
 	vec3 focalPos = u.camPos - u.focalLength*forward;
