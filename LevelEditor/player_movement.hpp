@@ -4,7 +4,7 @@
 #include <glm/vec3.hpp>
 
 void updatePosition();
-void updateCamera();
+//void updateCamera();
 void mouseCallback(float xpos, float ypos, bool refocused);
 
 #endif

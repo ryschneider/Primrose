@@ -1,8 +1,8 @@
 #include "engine.hpp"
 #include "state.hpp"
 #include "engine_runtime.hpp"
-#include "shaders/vert_spv.h"
-#include "shaders/frag_spv.h"
+#include "embed/flat_vert_spv.h"
+#include "embed/main_frag_spv.h"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -837,8 +837,8 @@ void Primrose::createDescriptorSetLayout() {
 
 void Primrose::createGraphicsPipeline() {
 	// programmable shader stages
-	VkShaderModule vertModule = createShaderModule((uint32_t*)vertSpvData, vertSpvSize);
-	VkShaderModule fragModule = createShaderModule((uint32_t*)fragSpvData, fragSpvSize);
+	VkShaderModule vertModule = createShaderModule((uint32_t*)flatVertSpvData, flatVertSpvSize);
+	VkShaderModule fragModule = createShaderModule((uint32_t*)mainFragSpvData, mainFragSpvSize);
 
 	VkPipelineShaderStageCreateInfo vertStageInfo{};
 	vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

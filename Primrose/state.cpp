@@ -2,9 +2,6 @@
 
 namespace Primrose {
 	// gameplay
-	float yaw = M_PI / 2.f;
-	float pitch = 0;
-
 	float fov = glm::radians(90.f); // changes during gameplay
 	float zoom = 1.f;
 

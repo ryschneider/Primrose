@@ -1,19 +1,26 @@
 #!/bin/bash
 
-glslc -fshader-stage=$1 Primrose/shaders/main.$1 -o Primrose/shaders/$1.spv
+# usage: ./buildshader.sh Primrose/shaders/main.vert
+
+dir=${1%/*} # eg. Primrose/shaders
+fname=$(basename "$1") # eg. fname=main.vert
+name=${fname%.*} # eg. name=main
+stage=${fname##*.} # eg. stage=vert
+
+glslc -fshader-stage="$stage" "$1" -o "$dir/${name}_$stage.spv"
 if [[ $? -ne 0 ]] ; then
   exit 1
 fi
 
-echo "#ifndef ${1^^}_SPV_H
-#define ${1^^}_SPV_H
+echo "#ifndef ${name^^}_${stage^^}_SPV_H
+#define ${name^^}_${stage^^}_SPV_H
 #include <stdint.h>
-extern uint8_t $1SpvData[];
-extern size_t $1SpvSize;
-#endif" > "Primrose/shaders/$1_spv.h"
+extern uint8_t $name${stage^}SpvData[];
+extern size_t $name${stage^}SpvSize;
+#endif" > "$dir/../embed/${name}_${stage}_spv.h"
 
-echo "#include \"$1_spv.h\"
-uint8_t $1SpvData[] = {" > "Primrose/shaders/$1_spv.c"
-xxd -plain Primrose/shaders/$1.spv | sed 's/\(.\{2\}\)/0x\1,/g' >> "Primrose/shaders/$1_spv.c"
+echo "#include \"${name}_${stage}_spv.h\"
+uint8_t $name${stage^}SpvData[] = {" > "$dir/../embed/${name}_${stage}_spv.c"
+xxd -plain "$dir/${name}_$stage.spv" | sed 's/\(.\{2\}\)/0x\1,/g' >> "$dir/../embed/${name}_${stage}_spv.c"
 echo "};
-size_t $1SpvSize = sizeof($1SpvData);" >> "Primrose/shaders/$1_spv.c"
+size_t $name${stage^}SpvSize = sizeof($name${stage^}SpvData);" >> "$dir/../embed/${name}_${stage}_spv.c"

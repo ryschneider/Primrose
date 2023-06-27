@@ -5,7 +5,6 @@
 
 using namespace Primrose;
 
-#include <iostream>
 void updatePosition() {
 	glm::vec3 up = uniforms.camUp;
 	glm::vec3 forward = glm::normalize(uniforms.camDir - up * glm::dot(uniforms.camDir, up));
@@ -26,13 +25,13 @@ void updatePosition() {
 	uniforms.camPos += movement;
 }
 
-void updateCamera() {
-	uniforms.camDir = glm::vec3(
-		cos(yaw) * cos(pitch),
-		sin(pitch),
-		sin(yaw) * cos(pitch)
-	);
-}
+//void updateCamera() {
+//	uniforms.camDir = glm::vec3(
+//		cos(yaw) * cos(pitch),
+//		sin(pitch),
+//		sin(yaw) * cos(pitch)
+//	);
+//}
 
 void mouseCallback(float xpos, float ypos, bool refocused) {
 	static float lastX = 0;

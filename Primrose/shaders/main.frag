@@ -73,11 +73,11 @@ layout(push_constant) uniform PushConstant {
 // constants
 const vec3 BG_COLOR = vec3(0.01f, 0.01f, 0.01f);
 const float MAX_DIST = 1000.f;
-const float HIT_MARGIN = 0.005f;
+const float HIT_MARGIN = 0.05f;
 const float NORMAL_EPS = 0.001f; // small epsilon for normal calculations
 
-const int MAX_MARCHES = 2000;
-const int MAX_REFLECTIONS = 3;
+const int MAX_MARCHES = 100;
+const int MAX_REFLECTIONS = 2;
 const float REFL = 0.3f;
 
 const float PI = 3.14159265358979323846264f;

@@ -11,9 +11,6 @@
 
 namespace Primrose {
 	// gameplay
-	extern float yaw;
-	extern float pitch;
-
 	extern float fov;
 	extern float zoom;
 
