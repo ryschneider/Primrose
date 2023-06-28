@@ -2,7 +2,8 @@
 #include "state.hpp"
 #include "engine_runtime.hpp"
 #include "embed/flat_vert_spv.h"
-#include "embed/main_frag_spv.h"
+#include "embed/march_frag_spv.h"
+#include "embed/ui_frag_spv.h"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -25,7 +26,8 @@ namespace Primrose {
 	VkRenderPass renderPass; // render pass with commands used to render a frame
 	VkDescriptorSetLayout descriptorSetLayout; // layout for shader uniforms
 	VkPipelineLayout pipelineLayout; // graphics pipeline layout
-	VkPipeline graphicsPipeline; // graphics pipeline
+	VkPipeline marchPipeline; // graphics pipeline
+	VkPipeline uiPipeline; // ui pipeline
 
 	GLFWwindow* window;
 	VkSurfaceKHR surface;
@@ -385,7 +387,7 @@ void Primrose::initVulkan() {
 	createRenderPass();
 	createSwapchainFrames();
 	createDescriptorSetLayout();
-	createGraphicsPipeline();
+	createGraphicsPipelines();
 
 	createCommandPool();
 	createDescriptorPool();
@@ -406,7 +408,8 @@ void Primrose::cleanup() {
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);
 
-	vkDestroyPipeline(device, graphicsPipeline, nullptr);
+	vkDestroyPipeline(device, uiPipeline, nullptr);
+	vkDestroyPipeline(device, marchPipeline, nullptr);
 	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
@@ -835,10 +838,11 @@ void Primrose::createDescriptorSetLayout() {
 	}
 }
 
-void Primrose::createGraphicsPipeline() {
+void Primrose::createGraphicsPipelines() {
 	// programmable shader stages
 	VkShaderModule vertModule = createShaderModule((uint32_t*)flatVertSpvData, flatVertSpvSize);
-	VkShaderModule fragModule = createShaderModule((uint32_t*)mainFragSpvData, mainFragSpvSize);
+	VkShaderModule marchFragModule = createShaderModule((uint32_t*)marchFragSpvData, marchFragSpvSize);
+	VkShaderModule uiFragModule = createShaderModule((uint32_t*)uiFragSpvData, uiFragSpvSize);
 
 	VkPipelineShaderStageCreateInfo vertStageInfo{};
 	vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -850,11 +854,17 @@ void Primrose::createGraphicsPipeline() {
 	VkPipelineShaderStageCreateInfo fragStageInfo{};
 	fragStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	fragStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragStageInfo.module = fragModule;
 	fragStageInfo.pName = "main";
 	fragStageInfo.pSpecializationInfo = nullptr;
 
-	VkPipelineShaderStageCreateInfo shaderStagesInfo[] = { vertStageInfo, fragStageInfo };
+	VkPipelineShaderStageCreateInfo marchFragStageInfo = fragStageInfo;
+	marchFragStageInfo.module = marchFragModule;
+
+	VkPipelineShaderStageCreateInfo uiFragStageInfo = fragStageInfo;
+	uiFragStageInfo.module = uiFragModule;
+
+	VkPipelineShaderStageCreateInfo marchShaderStagesInfo[] = {vertStageInfo, marchFragStageInfo };
+	VkPipelineShaderStageCreateInfo uiShaderStagesInfo[] = {vertStageInfo, uiFragStageInfo };
 
 	// dynamic states
 	// makes viewport size and cull area dynamic at render time, so we dont need to recreate pipeline with every resize
@@ -903,8 +913,9 @@ void Primrose::createGraphicsPipeline() {
 	rasterizerInfo.rasterizerDiscardEnable = VK_FALSE; // disables rasterization
 	rasterizerInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizerInfo.lineWidth = 1;
-	rasterizerInfo.cullMode = VK_CULL_MODE_FRONT_BIT; // whether to cull faces
-	rasterizerInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizerInfo.cullMode = VK_CULL_MODE_NONE; // whether to cull faces
+//	rasterizerInfo.cullMode = VK_CULL_MODE_FRONT_BIT; // whether to cull faces
+//	rasterizerInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizerInfo.depthBiasEnable = VK_FALSE; // whether to alter depth values
 
 	// multisampling
@@ -917,7 +928,14 @@ void Primrose::createGraphicsPipeline() {
 	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
 	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
 		| VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachment.blendEnable = VK_FALSE;
+//	colorBlendAttachment.blendEnable = VK_FALSE;
+	colorBlendAttachment.blendEnable = VK_TRUE;
+	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendStateCreateInfo colorBlendInfo{};
 	colorBlendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -946,8 +964,6 @@ void Primrose::createGraphicsPipeline() {
 	// pipeline
 	VkGraphicsPipelineCreateInfo pipelineInfo{};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount = 2;
-	pipelineInfo.pStages = shaderStagesInfo;
 	pipelineInfo.pVertexInputState = &vertInputInfo;
 	pipelineInfo.pInputAssemblyState = &assemblyInfo;
 	pipelineInfo.pViewportState = &viewportInfo;
@@ -960,15 +976,32 @@ void Primrose::createGraphicsPipeline() {
 	}
 	pipelineInfo.layout = pipelineLayout;
 	pipelineInfo.renderPass = renderPass;
-	pipelineInfo.subpass = 0;
 
-	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+	VkGraphicsPipelineCreateInfo marchPipelineInfo = pipelineInfo;
+	marchPipelineInfo.stageCount = 2;
+	marchPipelineInfo.pStages = marchShaderStagesInfo;
+	marchPipelineInfo.subpass = 0;
+
+	VkGraphicsPipelineCreateInfo uiPipelineInfo = pipelineInfo;
+	uiPipelineInfo.stageCount = 2;
+	uiPipelineInfo.pStages = uiShaderStagesInfo;
+	uiPipelineInfo.subpass = 0;
+
+	VkGraphicsPipelineCreateInfo pipelineInfos[] = {marchPipelineInfo, uiPipelineInfo};
+	VkPipeline pipelines[2];
+
+	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 2, pipelineInfos, nullptr, pipelines) != VK_SUCCESS) {
+//	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &marchPipelineInfo, nullptr, &marchPipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline");
 	}
 
+	marchPipeline = pipelines[0];
+	uiPipeline = pipelines[1];
+
 	// cleanup
 	vkDestroyShaderModule(device, vertModule, nullptr);
-	vkDestroyShaderModule(device, fragModule, nullptr);
+	vkDestroyShaderModule(device, marchFragModule, nullptr);
+	vkDestroyShaderModule(device, uiFragModule, nullptr);
 }
 
 void Primrose::createCommandPool() {

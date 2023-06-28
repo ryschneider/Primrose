@@ -15,7 +15,8 @@ namespace Primrose {
 	extern VkRenderPass renderPass; // render pass with commands used to render a frame
 	extern VkDescriptorSetLayout descriptorSetLayout; // layout for shader uniforms
 	extern VkPipelineLayout pipelineLayout; // graphics pipeline layout
-	extern VkPipeline graphicsPipeline; // graphics pipeline
+	extern VkPipeline marchPipeline; // graphics pipeline
+	extern VkPipeline uiPipeline; // graphics pipeline
 
 	extern GLFWwindow* window;
 	extern VkSurfaceKHR surface;
@@ -78,7 +79,7 @@ namespace Primrose {
 	void createRenderPass();
 	void createSwapchainFrames();
 	void createDescriptorSetLayout();
-	void createGraphicsPipeline();
+	void createGraphicsPipelines();
 
 	void createCommandPool();
 	void createDescriptorPool();

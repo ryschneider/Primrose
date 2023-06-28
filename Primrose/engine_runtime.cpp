@@ -61,7 +61,7 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
 	vkCmdBeginRenderPass(commandBuffer, &renderBeginInfo, VK_SUBPASS_CONTENTS_INLINE); // cmd: begin render pass
 
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline); // cmd: bind pipeline
+//	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, marchPipeline); // cmd: bind pipeline
 
 	// set dynamic viewport and scissor
 	if (DYNAMIC_VIEWPORT) {
@@ -88,7 +88,16 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 	vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
 		sizeof(PushConstants), &push); // cmd: set push constants
 
+
+
+
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, marchPipeline); // cmd: bind pipeline
 	vkCmdDraw(commandBuffer, 3, 1, 0, 0); // cmd: draw
+
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, uiPipeline); // cmd: bind pipeline
+	vkCmdDraw(commandBuffer, 3, 1, 0, 0); // cmd: draw
+
+
 
 	vkCmdEndRenderPass(commandBuffer); // cmd: end render
 

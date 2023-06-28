@@ -6,19 +6,22 @@ set(CMAKE_CXX_STANDARD 17)
 # build shader files
 add_custom_target(build_shaders ALL
 	COMMAND bash -c "./Primrose/shaders/buildshader.sh Primrose/shaders/flat.vert"
-	COMMAND bash -c "./Primrose/shaders/buildshader.sh Primrose/shaders/main.frag"
-	DEPENDS Primrose/shaders/flat.vert Primrose/shaders/main.frag
+	COMMAND bash -c "./Primrose/shaders/buildshader.sh Primrose/shaders/march.frag"
+	COMMAND bash -c "./Primrose/shaders/buildshader.sh Primrose/shaders/ui.frag"
+	DEPENDS Primrose/shaders/flat.vert Primrose/shaders/march.frag
 	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 	COMMENT "Compiling shaders")
 
 set_property(SOURCE ${PROJECT_SOURCE_DIR}/Primrose/embed/flat_vert_spv.c PROPERTY GENERATED TRUE)
 set_property(SOURCE ${PROJECT_SOURCE_DIR}/Primrose/embed/flat_vert_spv.h PROPERTY GENERATED TRUE)
-set_property(SOURCE ${PROJECT_SOURCE_DIR}/Primrose/embed/main_frag_spv.c PROPERTY GENERATED TRUE)
-set_property(SOURCE ${PROJECT_SOURCE_DIR}/Primrose/embed/main_frag_spv.h PROPERTY GENERATED TRUE)
+set_property(SOURCE ${PROJECT_SOURCE_DIR}/Primrose/embed/march_frag_spv.c PROPERTY GENERATED TRUE)
+set_property(SOURCE ${PROJECT_SOURCE_DIR}/Primrose/embed/march_frag_spv.h PROPERTY GENERATED TRUE)
+set_property(SOURCE ${PROJECT_SOURCE_DIR}/Primrose/embed/ui_frag_spv.c PROPERTY GENERATED TRUE)
+set_property(SOURCE ${PROJECT_SOURCE_DIR}/Primrose/embed/ui_frag_spv.h PROPERTY GENERATED TRUE)
 
 # build primrose library
 add_library(Primrose
-	Primrose/embed/flat_vert_spv.c Primrose/embed/main_frag_spv.c
+	Primrose/embed/flat_vert_spv.c Primrose/embed/march_frag_spv.c Primrose/embed/ui_frag_spv.c
 	Primrose/engine_runtime.cpp Primrose/engine.cpp Primrose/scene.cpp Primrose/state.cpp Primrose/shader_structs.cpp)
 target_include_directories(Primrose PUBLIC C:/dev/include)
 target_include_directories(Primrose PUBLIC C:/VulkanSDK/1.3.250.0/Include)
@@ -28,12 +31,11 @@ add_dependencies(Primrose build_shaders)
 
 # delete generated shader files
 add_custom_command(TARGET Primrose POST_BUILD
-	COMMAND rm Primrose/shaders/main_frag.spv
-#	COMMAND rm Primrose/embed/main_frag_spv.h
-#	COMMAND rm Primrose/embed/main_frag_spv.c
-	COMMAND rm Primrose/shaders/flat_vert.spv
-#	COMMAND rm Primrose/embed/flat_vert_spv.h
-#	COMMAND rm Primrose/embed/flat_vert_spv.c
+	COMMAND rm Primrose/embed/flat_vert.spv
+	COMMAND rm Primrose/embed/march_frag.spv
+	COMMAND rm Primrose/embed/ui_frag.spv
+	COMMAND rm Primrose/embed/ui_frag_spv.c
+	COMMAND rm Primrose/embed/ui_frag_spv.h
 	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 	COMMENT "Deleting shaders")
 
