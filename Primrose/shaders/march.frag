@@ -208,7 +208,8 @@ float cylinderSDF(vec3 p) {
 
 float prim1SDF(vec3 pos, float a) {
 	// float t = p.time*0.7f - rand(a)*20.f;
-	float t = p.time*0.7f - a;
+//	float t = p.time*0.7f - a;
+	float t = 0;
 
 	float size = 0.2f * (4.f
 		+ (sin(1.f*t)+1.f)
@@ -371,6 +372,9 @@ Hit march(Ray ray) {
 
 // main
 void main() {
+//	fragColor = vec4(0.f, 1.f, 0.f, 1.f);
+//	return;
+
 	const vec3 forward = u.camDir;
 	const vec3 right = normalize(cross(u.camUp, forward));
 	const vec3 up = cross(forward, right);

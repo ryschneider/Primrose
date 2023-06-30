@@ -3,6 +3,7 @@
 #include "engine_runtime.hpp"
 #include "embed/flat_vert_spv.h"
 #include "embed/march_frag_spv.h"
+#include "embed/ui_vert_spv.h"
 #include "embed/ui_frag_spv.h"
 
 #define GLFW_INCLUDE_VULKAN
@@ -26,8 +27,12 @@ namespace Primrose {
 	VkRenderPass renderPass; // render pass with commands used to render a frame
 	VkDescriptorSetLayout descriptorSetLayout; // layout for shader uniforms
 	VkPipelineLayout pipelineLayout; // graphics pipeline layout
+
 	VkPipeline marchPipeline; // graphics pipeline
-	VkPipeline uiPipeline; // ui pipeline
+
+	VkPipeline uiPipeline; // graphics pipeline
+	VkBuffer uiVertexBuffer;
+	VkDeviceMemory uiVertexBufferMemory;
 
 	GLFWwindow* window;
 	VkSurfaceKHR surface;
@@ -246,7 +251,7 @@ std::vector<char> readBinaryFile(const std::string& fileName) {
 }
 
 void Primrose::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-							VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+	VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
 
 	// create buffer
 	VkBufferCreateInfo bufferInfo{};
@@ -295,6 +300,13 @@ void Primrose::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
 	}
 
 	vkBindBufferMemory(device, buffer, bufferMemory, 0); // bind memory to buffer
+}
+
+void Primrose::writeToDevice(VkDeviceMemory memory, void* data, size_t size) {
+	void* dst;
+	vkMapMemory(device, memory, 0, size, 0, &dst);
+	memcpy(dst, data, size);
+	vkUnmapMemory(device, memory);
 }
 
 VkShaderModule Primrose::createShaderModule(const uint32_t* code, size_t length) {
@@ -387,7 +399,8 @@ void Primrose::initVulkan() {
 	createRenderPass();
 	createSwapchainFrames();
 	createDescriptorSetLayout();
-	createGraphicsPipelines();
+	createPipelineLayout();
+	createPipelines();
 
 	createCommandPool();
 	createDescriptorPool();
@@ -404,6 +417,9 @@ void Primrose::cleanup() {
 		vkDestroyBuffer(device, frame.uniformBuffer, nullptr);
 		vkFreeMemory(device, frame.uniformBufferMemory, nullptr);
 	}
+
+	vkDestroyBuffer(device, uiVertexBuffer, nullptr);
+	vkFreeMemory(device, uiVertexBufferMemory, nullptr);
 
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);
@@ -838,33 +854,44 @@ void Primrose::createDescriptorSetLayout() {
 	}
 }
 
-void Primrose::createGraphicsPipelines() {
-	// programmable shader stages
-	VkShaderModule vertModule = createShaderModule((uint32_t*)flatVertSpvData, flatVertSpvSize);
-	VkShaderModule marchFragModule = createShaderModule((uint32_t*)marchFragSpvData, marchFragSpvSize);
-	VkShaderModule uiFragModule = createShaderModule((uint32_t*)uiFragSpvData, uiFragSpvSize);
+void Primrose::createPipelineLayout() {
+	VkPushConstantRange pushConstant{};
+	pushConstant.offset = 0;
+	pushConstant.size = sizeof(PushConstants);
+	pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkPipelineLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	layoutInfo.setLayoutCount = 1;
+	layoutInfo.pSetLayouts = &descriptorSetLayout;
+	layoutInfo.pPushConstantRanges = &pushConstant;
+	layoutInfo.pushConstantRangeCount = 1;
+
+	if (vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create pipeline layout");
+	}
+}
+
+VkPipeline Primrose::createPipeline(
+	VkShaderModule vertModule, VkShaderModule fragModule,
+	VkPipelineVertexInputStateCreateInfo vertInputInfo,
+	VkPipelineInputAssemblyStateCreateInfo assemblyInfo) {
 
 	VkPipelineShaderStageCreateInfo vertStageInfo{};
 	vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	vertStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertStageInfo.module = vertModule;
 	vertStageInfo.pName = "main"; // shader entrypoint
+	vertStageInfo.module = vertModule;
 	vertStageInfo.pSpecializationInfo = nullptr; // used to set constants for optimization
 
 	VkPipelineShaderStageCreateInfo fragStageInfo{};
 	fragStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	fragStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	fragStageInfo.pName = "main";
+	fragStageInfo.module = fragModule;
 	fragStageInfo.pSpecializationInfo = nullptr;
 
-	VkPipelineShaderStageCreateInfo marchFragStageInfo = fragStageInfo;
-	marchFragStageInfo.module = marchFragModule;
-
-	VkPipelineShaderStageCreateInfo uiFragStageInfo = fragStageInfo;
-	uiFragStageInfo.module = uiFragModule;
-
-	VkPipelineShaderStageCreateInfo marchShaderStagesInfo[] = {vertStageInfo, marchFragStageInfo };
-	VkPipelineShaderStageCreateInfo uiShaderStagesInfo[] = {vertStageInfo, uiFragStageInfo };
+	VkPipelineShaderStageCreateInfo shaderStagesInfo[] = {vertStageInfo, fragStageInfo};
 
 	// dynamic states
 	// makes viewport size and cull area dynamic at render time, so we dont need to recreate pipeline with every resize
@@ -873,18 +900,6 @@ void Primrose::createGraphicsPipelines() {
 	dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	dynamicStateInfo.dynamicStateCount = (uint32_t)dynamicStates.size();
 	dynamicStateInfo.pDynamicStates = dynamicStates.data();
-
-	// vertex input
-	VkPipelineVertexInputStateCreateInfo vertInputInfo{};
-	vertInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertInputInfo.vertexBindingDescriptionCount = 0; // no inputs
-	vertInputInfo.vertexAttributeDescriptionCount = 0;
-
-	// input assembly
-	VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
-	assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // one triangle every 3 vertices
-	assemblyInfo.primitiveRestartEnable = VK_FALSE;
 
 	// static viewport/scissor creation
 	VkViewport viewport{};
@@ -913,22 +928,19 @@ void Primrose::createGraphicsPipelines() {
 	rasterizerInfo.rasterizerDiscardEnable = VK_FALSE; // disables rasterization
 	rasterizerInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizerInfo.lineWidth = 1;
-	rasterizerInfo.cullMode = VK_CULL_MODE_NONE; // whether to cull faces
-//	rasterizerInfo.cullMode = VK_CULL_MODE_FRONT_BIT; // whether to cull faces
-//	rasterizerInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizerInfo.cullMode = VK_CULL_MODE_NONE; // dont cull backwards faces
 	rasterizerInfo.depthBiasEnable = VK_FALSE; // whether to alter depth values
 
 	// multisampling
 	VkPipelineMultisampleStateCreateInfo multisamplingInfo{};
 	multisamplingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisamplingInfo.sampleShadingEnable = VK_FALSE;
+	multisamplingInfo.sampleShadingEnable = VK_FALSE; // no multisampling
 	multisamplingInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	// colour blending
 	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
 	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
-		| VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-//	colorBlendAttachment.blendEnable = VK_FALSE;
+										  | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	colorBlendAttachment.blendEnable = VK_TRUE;
 	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -942,24 +954,6 @@ void Primrose::createGraphicsPipelines() {
 	colorBlendInfo.logicOpEnable = VK_FALSE;
 	colorBlendInfo.attachmentCount = 1;
 	colorBlendInfo.pAttachments = &colorBlendAttachment;
-
-	// push constants
-	VkPushConstantRange pushConstant{};
-	pushConstant.offset = 0;
-	pushConstant.size = sizeof(PushConstants);
-	pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// pipeline layout
-	VkPipelineLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	layoutInfo.setLayoutCount = 1;
-	layoutInfo.pSetLayouts = &descriptorSetLayout;
-	layoutInfo.pPushConstantRanges = &pushConstant;
-	layoutInfo.pushConstantRangeCount = 1;
-
-	if (vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create pipeline layout");
-	}
 
 	// pipeline
 	VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -976,32 +970,88 @@ void Primrose::createGraphicsPipelines() {
 	}
 	pipelineInfo.layout = pipelineLayout;
 	pipelineInfo.renderPass = renderPass;
+	pipelineInfo.stageCount = 2;
+	pipelineInfo.pStages = shaderStagesInfo;
+	pipelineInfo.subpass = 0;
 
-	VkGraphicsPipelineCreateInfo marchPipelineInfo = pipelineInfo;
-	marchPipelineInfo.stageCount = 2;
-	marchPipelineInfo.pStages = marchShaderStagesInfo;
-	marchPipelineInfo.subpass = 0;
-
-	VkGraphicsPipelineCreateInfo uiPipelineInfo = pipelineInfo;
-	uiPipelineInfo.stageCount = 2;
-	uiPipelineInfo.pStages = uiShaderStagesInfo;
-	uiPipelineInfo.subpass = 0;
-
-	VkGraphicsPipelineCreateInfo pipelineInfos[] = {marchPipelineInfo, uiPipelineInfo};
-	VkPipeline pipelines[2];
-
-	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 2, pipelineInfos, nullptr, pipelines) != VK_SUCCESS) {
-//	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &marchPipelineInfo, nullptr, &marchPipeline) != VK_SUCCESS) {
+	VkPipeline pipeline;
+	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline");
 	}
 
-	marchPipeline = pipelines[0];
-	uiPipeline = pipelines[1];
+	return pipeline;
+}
+
+void Primrose::createMarchPipeline() {
+	// shader modules
+	VkShaderModule vertModule = createShaderModule((uint32_t*)flatVertSpvData, flatVertSpvSize);
+	VkShaderModule fragModule = createShaderModule((uint32_t*)marchFragSpvData, marchFragSpvSize);
+
+	// vertex input
+	VkPipelineVertexInputStateCreateInfo vertInputInfo{};
+	vertInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertInputInfo.vertexBindingDescriptionCount = 0; // no inputs
+	vertInputInfo.vertexAttributeDescriptionCount = 0;
+
+	// input assembly
+	VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
+	assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // one triangle every 3 vertices
+	assemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+	// create pipeline
+	marchPipeline = createPipeline(vertModule, fragModule,
+		vertInputInfo, assemblyInfo);
 
 	// cleanup
 	vkDestroyShaderModule(device, vertModule, nullptr);
-	vkDestroyShaderModule(device, marchFragModule, nullptr);
-	vkDestroyShaderModule(device, uiFragModule, nullptr);
+	vkDestroyShaderModule(device, fragModule, nullptr);
+}
+
+void Primrose::createUIPipeline() {
+	// shader modules
+	VkShaderModule vertModule = createShaderModule((uint32_t*)uiVertSpvData, uiVertSpvSize);
+	VkShaderModule fragModule = createShaderModule((uint32_t*)uiFragSpvData, uiFragSpvSize);
+
+	// vertex input
+	auto bindingDesc = UIVertex::getBindingDescription();
+	auto attributeDescs = UIVertex::getAttributeDescriptions();
+
+	VkPipelineVertexInputStateCreateInfo vertInputInfo{};
+	vertInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertInputInfo.vertexBindingDescriptionCount = 1;
+	vertInputInfo.pVertexBindingDescriptions = &bindingDesc;
+	vertInputInfo.vertexAttributeDescriptionCount = attributeDescs.size();
+	vertInputInfo.pVertexAttributeDescriptions = attributeDescs.data();
+
+	// input assembly
+	VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
+	assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // one triangle every 3 vertices
+	assemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+	// create pipeline
+	uiPipeline = createPipeline(vertModule, fragModule,
+		vertInputInfo, assemblyInfo);
+
+	// cleanup
+	vkDestroyShaderModule(device, vertModule, nullptr);
+	vkDestroyShaderModule(device, fragModule, nullptr);
+}
+
+void Primrose::createUIVertexBuffer() {
+	size_t bufferSize = sizeof(uiVertices[0]) * uiVertices.size();
+
+	createBuffer(sizeof(uiVertices[0]) * uiVertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		uiVertexBuffer, uiVertexBufferMemory);
+
+	writeToDevice(uiVertexBufferMemory, uiVertices.data(), bufferSize);
+}
+
+void Primrose::createPipelines() {
+	createMarchPipeline();
+	createUIPipeline();
 }
 
 void Primrose::createCommandPool() {
@@ -1070,8 +1120,8 @@ void Primrose::createFramesInFlight() {
 
 		// create uniform buffers
 		createBuffer(sizeof(EngineUniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			//VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, // smart access memory (256 mb)
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+//			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, // smart access memory (256 mb)
 			frame.uniformBuffer, frame.uniformBufferMemory);
 
 		// allocate descriptor set

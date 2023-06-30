@@ -83,21 +83,25 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
 		0, 1, &currentFlight.descriptorSet, 0, nullptr); // cmd: bind descriptor sets
 
+	// push constants
 	PushConstants push{};
 	push.time = glfwGetTime();
 	vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
 		sizeof(PushConstants), &push); // cmd: set push constants
 
-
-
-
+	// draw 3d scene
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, marchPipeline); // cmd: bind pipeline
+
 	vkCmdDraw(commandBuffer, 3, 1, 0, 0); // cmd: draw
 
+	// draw ui
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, uiPipeline); // cmd: bind pipeline
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0); // cmd: draw
 
+	VkBuffer buffers[] = {uiVertexBuffer};
+	VkDeviceSize offsets[] = {0};
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
 
+	vkCmdDraw(commandBuffer, uiVertices.size(), 1, 0, 0); // cmd: draw
 
 	vkCmdEndRenderPass(commandBuffer); // cmd: end render
 
@@ -111,10 +115,7 @@ void Primrose::updateUniforms(FrameInFlight& frame) {
 	//Primitive* p = Scene::primitives.data();
 
 	// write data
-	void* data;
-	vkMapMemory(device, frame.uniformBufferMemory, 0, sizeof(uniforms), 0, &data);
-	memcpy(data, &uniforms, sizeof(uniforms));
-	vkUnmapMemory(device, frame.uniformBufferMemory);
+	writeToDevice(frame.uniformBufferMemory, &uniforms, sizeof(uniforms));
 }
 
 double frameTime;

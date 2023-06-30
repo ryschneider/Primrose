@@ -24,6 +24,8 @@ namespace Primrose {
 
 	extern EngineUniforms uniforms;
 
+	extern std::vector<UIVertex> uiVertices;
+
 	// engine constants
 	extern const std::vector<const char*> VALIDATION_LAYERS;
 	extern const std::vector<const char*> REQUIRED_EXTENSIONS;

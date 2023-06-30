@@ -1,6 +1,6 @@
 #version 450
 
-layout (location = 0) out vec2 uv;
+layout(location = 0) out vec2 uv;
 
 void main() {
 	// if (gl_VertexIndex == 0) {

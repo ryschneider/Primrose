@@ -1,7 +1,11 @@
 #ifndef PRIMROSE_SHADER_STRUCTS_HPP
 #define PRIMROSE_SHADER_STRUCTS_HPP
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <array>
+#include <vector>
 
 namespace Primrose {
 	extern const unsigned int PRIM_1, PRIM_2, PRIM_3, PRIM_4, PRIM_5, PRIM_6, PRIM_7, PRIM_8, PRIM_9;
@@ -49,5 +53,36 @@ struct EngineUniforms {
 struct PushConstants {
 	float time;
 };
+
+struct UIVertex {
+	glm::vec2 pos;
+	glm::vec2 uv;
+
+	static VkVertexInputBindingDescription getBindingDescription() {
+		VkVertexInputBindingDescription bindingDesc{};
+		bindingDesc.binding = 0;
+		bindingDesc.stride = sizeof(UIVertex);
+		bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+		return bindingDesc;
+	}
+
+	static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
+		std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+
+		attributeDescriptions[0].binding = 0;
+		attributeDescriptions[0].location = 0;
+		attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[0].offset = offsetof(UIVertex, pos);
+
+		attributeDescriptions[1].binding = 0;
+		attributeDescriptions[1].location = 1;
+		attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[1].offset = offsetof(UIVertex, uv);
+
+		return attributeDescriptions;
+	}
+};
+
 
 #endif

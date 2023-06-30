@@ -6,8 +6,6 @@
 #include <vector>
 
 namespace Primrose {
-
-
 	extern VkInstance instance; // used as global vulkan state
 	extern VkPhysicalDevice physicalDevice; // graphics device
 	extern VkDevice device; // logical connection to the physical device
@@ -15,8 +13,12 @@ namespace Primrose {
 	extern VkRenderPass renderPass; // render pass with commands used to render a frame
 	extern VkDescriptorSetLayout descriptorSetLayout; // layout for shader uniforms
 	extern VkPipelineLayout pipelineLayout; // graphics pipeline layout
+
 	extern VkPipeline marchPipeline; // graphics pipeline
+
 	extern VkPipeline uiPipeline; // graphics pipeline
+	extern VkBuffer uiVertexBuffer;
+	extern VkDeviceMemory uiVertexBufferMemory;
 
 	extern GLFWwindow* window;
 	extern VkSurfaceKHR surface;
@@ -79,7 +81,15 @@ namespace Primrose {
 	void createRenderPass();
 	void createSwapchainFrames();
 	void createDescriptorSetLayout();
-	void createGraphicsPipelines();
+
+	void createPipelineLayout();
+	VkPipeline createPipeline(VkShaderModule vertModule, VkShaderModule fragModule,
+		VkPipelineVertexInputStateCreateInfo vertInputInfo,
+		VkPipelineInputAssemblyStateCreateInfo assemblyInfo);
+	void createMarchPipeline();
+	void createUIPipeline();
+	void createUIVertexBuffer();
+	void createPipelines();
 
 	void createCommandPool();
 	void createDescriptorPool();
@@ -94,6 +104,7 @@ namespace Primrose {
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
 					  VkMemoryPropertyFlags properties, VkBuffer& buffer,
 					  VkDeviceMemory& bufferMemory);
+	void writeToDevice(VkDeviceMemory memory, void* data, size_t size);
 
 	VkShaderModule createShaderModule(const uint32_t* code, size_t length);
 }
