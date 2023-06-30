@@ -19,6 +19,8 @@ namespace Primrose {
 	extern VkPipeline uiPipeline; // graphics pipeline
 	extern VkBuffer uiVertexBuffer;
 	extern VkDeviceMemory uiVertexBufferMemory;
+	extern VkBuffer uiIndexBuffer;
+	extern VkDeviceMemory uiIndexBufferMemory;
 
 	extern GLFWwindow* window;
 	extern VkSurfaceKHR surface;
@@ -86,25 +88,35 @@ namespace Primrose {
 	VkPipeline createPipeline(VkShaderModule vertModule, VkShaderModule fragModule,
 		VkPipelineVertexInputStateCreateInfo vertInputInfo,
 		VkPipelineInputAssemblyStateCreateInfo assemblyInfo);
+
 	void createMarchPipeline();
+
 	void createUIPipeline();
-	void createUIVertexBuffer();
-	void createPipelines();
+	void createUIBuffers();
+	void createUITexture();
 
 	void createCommandPool();
 	void createDescriptorPool();
 	void createFramesInFlight();
 
+	void cleanup();
+
 	void cleanupSwapchain();
 	void recreateSwapchain();
 
-	void cleanup();
-
 	// other vulkan
-	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-					  VkMemoryPropertyFlags properties, VkBuffer& buffer,
-					  VkDeviceMemory& bufferMemory);
+	void createDeviceMemory(VkMemoryRequirements memReqs, VkMemoryPropertyFlags properties, VkDeviceMemory* memory);
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+		VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void writeToDevice(VkDeviceMemory memory, void* data, size_t size);
+
+	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+	void importTexture(const char* path, VkImage* image, VkDeviceMemory* imageMemory);
+
+	VkImageView createImageView(VkImage image, VkFormat format);
+
+	VkCommandBuffer startSingleTimeCommandBuffer();
+	void endSingleTimeCommandBuffer(VkCommandBuffer cmdBuffer);
 
 	VkShaderModule createShaderModule(const uint32_t* code, size_t length);
 }

@@ -81,6 +81,33 @@ void update() {
 }
 
 int main() {
+	float left = -1;
+	float top = -1;
+	float w = 0.1;
+	float h = 0.1;
+	float aleft = -1;
+	float atop = 1;
+	float aw = 0.8;
+	float ah = -0.25;
+	uiVertices = {
+		{{left, top}, {0, 0}},
+		{{left+w, top}, {1, 0}},
+		{{left, top+h}, {0, 1}},
+		{{left+w, top+h}, {1, 1}},
+
+		{{aleft, atop}, {0, 0}},
+		{{aleft+aw, atop}, {1, 0}},
+		{{aleft, atop+ah}, {0, 1}},
+		{{aleft+aw, atop+ah}, {1, 1}},
+	};
+	uiIndices = {
+		0, 1, 2,
+		2, 3, 1,
+
+		4, 5, 6,
+		6, 7, 5,
+	};
+
 	setup(APP_NAME, APP_VERSION);
 	mouseMovementCallback = mouseCallback;
 
@@ -89,14 +116,6 @@ int main() {
 //	addIdentity(0, true);
 
 	_planetScene();
-
-	uiVertices = {
-		{{0, 0}, {0, 0}},
-		{{1, 0}, {0, 1}},
-		{{1, 0}, {1, 0}},
-		{{1, 1}, {1, 1}}
-	};
-	createUIVertexBuffer();
 
 	run(update);
 }

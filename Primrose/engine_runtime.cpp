@@ -97,11 +97,12 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 	// draw ui
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, uiPipeline); // cmd: bind pipeline
 
-	VkBuffer buffers[] = {uiVertexBuffer};
-	VkDeviceSize offsets[] = {0};
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
+	VkDeviceSize offset = 0;
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &uiVertexBuffer, &offset);
+	vkCmdBindIndexBuffer(commandBuffer, uiIndexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-	vkCmdDraw(commandBuffer, uiVertices.size(), 1, 0, 0); // cmd: draw
+//	vkCmdDraw(commandBuffer, uiVertices.size(), 1, 0, 0); // cmd: draw
+	vkCmdDrawIndexed(commandBuffer, uiIndices.size(), 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(commandBuffer); // cmd: end render
 

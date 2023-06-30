@@ -35,7 +35,7 @@ struct Transformation {
 	alignas(4) float smallScale;
 };
 
-struct EngineUniforms {
+struct EngineUniform {
 	alignas(16) glm::vec3 camPos;
 	alignas(16) glm::vec3 camDir = glm::vec3(0, 0, 1);
 	alignas(16) glm::vec3 camUp = glm::vec3(0, 1, 0);

@@ -22,9 +22,14 @@ namespace Primrose {
 	extern bool windowMinimized;
 	extern bool windowFocused;
 
-	extern EngineUniforms uniforms;
+	extern EngineUniform uniforms;
 
 	extern std::vector<UIVertex> uiVertices;
+	extern std::vector<uint16_t> uiIndices;
+	extern VkImage uiTexture;
+	extern VkDeviceMemory uiTextureMemory;
+	extern VkImageView uiTextureImageView;
+	extern VkSampler uiTextureSampler;
 
 	// engine constants
 	extern const std::vector<const char*> VALIDATION_LAYERS;

@@ -13,9 +13,14 @@ namespace Primrose {
 	bool windowMinimized = false;
 	bool windowFocused = false;
 
-	EngineUniforms uniforms = {};
+	EngineUniform uniforms = {};
 
 	std::vector<UIVertex> uiVertices;
+	std::vector<uint16_t> uiIndices;
+	VkImage uiTexture;
+	VkDeviceMemory uiTextureMemory;
+	VkImageView uiTextureImageView;
+	VkSampler uiTextureSampler;
 
 	const std::vector<const char*> VALIDATION_LAYERS = { "VK_LAYER_KHRONOS_validation" };
 	const std::vector<const char*> REQUIRED_EXTENSIONS = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
