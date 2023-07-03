@@ -1,7 +1,10 @@
 #include <Primrose/core.hpp>
+#include <Primrose/ui_image.hpp>
 #include <iostream>
+#include <memory>
 
 #include "player_movement.hpp"
+#include "Primrose/ui_panel.hpp"
 
 const char* APP_NAME = "Level Editor";
 const unsigned int APP_VERSION = 001'000'000;
@@ -81,33 +84,6 @@ void update() {
 }
 
 int main() {
-	float left = -1;
-	float top = -1;
-	float w = 0.1;
-	float h = 0.1;
-	float aleft = -1;
-	float atop = 1;
-	float aw = 0.8;
-	float ah = -0.25;
-	uiVertices = {
-		{{left, top}, {0, 0}},
-		{{left+w, top}, {1, 0}},
-		{{left, top+h}, {0, 1}},
-		{{left+w, top+h}, {1, 1}},
-
-		{{aleft, atop}, {0, 0}},
-		{{aleft+aw, atop}, {1, 0}},
-		{{aleft, atop+ah}, {0, 1}},
-		{{aleft+aw, atop+ah}, {1, 1}},
-	};
-	uiIndices = {
-		0, 1, 2,
-		2, 3, 1,
-
-		4, 5, 6,
-		6, 7, 5,
-	};
-
 	setup(APP_NAME, APP_VERSION);
 	mouseMovementCallback = mouseCallback;
 
@@ -116,6 +92,22 @@ int main() {
 //	addIdentity(0, true);
 
 	_planetScene();
+
+//	UIImage* myImg = new UIImage(glm::vec2(-1, 1), glm::vec2(0.5, -0.5));
+//	myImg->init("resources/include_dirs_stb.png");
+//	uiScene.emplace_back(myImg);
+
+	UIPanel* myPanel1 = new UIPanel({0, 0}, {0.2, 0.1}, 0);
+	myPanel1->init(glm::vec3(0.1));
+	uiScene.emplace_back(myPanel1);
+
+	UIPanel* myPanel2 = new UIPanel({0, 0}, {0.2, 0.1}, 3.1415/4);
+	myPanel2->init(glm::vec3(0.2));
+	uiScene.emplace_back(myPanel2);
+
+	UIPanel* myPanel3 = new UIPanel({0, 0}, {0.2, 0.1}, 3.1415/2);
+	myPanel3->init(glm::vec3(0.3));
+	uiScene.emplace_back(myPanel3);
 
 	run(update);
 }

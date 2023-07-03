@@ -24,7 +24,7 @@ add_library(Primrose
 	Primrose/embed/ui_vert_spv.h
 	Primrose/embed/ui_frag_spv.h
 	Primrose/engine_runtime.cpp Primrose/engine.cpp Primrose/scene.cpp
-	Primrose/state.cpp Primrose/shader_structs.cpp Primrose/ui_element.cpp Primrose/ui_element.hpp)
+	Primrose/state.cpp Primrose/shader_structs.cpp Primrose/ui_element.cpp Primrose/ui_element.hpp Primrose/ui_panel.cpp Primrose/ui_panel.hpp Primrose/ui_image.cpp Primrose/ui_image.hpp Primrose/ui_text.cpp Primrose/ui_text.hpp)
 target_include_directories(Primrose PUBLIC C:/dev/include)
 target_include_directories(Primrose PUBLIC C:/VulkanSDK/1.3.250.0/Include)
 target_link_libraries(Primrose C:/dev/lib_mingw/libglfw3.a)

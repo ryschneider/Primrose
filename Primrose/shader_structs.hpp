@@ -12,6 +12,8 @@ namespace Primrose {
 	extern const unsigned int PRIM_SPHERE, PRIM_BOX, PRIM_TORUS, PRIM_LINE, PRIM_CYLINDER;
 	extern const unsigned int MAT_1, MAT_2, MAT_3;
 	extern const unsigned int OP_UNION, OP_INTERSECTION, OP_DIFFERENCE, OP_IDENTITY, OP_TRANSFORM;
+
+	extern const unsigned int UI_NULL, UI_IMAGE, UI_PANEL, UI_TEXT;
 }
 
 struct Primitive {
@@ -35,7 +37,7 @@ struct Transformation {
 	alignas(4) float smallScale;
 };
 
-struct EngineUniform {
+struct MarchUniforms {
 	alignas(16) glm::vec3 camPos;
 	alignas(16) glm::vec3 camDir = glm::vec3(0, 0, 1);
 	alignas(16) glm::vec3 camUp = glm::vec3(0, 1, 0);
@@ -84,5 +86,8 @@ struct UIVertex {
 	}
 };
 
+struct UIUniforms {
+	alignas(4) unsigned int type;
+};
 
 #endif

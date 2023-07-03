@@ -26,4 +26,9 @@ namespace Primrose {
 	const unsigned int OP_DIFFERENCE = 903;
 	const unsigned int OP_IDENTITY = 904;
 	const unsigned int OP_TRANSFORM = 905;
+
+	const unsigned int UI_NULL = 0;
+	const unsigned int UI_IMAGE = 1;
+	const unsigned int UI_PANEL = 2;
+	const unsigned int UI_TEXT = 3;
 }

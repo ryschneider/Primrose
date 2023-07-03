@@ -31,12 +31,7 @@ namespace Primrose {
 	VkPipelineLayout pipelineLayout; // graphics pipeline layout
 
 	VkPipeline marchPipeline; // graphics pipeline
-
 	VkPipeline uiPipeline; // graphics pipeline
-	VkBuffer uiVertexBuffer;
-	VkDeviceMemory uiVertexBufferMemory;
-	VkBuffer uiIndexBuffer;
-	VkDeviceMemory uiIndexBufferMemory;
 
 	GLFWwindow* window;
 	VkSurfaceKHR surface;
@@ -242,22 +237,16 @@ namespace Primrose {
 	}
 }
 
-std::vector<char> readBinaryFile(const std::string& fileName) {
-	std::ifstream file(fileName, std::ios::ate | std::ios::binary); // ate to start at end and see file size
+void Primrose::allocateDescriptorSet(VkDescriptorSet* descSet) {
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = descriptorPool;
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = &descriptorSetLayout;
 
-	if (!file.is_open()) {
-		std::cout << fileName;
-		throw std::runtime_error("failed to open file");
+	if (vkAllocateDescriptorSets(device, &allocInfo, descSet) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate descriptor set :)");
 	}
-
-	size_t fileSize = (size_t)file.tellg(); // get position in file, ie file size
-	std::vector<char> buffer(fileSize);
-
-	file.seekg(0); // go to start of file
-	file.read(buffer.data(), fileSize);
-
-	file.close();
-	return buffer;
 }
 
 void Primrose::createDeviceMemory(VkMemoryRequirements memReqs,
@@ -397,7 +386,7 @@ void Primrose::transitionImageLayout(VkImage image, VkFormat format, VkImageLayo
 		0, nullptr, 1, &barrier);
 	endSingleTimeCommandBuffer(cmdBuffer);
 }
-void Primrose::importTexture(const char* path, VkImage* image, VkDeviceMemory* imageMemory) {
+void Primrose::importTexture(const char* path, VkImage* image, VkDeviceMemory* imageMemory, float* aspect) {
 	// load image data
 	int width, height, channels;
 	std::cout << "Importing " << path << std::endl;
@@ -406,6 +395,8 @@ void Primrose::importTexture(const char* path, VkImage* image, VkDeviceMemory* i
 		throw std::runtime_error(std::string("stbi_uc error: ").append(stbi_failure_reason()));
 	}
 	VkDeviceSize dataSize = width * height * 4;
+
+	*aspect = (float)width / (float)height;
 
 	// create and write to staging buffer
 	VkBuffer stagingBuffer;
@@ -508,9 +499,9 @@ VkShaderModule Primrose::createShaderModule(const uint32_t* code, size_t length)
 
 
 
-void Primrose::setup(const char* appName, unsigned int appVersion) {
-	Primrose::appName = appName;
-	Primrose::appVersion = appVersion;
+void Primrose::setup(const char* applicationName, unsigned int applicationVersion) {
+	Primrose::appName = applicationName;
+	Primrose::appVersion = applicationVersion;
 
 	initWindow();
 	initVulkan();
@@ -589,11 +580,8 @@ void Primrose::initVulkan() {
 	createMarchPipeline();
 
 	createUIPipeline();
-	createUIBuffers();
 
 	createCommandPool();
-
-	createUITexture();
 
 	createDescriptorPool();
 	createFramesInFlight();
@@ -975,18 +963,25 @@ void Primrose::createDescriptorSetLayout() {
 	// texture binding
 	VkDescriptorSetLayoutBinding textureBinding{};
 	textureBinding.binding = 1; // binding in shader
-	textureBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // sampler
-	textureBinding.descriptorCount = 1; // numbers of samplers
+	textureBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // uniform buffer
+	textureBinding.descriptorCount = 1; // numbers of textures
 	textureBinding.pImmutableSamplers = nullptr;
 	textureBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // shader stage
 
-	// create descriptor set layout
 	VkDescriptorSetLayoutBinding bindings[2] = {uniformBinding, textureBinding};
 
+	// extra flags for descriptor set layout
+	VkDescriptorBindingFlags flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+	VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{};
+	bindingFlags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+	bindingFlags.pBindingFlags = &flags;
+
+	// create descriptor set layout
 	VkDescriptorSetLayoutCreateInfo info{};
 	info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	info.bindingCount = 2;
 	info.pBindings = bindings;
+	info.pNext = &bindingFlags;
 
 	if (vkCreateDescriptorSetLayout(device, &info, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor set layout");
@@ -996,7 +991,7 @@ void Primrose::createDescriptorSetLayout() {
 void Primrose::createPipelineLayout() {
 	VkPushConstantRange pushConstant{};
 	pushConstant.offset = 0;
-	pushConstant.size = sizeof(PushConstants);
+	pushConstant.size = 128; // min required size
 	pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	VkPipelineLayoutCreateInfo layoutInfo{};
@@ -1178,63 +1173,6 @@ void Primrose::createUIPipeline() {
 	vkDestroyShaderModule(device, fragModule, nullptr);
 }
 
-void Primrose::createUIBuffers() {
-	// vertex buffer
-	std::cout << "Creating UI vertex buffer" << std::endl;
-	VkDeviceSize vertexBufferSize = sizeof(uiVertices[0]) * uiVertices.size();
-	createBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		&uiVertexBuffer, &uiVertexBufferMemory);
-	writeToDevice(uiVertexBufferMemory, uiVertices.data(), vertexBufferSize);
-
-	// index buffer
-	std::cout << "Creating UI index buffer" << std::endl;
-	VkDeviceSize indexBufferSize = sizeof(uiVertices[0]) * uiVertices.size();
-	createBuffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		&uiIndexBuffer, &uiIndexBufferMemory);
-	writeToDevice(uiIndexBufferMemory, uiIndices.data(), indexBufferSize);
-
-	std::cout << std::endl; // newline
-}
-
-void Primrose::createUITexture() {
-	std::cout << "Creating UI texture" << std::endl;
-
-	// import image
-	importTexture("textures/include_dirs_stb.png", &uiTexture, &uiTextureMemory);
-
-	// create image view
-	uiTextureImageView = createImageView(uiTexture, VK_FORMAT_R8G8B8A8_SRGB);
-
-	// create sampler
-	VkPhysicalDeviceProperties deviceProperties{};
-	vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-
-	VkSamplerCreateInfo samplerInfo{};
-	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerInfo.magFilter = VK_FILTER_LINEAR; // when magnified, ie one fragment corresponds to multiple image pixels
-	samplerInfo.minFilter = VK_FILTER_LINEAR; // when minified, ie one fragment is between image pixels
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerInfo.anisotropyEnable = VK_TRUE; // TODO add to performance settings
-	samplerInfo.maxAnisotropy = deviceProperties.limits.maxSamplerAnisotropy;
-	samplerInfo.unnormalizedCoordinates = VK_FALSE; // true to sample using width/height coords instead of 0-1 range
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.mipLodBias = 0;
-	samplerInfo.minLod = 0;
-	samplerInfo.maxLod = 0;
-
-	if (vkCreateSampler(device, &samplerInfo, nullptr, &uiTextureSampler) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture sampler");
-	}
-
-	std::cout << std::endl; // newline
-}
-
 void Primrose::createCommandPool() {
 	QueueFamilyIndices indices = getQueueFamilies(physicalDevice);
 
@@ -1261,7 +1199,8 @@ void Primrose::createDescriptorPool() {
 	info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	info.poolSizeCount = 2;
 	info.pPoolSizes = poolSizes;
-	info.maxSets = (uint32_t)MAX_FRAMES_IN_FLIGHT;
+//	info.maxSets = (uint32_t)MAX_FRAMES_IN_FLIGHT;
+	info.maxSets = 100;
 
 	if (vkCreateDescriptorPool(device, &info, nullptr, &descriptorPool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor pool");
@@ -1305,21 +1244,12 @@ void Primrose::createFramesInFlight() {
 		}
 
 		// create uniform buffers
-		createBuffer(sizeof(EngineUniform), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		createBuffer(sizeof(MarchUniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 //			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, // smart access memory (256 mb)
 			&frame.uniformBuffer, &frame.uniformBufferMemory);
 
-		// allocate descriptor set
-		VkDescriptorSetAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		allocInfo.descriptorPool = descriptorPool;
-		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = &descriptorSetLayout;
-
-		if (vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate descriptor set");
-		}
+		allocateDescriptorSet(&frame.descriptorSet);
 
 		VkWriteDescriptorSet descriptorWrite{};
 		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1327,28 +1257,15 @@ void Primrose::createFramesInFlight() {
 		descriptorWrite.dstArrayElement = 0; // not using an array, 0
 		descriptorWrite.descriptorCount = 1;
 
-		VkWriteDescriptorSet descriptorWrites[2] = {descriptorWrite, descriptorWrite};
-
-		// set up uniform buffer
 		VkDescriptorBufferInfo uniformBufferInfo{};
 		uniformBufferInfo.buffer = frame.uniformBuffer;
 		uniformBufferInfo.offset = 0;
-		uniformBufferInfo.range = sizeof(EngineUniform);
-		descriptorWrites[0].dstBinding = 0; // which binding index
-		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites[0].pBufferInfo = &uniformBufferInfo;
+		uniformBufferInfo.range = sizeof(MarchUniforms);
+		descriptorWrite.dstBinding = 0; // which binding index
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite.pBufferInfo = &uniformBufferInfo;
 
-		// set up sampler
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = uiTextureImageView;
-		imageInfo.sampler = uiTextureSampler;
-		descriptorWrites[1].dstBinding = 1; // which binding index
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[1].pImageInfo = &imageInfo;
-
-		vkUpdateDescriptorSets(device, 2, descriptorWrites,
-			0, nullptr); // apply write
+		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr); // apply write
 	}
 
 	std::cout << std::endl; // newline
@@ -1367,15 +1284,7 @@ void Primrose::cleanup() {
 		vkFreeMemory(device, frame.uniformBufferMemory, nullptr);
 	}
 
-	vkDestroyBuffer(device, uiVertexBuffer, nullptr);
-	vkFreeMemory(device, uiVertexBufferMemory, nullptr);
-	vkDestroyBuffer(device, uiIndexBuffer, nullptr);
-	vkFreeMemory(device, uiIndexBufferMemory, nullptr);
-
-	vkDestroyImage(device, uiTexture, nullptr);
-	vkFreeMemory(device, uiTextureMemory, nullptr);
-	vkDestroyImageView(device, uiTextureImageView, nullptr);
-	vkDestroySampler(device, uiTextureSampler, nullptr);
+	uiScene.clear();
 
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);

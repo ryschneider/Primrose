@@ -15,12 +15,7 @@ namespace Primrose {
 	extern VkPipelineLayout pipelineLayout; // graphics pipeline layout
 
 	extern VkPipeline marchPipeline; // graphics pipeline
-
 	extern VkPipeline uiPipeline; // graphics pipeline
-	extern VkBuffer uiVertexBuffer;
-	extern VkDeviceMemory uiVertexBufferMemory;
-	extern VkBuffer uiIndexBuffer;
-	extern VkDeviceMemory uiIndexBufferMemory;
 
 	extern GLFWwindow* window;
 	extern VkSurfaceKHR surface;
@@ -62,7 +57,7 @@ namespace Primrose {
 	extern void(*mouseMovementCallback)(float xpos, float ypos, bool refocused);
 
 	// main functions
-	void setup(const char* appName, unsigned int appVer);
+	void setup(const char* applicationName, unsigned int applicationVersion);
 
 	// glfw setup
 	void initWindow();
@@ -90,10 +85,7 @@ namespace Primrose {
 		VkPipelineInputAssemblyStateCreateInfo assemblyInfo);
 
 	void createMarchPipeline();
-
 	void createUIPipeline();
-	void createUIBuffers();
-	void createUITexture();
 
 	void createCommandPool();
 	void createDescriptorPool();
@@ -105,13 +97,15 @@ namespace Primrose {
 	void recreateSwapchain();
 
 	// other vulkan
+	void allocateDescriptorSet(VkDescriptorSet* descSet);
+
 	void createDeviceMemory(VkMemoryRequirements memReqs, VkMemoryPropertyFlags properties, VkDeviceMemory* memory);
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
 		VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void writeToDevice(VkDeviceMemory memory, void* data, size_t size);
 
 	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-	void importTexture(const char* path, VkImage* image, VkDeviceMemory* imageMemory);
+	void importTexture(const char* path, VkImage* image, VkDeviceMemory* imageMemory, float* aspect = nullptr);
 
 	VkImageView createImageView(VkImage image, VkFormat format);
 

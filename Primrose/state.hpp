@@ -2,12 +2,14 @@
 #define PRIMROSE_STATE_HPP
 
 #include "shader_structs.hpp"
+#include "ui_element.hpp"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <vector>
 #include <map>
+#include <memory>
 
 namespace Primrose {
 	// gameplay
@@ -22,14 +24,9 @@ namespace Primrose {
 	extern bool windowMinimized;
 	extern bool windowFocused;
 
-	extern EngineUniform uniforms;
+	extern MarchUniforms uniforms;
 
-	extern std::vector<UIVertex> uiVertices;
-	extern std::vector<uint16_t> uiIndices;
-	extern VkImage uiTexture;
-	extern VkDeviceMemory uiTextureMemory;
-	extern VkImageView uiTextureImageView;
-	extern VkSampler uiTextureSampler;
+	extern std::vector<std::unique_ptr<UIElement>> uiScene;
 
 	// engine constants
 	extern const std::vector<const char*> VALIDATION_LAYERS;

@@ -97,12 +97,29 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 	// draw ui
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, uiPipeline); // cmd: bind pipeline
 
-	VkDeviceSize offset = 0;
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &uiVertexBuffer, &offset);
-	vkCmdBindIndexBuffer(commandBuffer, uiIndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+	for (const auto& element : uiScene) {
+		if (element->hide) continue;
+		if (element->pPush != nullptr) {
+			// push custom struct
+			vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+				element->pushSize, element->pPush);
+		} else {
+			// push ui type
+			vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+				sizeof(element->uiType), &element->uiType);
+		}
 
-//	vkCmdDraw(commandBuffer, uiVertices.size(), 1, 0, 0); // cmd: draw
-	vkCmdDrawIndexed(commandBuffer, uiIndices.size(), 1, 0, 0, 0);
+		if (element->descriptorSet != VK_NULL_HANDLE) {
+			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+				0, 1, &element->descriptorSet, 0, nullptr);
+		}
+
+		VkDeviceSize offset = 0;
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &(element->vertexBuffer), &offset);
+		vkCmdBindIndexBuffer(commandBuffer, element->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+		vkCmdDrawIndexed(commandBuffer, element->numIndices, 1, 0, 0, 0);
+	}
 
 	vkCmdEndRenderPass(commandBuffer); // cmd: end render
 
