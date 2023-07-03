@@ -46,8 +46,8 @@ void mouseCallback(float xpos, float ypos, bool refocused) {
 	float yaw = Settings::mouseSens * (xpos - lastX);
 	float pitch = Settings::mouseSens * (ypos - lastY);
 
-	glm::vec3 newDir = glm::rotate(uniforms.camDir, pitch,
-		glm::normalize(glm::cross(uniforms.camUp, uniforms.camDir)));
+	glm::vec3 right = glm::normalize(glm::cross(uniforms.camUp, uniforms.camDir));
+	glm::vec3 newDir = glm::rotate(uniforms.camDir, pitch, right);
 	if (abs(glm::dot(newDir, uniforms.camUp)) < 0.9) {
 		uniforms.camDir = newDir; // only pitch if not getting to close to exactly up/down
 	}
