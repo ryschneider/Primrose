@@ -25,14 +25,6 @@ void Primrose::UIImage::init(const char *imagePath) {
 	std::cout << std::endl; // newline
 }
 
-std::vector<UIVertex> Primrose::UIImage::genVertices() {
-	std::vector<UIVertex> verts = UIElement::genVertices();
-	for (auto& v : verts) {
-		v.pos.x *= aspect;
-	}
-	return verts;
-}
-
 void Primrose::UIImage::createDescriptorSet() {
 	allocateDescriptorSet(&descriptorSet);
 
@@ -51,7 +43,7 @@ void Primrose::UIImage::createDescriptorSet() {
 	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	descriptorWrite.pImageInfo = &imageInfo;
 
-	vkUpdateDescriptorSets(device, 1, &descriptorWrite,0, nullptr); // apply write
+	vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr); // apply write
 }
 
 void Primrose::UIImage::createSampler() {
@@ -78,4 +70,12 @@ void Primrose::UIImage::createSampler() {
 	if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create texture sampler");
 	}
+}
+
+std::vector<UIVertex> Primrose::UIImage::genVertices() {
+	std::vector<UIVertex> verts = UIElement::genVertices();
+	for (auto& v : verts) {
+		v.pos.x *= aspect;
+	}
+	return verts;
 }

@@ -13,10 +13,9 @@ namespace Primrose {
 
 	private:
 		void createDescriptorSet();
+		void createSampler();
 
 		std::vector<UIVertex> genVertices();
-
-		void createSampler();
 
 		float aspect; // width / height
 

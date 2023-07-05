@@ -431,7 +431,7 @@ void Primrose::importTexture(const char* path, VkImage* image, VkDeviceMemory* i
 	// create & bind image memory
 	VkMemoryRequirements memReqs;
 	vkGetImageMemoryRequirements(device, *image, &memReqs);
-	createDeviceMemory(memReqs,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,imageMemory);
+	createDeviceMemory(memReqs, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, imageMemory);
 	vkBindImageMemory(device, *image, *imageMemory, 0);
 
 	// transition image layout to optimal destination layout

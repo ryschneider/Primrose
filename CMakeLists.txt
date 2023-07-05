@@ -17,6 +17,9 @@ add_custom_command(OUTPUT
 	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 	COMMENT "Compiling shaders")
 
+set(CMAKE_EXE_LINKER_FLAGS "-static")
+#target_link_libraries(your_target_name -static)
+
 # build primrose library
 add_library(Primrose
 	Primrose/embed/flat_vert_spv.h
@@ -27,8 +30,11 @@ add_library(Primrose
 	Primrose/state.cpp Primrose/shader_structs.cpp Primrose/ui_element.cpp Primrose/ui_element.hpp Primrose/ui_panel.cpp Primrose/ui_panel.hpp Primrose/ui_image.cpp Primrose/ui_image.hpp Primrose/ui_text.cpp Primrose/ui_text.hpp)
 target_include_directories(Primrose PUBLIC C:/dev/include)
 target_include_directories(Primrose PUBLIC C:/VulkanSDK/1.3.250.0/Include)
+target_include_directories(Primrose PUBLIC C:/dev/include/freetype)
+
 target_link_libraries(Primrose C:/dev/lib_mingw/libglfw3.a)
 target_link_libraries(Primrose C:/VulkanSDK/1.3.250.0/Lib/vulkan-1.lib)
+target_link_libraries(Primrose C:/dev/lib_mingw/libfreetype.a)
 
 # build demo application
 add_executable(PrimroseDemo PrimroseDemo/main.cpp LevelEditor/player_movement.cpp)

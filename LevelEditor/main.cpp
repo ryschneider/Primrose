@@ -5,6 +5,7 @@
 
 #include "player_movement.hpp"
 #include "Primrose/ui_panel.hpp"
+#include "Primrose/ui_text.hpp"
 
 const char* APP_NAME = "Level Editor";
 const unsigned int APP_VERSION = 001'000'000;
@@ -97,17 +98,22 @@ int main() {
 //	myImg->init("resources/include_dirs_stb.png");
 //	uiScene.emplace_back(myImg);
 
-	UIPanel* myPanel1 = new UIPanel({0, 0}, {0.2, 0.1}, 0);
-	myPanel1->init(glm::vec3(0.1));
-	uiScene.emplace_back(myPanel1);
+//	UIPanel* myPanel1 = new UIPanel({0, 0}, {0.2, 0.1}, 0);
+//	myPanel1->init(glm::vec3(0.1));
+//	uiScene.emplace_back(myPanel1);
+//
+//	UIPanel* myPanel2 = new UIPanel({0, 0}, {0.2, 0.1}, 3.1415/4);
+//	myPanel2->init(glm::vec3(0.2));
+//	uiScene.emplace_back(myPanel2);
+//
+//	UIPanel* myPanel3 = new UIPanel({0, 0}, {0.2, 0.1}, 3.1415/2);
+//	myPanel3->init(glm::vec3(0.3));
+//	uiScene.emplace_back(myPanel3);
 
-	UIPanel* myPanel2 = new UIPanel({0, 0}, {0.2, 0.1}, 3.1415/4);
-	myPanel2->init(glm::vec3(0.2));
-	uiScene.emplace_back(myPanel2);
-
-	UIPanel* myPanel3 = new UIPanel({0, 0}, {0.2, 0.1}, 3.1415/2);
-	myPanel3->init(glm::vec3(0.3));
-	uiScene.emplace_back(myPanel3);
+	UIText* myText = new UIText();
+	myText->text = "123";
+	myText->init("resources/cour.ttf");
+	uiScene.emplace_back(myText);
 
 	run(update);
 }
