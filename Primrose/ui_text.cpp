@@ -1,5 +1,6 @@
 #include "ui_text.hpp"
 #include "engine.hpp"
+#include "state.hpp"
 
 #include <stdexcept>
 #include <map>
@@ -131,7 +132,7 @@ std::map<char, CharTexture> Primrose::UIText::createSampler(int* getWidth, int* 
 		region.imageSubresource.baseArrayLayer = 0;
 		region.imageSubresource.layerCount = 1;
 		region.imageOffset = {tex.texX, 0, 0 };
-		region.imageExtent = {tex.width, tex.height, 1 };
+		region.imageExtent = { tex.width, tex.height, 1 };
 
 		vkCmdCopyBufferToImage(cmdBuffer, pair.second.buffer,
 			texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -188,36 +189,46 @@ std::vector<UIVertex> Primrose::UIText::genVertices() {
 	auto characters = createSampler(&width, &height);
 
 	std::vector<UIVertex> vertices;
-	float originX = 0;
+	float originX = 0; // in px
 	for (const char& c : text) {
 		CharTexture tex = characters[c];
 
-		float uvLeft = originX;
+		float uvLeft = (float)tex.texX / (float)width;
 		float uvTop = 0;
 		float uvW = (float)tex.width / (float)width;
 		float uvH = (float)tex.height / (float)height;
 
-		float posLeft = originX + tex.bearingX / (float)width;
-		float posTop = 0 - tex.bearingY / (float)width;
-		float posW = (float)tex.width / (float)width;
-		float posH = (float)tex.height / (float)width;
+		float posLeft = originX + tex.bearingX;
+		float posTop = 0 - tex.bearingY;
+		float posW = tex.width;
+		float posH = tex.height;
 
 		vertices.push_back({{posLeft, posTop}, {uvLeft, uvTop}});
 		vertices.push_back({{posLeft, posTop + posH}, {uvLeft, uvTop + uvH}});
 		vertices.push_back({{posLeft + posW, posTop}, {uvLeft + uvW, uvTop}});
 		vertices.push_back({{posLeft + posW, posTop + posH}, {uvLeft + uvW, uvTop + uvH}});
 
-		originX += tex.advance * 64 / (float)width;
+		originX += tex.advance / 64.f;
 	}
 
-	return UIElement::genVertices();
+	int c = 0;
+	for (const auto& v : vertices) {
+		std::cout << "pos: " << v.pos.x << "," << v.pos.y << ", uv: " << v.uv.x << "," << v.uv.y << std::endl;
+		++c;
+		if (c == 4) {
+			std::cout << std::endl;
+			c = 0;
+		}
+	}
+
+	return vertices;
 }
 
 std::vector<uint16_t> Primrose::UIText::genIndices() {
 	std::vector<uint16_t> indices;
 	int offset = 0;
 	for (const char& c : text) {
-		indices.insert(indices.end(), { (uint16_t)offset, (uint16_t)(offset+1), (uint16_t)(offset+2) });
+		indices.insert(indices.end(), { (uint16_t)(offset+0), (uint16_t)(offset+1), (uint16_t)(offset+2) });
 		indices.insert(indices.end(), { (uint16_t)(offset+2), (uint16_t)(offset+1), (uint16_t)(offset+3) });
 		offset += 4;
 	}

@@ -1,12 +1,16 @@
 #include "ui_element.hpp"
 #include "engine.hpp"
 #include "shader_structs.hpp"
+#include "state.hpp"
 
 #include <glm/gtx/rotate_vector.hpp>
 #include <iostream>
 
 Primrose::UIElement::UIElement(glm::vec2 pos, glm::vec2 scale, float angle)
 	: pos(pos), scale(scale), angle(angle) {}
+
+Primrose::UIElement::UIElement(glm::vec2 pos, float scale, float angle)
+    : pos(pos), scale(glm::vec3(scale)), angle(angle) {}
 
 Primrose::UIElement::~UIElement() {
 	vkDestroyBuffer(device, vertexBuffer, nullptr);
@@ -36,6 +40,7 @@ void Primrose::UIElement::updateBuffers() {
 	for (auto& v : vertices) {
 		// apply transformations
 		v.pos *= scale;
+        v.pos.y /= uniforms.screenHeight;
 		float oldM = v.pos.length();
 		v.pos = glm::rotate(v.pos, angle);
 //		v.pos = glm::vec2(

@@ -109,11 +109,27 @@ int main() {
 //	UIPanel* myPanel3 = new UIPanel({0, 0}, {0.2, 0.1}, 3.1415/2);
 //	myPanel3->init(glm::vec3(0.3));
 //	uiScene.emplace_back(myPanel3);
+    {
+        UIText* myText = new UIText({-1, 0}, 0.01);
+        myText->text = "hello789";
+        myText->init("resources/arial.ttf");
+        uiScene.emplace_back(myText);
 
-	UIText* myText = new UIText();
-	myText->text = "123";
-	myText->init("resources/cour.ttf");
-	uiScene.emplace_back(myText);
+        UIPanel* myPanel = new UIPanel({-1, 0}, {2, 0.001});
+        myPanel->init(glm::vec3(1, 0, 0));
+        uiScene.emplace_back(myPanel);
+    }
+
+    {
+        UIText* myText = new UIText({-1, 0.5}, 0.01);
+        myText->text = "123456789g";
+        myText->init("resources/arial.ttf");
+        uiScene.emplace_back(myText);
+
+        UIPanel* myPanel = new UIPanel({-1, 0.5}, {2, 0.001});
+        myPanel->init(glm::vec3(1, 0, 0));
+        uiScene.emplace_back(myPanel);
+    }
 
 	run(update);
 }

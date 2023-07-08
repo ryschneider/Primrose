@@ -22,6 +22,8 @@ layout(push_constant) uniform PushConstant {
 void main() {
     if (p.uiType == UI_IMAGE) {
         fragColor = texture(texSampler, uv);
+    } else if (p.uiType == UI_TEXT) {
+        fragColor = vec4(texture(texSampler, uv).r);
     } else if (p.uiType == UI_PANEL) {
         vec2 rel = abs(0.5 - uv); // distance from centre
         if (max(rel.x, rel.y) > 0.5 - p.borderStroke) fragColor = p.borderColor;
