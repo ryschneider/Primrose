@@ -1,34 +1,34 @@
 #include "shader_structs.hpp"
 
 namespace Primrose {
-	const unsigned int PRIM_1 = 101;
-	const unsigned int PRIM_2 = 102;
-	const unsigned int PRIM_3 = 103;
-	const unsigned int PRIM_4 = 104;
-	const unsigned int PRIM_5 = 105;
-	const unsigned int PRIM_6 = 106;
-	const unsigned int PRIM_7 = 107;
-	const unsigned int PRIM_8 = 108;
-	const unsigned int PRIM_9 = 109;
+//	const uint PRIM_1 = 101;
+//	const uint PRIM_2 = 102;
+//	const uint PRIM_3 = 103;
+//	const uint PRIM_4 = 104;
+//	const uint PRIM_5 = 105;
+//	const uint PRIM_6 = 106;
+//	const uint PRIM_7 = 107;
+//	const uint PRIM_8 = 108;
+//	const uint PRIM_9 = 109;
+//
+//	const uint PRIM_SPHERE = 201;
+//	const uint PRIM_BOX = 202;
+//	const uint PRIM_TORUS = 203;
+//	const uint PRIM_LINE = 204;
+//	const uint PRIM_CYLINDER = 205;
 
-	const unsigned int PRIM_SPHERE = 201;
-	const unsigned int PRIM_BOX = 202;
-	const unsigned int PRIM_TORUS = 203;
-	const unsigned int PRIM_LINE = 204;
-	const unsigned int PRIM_CYLINDER = 205;
+	const uint MAT_1 = 301;
+	const uint MAT_2 = 302;
+	const uint MAT_3 = 303;
 
-	const unsigned int MAT_1 = 301;
-	const unsigned int MAT_2 = 302;
-	const unsigned int MAT_3 = 303;
+	const uint OP_UNION = 901;
+	const uint OP_INTERSECTION = 902;
+	const uint OP_DIFFERENCE = 903;
+	const uint OP_IDENTITY = 904;
+	const uint OP_TRANSFORM = 905;
 
-	const unsigned int OP_UNION = 901;
-	const unsigned int OP_INTERSECTION = 902;
-	const unsigned int OP_DIFFERENCE = 903;
-	const unsigned int OP_IDENTITY = 904;
-	const unsigned int OP_TRANSFORM = 905;
-
-	const unsigned int UI_NULL = 0;
-	const unsigned int UI_IMAGE = 1;
-	const unsigned int UI_PANEL = 2;
-	const unsigned int UI_TEXT = 3;
+	const uint UI_NULL = 0;
+	const uint UI_IMAGE = 1;
+	const uint UI_PANEL = 2;
+	const uint UI_TEXT = 3;
 }

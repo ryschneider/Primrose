@@ -6,6 +6,11 @@
 #include <map>
 #include <iostream>
 
+const std::string Primrose::UIText::NUMERIC = std::string("1234567890");
+const std::string Primrose::UIText::UPPERCASE = std::string("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+const std::string Primrose::UIText::LOWERCASE = std::string("abcdefghijklmnopqrstuvwxyz");
+const std::string Primrose::UIText::ALPHANUMERIC = NUMERIC + UPPERCASE + LOWERCASE;
+
 Primrose::UIText::~UIText() {
 	vkDestroyImage(device, texture, nullptr);
 	vkFreeMemory(device, textureMemory, nullptr);
@@ -16,18 +21,14 @@ Primrose::UIText::~UIText() {
 void Primrose::UIText::init(const char* fontPath, int fntSize) {
 	std::cout << "Creating UIText from path: " << fontPath << std::endl;
 
-	FT_Library ft;
-	if (FT_Init_FreeType(&ft)) {
-		throw std::runtime_error("could not initialise freetype library");
-	}
-
-	if (FT_New_Face(ft, fontPath, 0, &fontFace)) {
-		throw std::runtime_error(std::string("could not load font: ").append(fontPath));
-	}
-
 	fontSize = fntSize;
+	if (alphabet == "") alphabet = text;
+
+	loadAlphabet(fontPath);
 
 	UIElement::init(UI_TEXT);
+
+	std::cout << std::endl; // newline
 }
 
 void Primrose::UIText::createDescriptorSet() {
@@ -51,33 +52,49 @@ void Primrose::UIText::createDescriptorSet() {
 	vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr); // apply write
 }
 
-std::map<char, CharTexture> Primrose::UIText::createSampler(int* getWidth, int* getHeight) {
-	FT_Set_Pixel_Sizes(fontFace, 0, fontSize);
+void Primrose::UIText::loadAlphabet(const char* fontPath) {
+	FT_Library ft;
+	if (FT_Init_FreeType(&ft)) {
+		throw std::runtime_error("could not initialise freetype library");
+	}
 
-	std::map<char, CharTexture> characters;
-	uint32_t totalWidth = 0;
-	uint32_t maxHeight = 0;
-	for (const char& c : text) {
-		if (characters.find(c) != characters.end()) continue;
+	FT_Face face;
+	if (FT_New_Face(ft, fontPath, 0, &face)) {
+		throw std::runtime_error(std::string("could not load font: ").append(fontPath));
+	}
+
+	FT_Set_Pixel_Sizes(face, 0, fontSize);
+
+	textureWidth = 0;
+	textureHeight = 0;
+	alphabet += ' '; // always load space since it uses zero data in texture
+	for (const char& c : alphabet) {
+		if (characters.find(c) != characters.end()) continue; // skip already loaded chars
 		CharTexture charTexture;
 
-		if (FT_Load_Char(fontFace, c, FT_LOAD_RENDER)) {
-			throw std::runtime_error(std::string("failed to load character: ") + c);
+		if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+			throw std::runtime_error(std::string("failed to load character: '") + c + std::string("'"));
 		}
-		const auto& bitmap = fontFace->glyph->bitmap;
+		const auto& bitmap = face->glyph->bitmap;
 
 		// texture coordinates
-		charTexture.texX = totalWidth;
+		charTexture.texX = textureWidth;
 		charTexture.width = bitmap.width;
 		charTexture.height = bitmap.rows;
 
-		totalWidth += charTexture.width;
-		if (charTexture.height > maxHeight) maxHeight = charTexture.height;
+		textureWidth += charTexture.width;
+		if (charTexture.height > textureHeight) textureHeight = charTexture.height;
 
 		// uv coordinates
-		charTexture.bearingX = fontFace->glyph->bitmap_left;
-		charTexture.bearingY = fontFace->glyph->bitmap_top;
-		charTexture.advance = fontFace->glyph->advance.x;
+		charTexture.bearingX = face->glyph->bitmap_left;
+		charTexture.bearingY = face->glyph->bitmap_top;
+		charTexture.advance = (float)face->glyph->advance.x / 64.f;
+
+		// skip empty characters like space
+		if (bitmap.width == 0 || bitmap.rows == 0) {
+			characters[c] = charTexture;
+			continue;
+		};
 
 		// create staging buffer
 		VkDeviceSize dataSize = bitmap.width * bitmap.rows;
@@ -101,7 +118,7 @@ std::map<char, CharTexture> Primrose::UIText::createSampler(int* getWidth, int* 
 	imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageInfo.extent = { totalWidth, maxHeight, 1 };
+	imageInfo.extent = { (uint32_t)textureWidth, (uint32_t)textureHeight, 1 };
 
 	if (vkCreateImage(device, &imageInfo, nullptr, &texture) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create character bitmap image");
@@ -122,6 +139,7 @@ std::map<char, CharTexture> Primrose::UIText::createSampler(int* getWidth, int* 
 
 	for (const auto& pair : characters) {
 		const auto& tex = pair.second;
+		if (tex.width == 0 || tex.height == 0) continue;
 
 		VkBufferImageCopy region{};
 		region.bufferOffset = 0;
@@ -147,6 +165,7 @@ std::map<char, CharTexture> Primrose::UIText::createSampler(int* getWidth, int* 
 
 	// cleanup character texture buffers
 	for (const auto& pair : characters) {
+		if (pair.second.width == 0 || pair.second.height == 0) continue;
 		vkDestroyBuffer(device, pair.second.buffer, nullptr);
 		vkFreeMemory(device, pair.second.bufferMemory, nullptr);
 	}
@@ -178,47 +197,42 @@ std::map<char, CharTexture> Primrose::UIText::createSampler(int* getWidth, int* 
 	if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create texture sampler");
 	}
-
-	*getWidth = totalWidth;
-	*getHeight = maxHeight;
-	return characters;
 }
 
 std::vector<UIVertex> Primrose::UIText::genVertices() {
-	int width, height;
-	auto characters = createSampler(&width, &height);
+	const float textScale = 1 / 400.f;
 
 	std::vector<UIVertex> vertices;
 	float originX = 0; // in px
 	for (const char& c : text) {
+		if (characters.find(c) == characters.end()) {
+			throw std::runtime_error(std::string("character '") + c + std::string("' not loaded in alphabet"));
+		}
 		CharTexture tex = characters[c];
 
-		float uvLeft = (float)tex.texX / (float)width;
-		float uvTop = 0;
-		float uvW = (float)tex.width / (float)width;
-		float uvH = (float)tex.height / (float)height;
-
+		// world coords (in px)
 		float posLeft = originX + tex.bearingX;
 		float posTop = 0 - tex.bearingY;
-		float posW = tex.width;
-		float posH = tex.height;
+		float posRight = posLeft + tex.width;
+		float posBottom = posTop + tex.height;
 
-		vertices.push_back({{posLeft, posTop}, {uvLeft, uvTop}});
-		vertices.push_back({{posLeft, posTop + posH}, {uvLeft, uvTop + uvH}});
-		vertices.push_back({{posLeft + posW, posTop}, {uvLeft + uvW, uvTop}});
-		vertices.push_back({{posLeft + posW, posTop + posH}, {uvLeft + uvW, uvTop + uvH}});
+		// uv coords
+		float uvLeft = (float)tex.texX / (float)textureWidth;
+		float uvRight = (float)(tex.texX + tex.width) / (float)textureWidth;
+		float uvBottom = (float)tex.height / (float)textureHeight;
 
-		originX += tex.advance / 64.f;
+		originX += tex.advance;
+		if (tex.width == 0 || tex.height == 0) continue; // don't render empty characters like space
+
+		vertices.push_back({{ posLeft, posTop }, { uvLeft, 0 }});
+		vertices.push_back({{ posLeft, posBottom }, { uvLeft, uvBottom }});
+		vertices.push_back({{ posRight, posTop }, { uvRight, 0 }});
+		vertices.push_back({{ posRight, posBottom }, { uvRight, uvBottom }});
 	}
 
-	int c = 0;
-	for (const auto& v : vertices) {
-		std::cout << "pos: " << v.pos.x << "," << v.pos.y << ", uv: " << v.uv.x << "," << v.uv.y << std::endl;
-		++c;
-		if (c == 4) {
-			std::cout << std::endl;
-			c = 0;
-		}
+	for (auto& v : vertices) {
+		v.pos.x *= textScale;
+		v.pos.y *= textScale * uniforms.screenHeight;
 	}
 
 	return vertices;

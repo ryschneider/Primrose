@@ -10,13 +10,12 @@ namespace Primrose {
 	void setFov(float fov);
 	void setZoom(float zoom);
 
-	void run(void(*callback)());
+	void run(void(*callback)(float));
 
 	void updateUniforms(FrameInFlight& frame);
-	bool drawFrame();
+	void drawFrame();
 
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, FrameInFlight& currentFlight);
-	void updateFps(bool init);
 }
 
 #endif

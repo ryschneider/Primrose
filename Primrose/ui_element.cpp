@@ -49,6 +49,7 @@ void Primrose::UIElement::updateBuffers() {
 		v.pos += pos;
 	}
 
+    vkQueueWaitIdle(graphicsQueue); // TODO make updating text more efficient
 	if (vertexBuffer != VK_NULL_HANDLE) vkDestroyBuffer(device, vertexBuffer, nullptr);
 	if (vertexBufferMemory != VK_NULL_HANDLE) vkFreeMemory(device, vertexBufferMemory, nullptr);
 	if (indexBuffer != VK_NULL_HANDLE) vkDestroyBuffer(device, indexBuffer, nullptr);

@@ -11,12 +11,12 @@ struct CharTexture {
 	VkBuffer buffer;
 	VkDeviceMemory bufferMemory;
 
-	// coordinates in texture
+	// texture coordinates (in px)
 	int32_t texX;
 	uint32_t width;
 	uint32_t height;
 
-	// uv coordinates (in pixels)
+	// world coordinates (in px)
 	float bearingX;
 	float bearingY;
 	float advance;
@@ -30,17 +30,32 @@ namespace Primrose {
 
 		void init(const char* fontPath, int fontSize = 36);
 
+		std::string alphabet = "";
+		const static std::string NUMERIC;
+		const static std::string ALPHANUMERIC;
+		const static std::string LOWERCASE;
+		const static std::string UPPERCASE;
+
+		enum TextOrigin {
+			BottomLeft,
+			Center,
+			TopLeft
+		};
+		TextOrigin origin = BottomLeft;
+
 		std::string text;
 		int fontSize;
 
 	private:
-		std::map<char, CharTexture> createSampler(int* width = nullptr, int* height = nullptr);
+		void loadAlphabet(const char* fontPath);
 		void createDescriptorSet();
 
 		std::vector<UIVertex> genVertices();
 		std::vector<uint16_t> genIndices();
 
-		FT_Face fontFace;
+		std::map<char, CharTexture> characters;
+		int textureWidth;
+		int textureHeight;
 
 		VkImage texture;
 		VkDeviceMemory textureMemory;

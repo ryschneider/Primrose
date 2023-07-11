@@ -16,7 +16,7 @@ void Primrose::setZoom(float newZoom) {
 	uniforms.invZoom = 1.f / zoom;
 }
 
-void Primrose::run(void(*callback)()) {
+void Primrose::run(void(*callback)(float)) {
 	float lastTime = glfwGetTime();
 
 	while (!glfwWindowShouldClose(window)) {
@@ -24,11 +24,8 @@ void Primrose::run(void(*callback)()) {
 		deltaTime = currentTime - lastTime;
 
 		glfwPollEvents();
-		callback();
-		bool drawn = drawFrame();
-
-		// don't count as frame if not drawn
-		if (drawn) updateFps(false);
+		callback(deltaTime);
+		drawFrame();
 
 		lastTime = currentTime;
 	}
@@ -136,21 +133,15 @@ void Primrose::updateUniforms(FrameInFlight& frame) {
 	writeToDevice(frame.uniformBufferMemory, &uniforms, sizeof(uniforms));
 }
 
-double frameTime;
-double fenceTime;
-bool Primrose::drawFrame() { // returns whether the frame was drawn
-	double frS = glfwGetTime();
-
+void Primrose::drawFrame() { // returns whether the frame was drawn
 	if (windowMinimized) {
 		// don't bother rendering if window minimized
 		windowMinimized = isWindowMinimized();
-		return false;
+		return;
 	}
 
 	static int flightIndex = 0;
 	auto& currentFlight = framesInFlight[flightIndex];
-
-	double feS = glfwGetTime(); // includes time waiting for fences and vkAcquireNextImageKHR
 
 	// don't reset the command buffer until the last frame is finished
 	vkWaitForFences(device, 1, &currentFlight.inFlightFence, VK_TRUE, UINT64_MAX);
@@ -159,11 +150,9 @@ bool Primrose::drawFrame() { // returns whether the frame was drawn
 	VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, currentFlight.imageAvailableSemaphore,
 		VK_NULL_HANDLE, &imageIndex); // signal imageAvailableSemaphore once the image is acquired
 
-	fenceTime = glfwGetTime() - feS; // vkAcquireNextImageKHR is blocked by present mode such as refresh rate fps limit
-
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 		recreateSwapchain();
-		return false;
+		return;
 	}
 	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 		// if swapchain is suboptimal it will be recreated later
@@ -216,76 +205,4 @@ bool Primrose::drawFrame() { // returns whether the frame was drawn
 	// go to next frame in flight
 	flightIndex += 1;
 	flightIndex %= MAX_FRAMES_IN_FLIGHT; // loop after end of indexing
-
-	frameTime = glfwGetTime() - frS;
-
-	return true; // frame was drawn successfully
-}
-
-void Primrose::updateFps(bool init) {
-	static double shortTime = glfwGetTime();
-	static int shortFrames = 0;
-	static int shortFps = 0;
-	static double mediumTime = glfwGetTime();
-	static int mediumFrames = 0;
-	static int mediumFps = 0;
-	static double longTime = glfwGetTime();
-	static int longFrames = 0;
-	static int longFps = 0;
-
-	static double frameTimeTotal = 0.f;
-	static int frameTimeAvgUs = 0.f; // avg microseconds for frame
-	static double fenceTimeTotal = 0.f;
-	static int fenceTimeAvgUs = 0.f; // avg microseconds waiting for fences
-	static int sampleFrames = 0;
-	static int cpuUtil = 0.f; // 5-digit(divide by 100) percent cpu usage
-
-	if (init) return;
-
-	frameTimeTotal += frameTime;
-	fenceTimeTotal += fenceTime;
-	++sampleFrames;
-
-	++shortFrames;
-	++mediumFrames;
-	++longFrames;
-	double cTime = glfwGetTime();
-	bool update = false;
-	if (cTime - shortTime > 1) {
-		shortFps = shortFrames / (int)(cTime - shortTime);
-		shortTime = cTime;
-		shortFrames = 0;
-		update = true;
-
-		frameTimeAvgUs = (frameTimeTotal / (double)sampleFrames) * 1'000'000;
-		fenceTimeAvgUs = (fenceTimeTotal / (double)sampleFrames) * 1'000'000;
-		cpuUtil = (1.0 - fenceTimeTotal / frameTimeTotal) * 10000;
-		sampleFrames = 0;
-		frameTimeTotal = 0;
-		fenceTimeTotal = 0;
-	}
-	if (cTime - mediumTime > 5) {
-		mediumFps = mediumFrames / (int)(cTime - mediumTime);
-		mediumTime = cTime;
-		mediumFrames = 0;
-		update = true;
-	}
-	if (cTime - longTime > 15) {
-		longFps = longFrames / (int)(cTime - longTime);
-		longTime = cTime;
-		longFrames = 0;
-		update = true;
-	}
-
-	if (update) {
-		std::cout << "FPS(15): " << longFps;
-		std::cout << " | FPS(5): " << mediumFps;
-		std::cout << " | FPS(1): " << shortFps;
-		//std::cout << " | Fra(1): " << frameTimeAvgUs << " us";
-		//std::cout << " | Prs(1): " << fenceTimeAvgUs << " us";
-		std::cout << " | CPU(1): " << (float)cpuUtil / 100.f << "%    ";
-		// CPU over 90% indicates cpu bottleneck
-
-		std::cout << std::flush << "\r";
-	}
 }

@@ -13,7 +13,7 @@ namespace Primrose {
 	class UIElement {
 	public:
 		UIElement(glm::vec2 pos = glm::vec2(0), glm::vec2 scale = glm::vec2(1), float angle = 0);
-		UIElement(glm::vec2 pos = glm::vec2(0), float scale = 1, float angle = 0);
+		UIElement(glm::vec2 pos, float scale, float angle = 0);
 		virtual ~UIElement();
 
 		virtual void init(unsigned int uiType);

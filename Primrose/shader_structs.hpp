@@ -7,28 +7,49 @@
 #include <array>
 #include <vector>
 
-namespace Primrose {
-	extern const unsigned int PRIM_1, PRIM_2, PRIM_3, PRIM_4, PRIM_5, PRIM_6, PRIM_7, PRIM_8, PRIM_9;
-	extern const unsigned int PRIM_SPHERE, PRIM_BOX, PRIM_TORUS, PRIM_LINE, PRIM_CYLINDER;
-	extern const unsigned int MAT_1, MAT_2, MAT_3;
-	extern const unsigned int OP_UNION, OP_INTERSECTION, OP_DIFFERENCE, OP_IDENTITY, OP_TRANSFORM;
+typedef unsigned int uint;
 
-	extern const unsigned int UI_NULL, UI_IMAGE, UI_PANEL, UI_TEXT;
+namespace Primrose {
+
+	enum {
+		PRIM_1 = 101,
+		PRIM_2 = 102,
+		PRIM_3 = 103,
+		PRIM_4 = 104,
+		PRIM_5 = 105,
+		PRIM_6 = 106,
+		PRIM_7 = 107,
+		PRIM_8 = 108,
+		PRIM_9 = 109,
+		PRIM_SPHERE = 201,
+		PRIM_BOX = 202,
+		PRIM_TORUS = 203,
+		PRIM_LINE = 204,
+		PRIM_CYLINDER = 205,
+	};
+
+
+//	extern const uint PRIM_1, PRIM_2, PRIM_3, PRIM_4, PRIM_5, PRIM_6, PRIM_7, PRIM_8, PRIM_9;
+//	extern const uint PRIM_SPHERE, PRIM_BOX, PRIM_TORUS, PRIM_LINE, PRIM_CYLINDER;
+	extern const uint MAT_1, MAT_2, MAT_3;
+	extern const uint OP_UNION, OP_INTERSECTION, OP_DIFFERENCE, OP_IDENTITY, OP_TRANSFORM;
+
+	extern const uint UI_NULL, UI_IMAGE, UI_PANEL, UI_TEXT;
 }
 
 struct Primitive {
 	alignas(16) glm::mat4 invTransform; // inverse of transformation matrix
-	alignas(4) unsigned int type; // PRIM_ prefix
+	alignas(4) uint type; // PRIM_ prefix
 	alignas(4) float smallScale; // smallest scalar
 	alignas(4) float a; // first parameter
 	alignas(4) float b; // second parameter
-	alignas(4) unsigned int mat; // material id
+	alignas(4) uint mat; // material id
 };
 
 struct Operation {
-	alignas(4) unsigned int type; // OP_ prefix
-	alignas(4) unsigned int i; // index of first operand
-	alignas(4) unsigned int j = 0; // index of second operand
+	alignas(4) uint type; // OP_ prefix
+	alignas(4) uint i; // index of first operand
+	alignas(4) uint j = 0; // index of second operand
 	alignas(4) bool render = false;
 };
 
@@ -46,7 +67,7 @@ struct MarchUniforms {
 	alignas(4) float focalLength;
 	alignas(4) float invZoom;
 
-	alignas(4) unsigned int numOperations;
+	alignas(4) uint numOperations;
 	alignas(16) Operation operations[100];
 	alignas(16) Primitive primitives[100];
 	alignas(16) Transformation transformations[100];
@@ -87,7 +108,7 @@ struct UIVertex {
 };
 
 struct UIUniforms {
-	alignas(4) unsigned int type;
+	alignas(4) uint type;
 };
 
 #endif

@@ -278,8 +278,8 @@ void Primrose::createDeviceMemory(VkMemoryRequirements memReqs,
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	allocInfo.allocationSize = memReqs.size;
 	allocInfo.memoryTypeIndex = bestMemory;
-	std::cout << "Creating " << memReqs.size << " byte buffer on heap " << heapIndex << " (";
-	std::cout << memProperties.memoryHeaps[heapIndex].size / (1024 * 1024) << " mb)" << std::endl;
+//	std::cout << "Creating " << memReqs.size << " byte buffer on heap " << heapIndex << " (";
+//	std::cout << memProperties.memoryHeaps[heapIndex].size / (1024 * 1024) << " mb)" << std::endl;
 
 	if (vkAllocateMemory(device, &allocInfo, nullptr, memory) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate uniform buffer memory");
@@ -511,8 +511,6 @@ void Primrose::setup(const char* applicationName, unsigned int applicationVersio
 	setZoom(1.f); // initial set zoom
 	uniforms.screenHeight = (float)swapchainExtent.height / (float)swapchainExtent.width;
 	//Runtime::uniforms.primitives = Scene::primitives.data();
-
-	updateFps(true);
 }
 
 void Primrose::initWindow() {
