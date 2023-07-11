@@ -32,8 +32,6 @@ void Primrose::run(void(*callback)(float)) {
 
 	vkDeviceWaitIdle(device);
 
-	std::cout << std::endl;
-
 	cleanup();
 }
 
@@ -125,12 +123,40 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 	}
 }
 
-void Primrose::updateUniforms(FrameInFlight& frame) {
-	//Runtime::uniforms.numPrimitives = Scene::primitives.size();
-	//Primitive* p = Scene::primitives.data();
+template<typename T>
+static void updateVectorHelper(Primrose::FrameInFlight& frame, typename std::vector<T>& vec, size_t uniformVecSize, size_t offset) {
+	if (vec.size() == 0) return;
+	if (vec.size() > uniformVecSize / sizeof(T)) {
+		throw std::runtime_error("too many elements in uniform vector");
+	}
 
-	// write data
+	Primrose::writeToDevice(frame.uniformBufferMemory, vec.data(), sizeof(T) * vec.size(), offset);
+}
+
+void Primrose::updateUniforms(FrameInFlight& frame) {
+	uniforms.numOperations = operations.size();
+
+	// write everything up to arrays
 	writeToDevice(frame.uniformBufferMemory, &uniforms, sizeof(uniforms));
+
+	// write array data
+	// TODO don't update if hasn't changed
+	static bool p = true;
+	if (p) {
+		p = false;
+		for (const auto& op : operations) {
+			std::cout << op.type << ",";
+			std::cout << op.i << ",";
+			std::cout << op.j << std::endl;
+		}
+	}
+
+	updateVectorHelper(frame, operations,
+		sizeof(MarchUniformsFull().operations), offsetof(MarchUniformsFull, operations));
+	updateVectorHelper(frame, primitives,
+		sizeof(MarchUniformsFull().primitives), offsetof(MarchUniformsFull, primitives));
+	updateVectorHelper(frame, transformations,
+		sizeof(MarchUniformsFull().transformations), offsetof(MarchUniformsFull, transformations));
 }
 
 void Primrose::drawFrame() { // returns whether the frame was drawn

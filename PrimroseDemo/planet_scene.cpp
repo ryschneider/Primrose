@@ -1,38 +1,37 @@
 #include "planet_scene.hpp"
 
 #include <Primrose/core.hpp>
+#include <iostream>
 
 using namespace Primrose;
 
-typedef unsigned int uint;
 float r = 80;
 glm::vec3 planetPos(0, -r, 5);
 void planetScene() {
-    uniforms.primitives[0] = Prim(PRIM_SPHERE);
-    uniforms.primitives[4] = Prim(PRIM_4);
+	uint spherePrim = addPrim(PRIM_SPHERE);
+	uint cyl = addPrim(PRIM_CYLINDER);
+	uint box = addPrim(PRIM_BOX);
+	uint prim4 = addPrim(PRIM_4);
+	uint torus = addPrim(PRIM_TORUS, 0.5);
 
     addTranslate(planetPos.x, planetPos.y, planetPos.z);
     addScale(r);
-    uint planet = addIdentity(0);
+    uint planet = addIdentity(spherePrim);
 
     addScale(1);
-    uint rocks = addIdentity(4, false);
+    uint rocks = addIdentity(prim4);
 
     addTranslate(planetPos.x, planetPos.y, planetPos.z);
     addScale(r + 1);
-    uint rockLimit = addIdentity(0);
+    uint rockLimit = addIdentity(spherePrim);
 
     uint rockSurface = addIntersection(rocks, rockLimit);
-    addUnion(rockSurface, planet, true);
+    addRender(addUnion(rockSurface, planet));
 
-
-
-    uniforms.primitives[1] = Prim(PRIM_CYLINDER);
     addTranslate(0, 2, 5);
-    addIdentity(1, true);
+	addRender(addIdentity(cyl));
 
-    uniforms.primitives[2] = Prim(PRIM_BOX);
-    uniforms.primitives[3] = Prim(PRIM_CYLINDER);
+//	return;
 
     glm::mat4 csgModel = Primrose::transformMatrix(
             planetPos + glm::vec3(0, 0.7071, 0.7071) * (r+2),
@@ -40,34 +39,37 @@ void planetScene() {
             3.1415/4, glm::vec3(1, 0, 0));
 
     addTransform(csgModel);
-    unsigned int cube = addIdentity(2);
+    unsigned int cube = addIdentity(box);
+
     addTransform(csgModel);
     addScale(0.5f);
-    unsigned int yCyl = addIdentity(3);
+    unsigned int yCyl = addIdentity(cyl);
+
+
+
     addTransform(csgModel);
     addScale(0.5f);
     addRotate(3.1415f/2.f, {1.f, 0.f, 0.f});
-    unsigned int zCyl = addIdentity(3);
+    unsigned int zCyl = addIdentity(cyl);
     addTransform(csgModel);
     addScale(0.5f);
     addRotate(3.1415f/2.f, {0.f, 0.f, 1.f});
-    unsigned int xCyl = addIdentity(3);
+    unsigned int xCyl = addIdentity(cyl);
     addTransform(csgModel);
     addScale(1.2f);
-    unsigned int sphere = addIdentity(0);
+    unsigned int sphere = addIdentity(spherePrim);
 
     uint xyCyl = addUnion(xCyl, yCyl);
     uint xyzCyl = addUnion(xyCyl, zCyl);
     uint sphCube = addIntersection(cube, sphere);
-    addDifference(sphCube, xyzCyl, true);
+	addRender(addDifference(sphCube, xyzCyl));
 
 
     addTranslate(0,40, 5);
     addScale(10, 2, 10);
-    addIdentity(2, true);
+	addRender(addIdentity(box));
 
-    uniforms.primitives[5] = Prim(PRIM_TORUS, 0.5);
     addTranslate(0,-2*r - 40, 5);
     addScale(10);
-    addIdentity(5, true);
+	addRender(addIdentity(torus));
 }

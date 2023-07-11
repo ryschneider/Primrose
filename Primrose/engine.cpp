@@ -52,6 +52,7 @@ namespace Primrose {
 	VkDebugUtilsMessengerEXT debugMessenger; // handles logging validation details
 
 	void(*mouseMovementCallback)(float xpos, float ypos, bool refocused) = nullptr;
+	void(*keyCallback)(int key, bool pressed) = nullptr;
 
 	// glfw callbacks
 	namespace {
@@ -68,9 +69,12 @@ namespace Primrose {
 			if (refocused) windowFocused = true;
 			if (mouseMovementCallback != nullptr) mouseMovementCallback(xpos, ypos, refocused);
 		}
-		void keyCallback(GLFWwindow*, int key, int, int, int) {
+		void engineKeyCallback(GLFWwindow*, int key, int, int action, int) {
 			if (key == GLFW_KEY_ESCAPE) {
 				glfwSetWindowShouldClose(window, GL_TRUE);
+			}
+			if (keyCallback != nullptr && action != GLFW_REPEAT) {
+				keyCallback(key, action == GLFW_PRESS);
 			}
 		}
 		void mouseButtonCallback(GLFWwindow*, int button, int, int) {
@@ -307,9 +311,9 @@ void Primrose::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
 	vkBindBufferMemory(device, *buffer, *bufferMemory, 0); // bind memory to buffer
 }
 
-void Primrose::writeToDevice(VkDeviceMemory memory, void* data, size_t size) {
+void Primrose::writeToDevice(VkDeviceMemory memory, void* data, size_t size, size_t offset) {
 	void* dst;
-	vkMapMemory(device, memory, 0, size, 0, &dst);
+	vkMapMemory(device, memory, offset, size, 0, &dst);
 	memcpy(dst, data, size);
 	vkUnmapMemory(device, memory);
 }
@@ -506,6 +510,10 @@ void Primrose::setup(const char* applicationName, unsigned int applicationVersio
 	initWindow();
 	initVulkan();
 
+	operations.reserve(100);
+	primitives.reserve(100);
+	transformations.reserve(100);
+
 	// TODO put screenHeight definition in swapchainExtent setter
 	setFov(Settings::fov); // initial set fov
 	setZoom(1.f); // initial set zoom
@@ -541,7 +549,7 @@ void Primrose::initWindow() {
 
 	glfwSetFramebufferSizeCallback(window, windowResizedCallback);
 	glfwSetWindowFocusCallback(window, windowFocusCallback);
-	glfwSetKeyCallback(window, keyCallback);
+	glfwSetKeyCallback(window, engineKeyCallback);
 	glfwSetCursorPosCallback(window, cursorPosCallback);
 	glfwSetMouseButtonCallback(window, mouseButtonCallback);
 	glfwSetScrollCallback(window, scrollCallback);
@@ -1242,7 +1250,7 @@ void Primrose::createFramesInFlight() {
 		}
 
 		// create uniform buffers
-		createBuffer(sizeof(MarchUniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		createBuffer(sizeof(MarchUniformsFull), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 //			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, // smart access memory (256 mb)
 			&frame.uniformBuffer, &frame.uniformBufferMemory);
@@ -1258,7 +1266,7 @@ void Primrose::createFramesInFlight() {
 		VkDescriptorBufferInfo uniformBufferInfo{};
 		uniformBufferInfo.buffer = frame.uniformBuffer;
 		uniformBufferInfo.offset = 0;
-		uniformBufferInfo.range = sizeof(MarchUniforms);
+		uniformBufferInfo.range = sizeof(MarchUniformsFull);
 		descriptorWrite.dstBinding = 0; // which binding index
 		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrite.pBufferInfo = &uniformBufferInfo;

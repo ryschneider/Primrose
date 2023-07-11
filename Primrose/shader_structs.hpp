@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <array>
 #include <vector>
+#include <cstring>
 
 typedef unsigned int uint;
 
@@ -39,6 +40,7 @@ namespace Primrose {
 		OP_DIFFERENCE = 903,
 		OP_IDENTITY = 904,
 		OP_TRANSFORM = 905,
+		OP_RENDER = 906,
 	};
 
 	enum {
@@ -49,23 +51,27 @@ namespace Primrose {
 	};
 }
 
+struct Operation {
+	Operation() { memset(this, 0, sizeof(*this)); } // make sure padding is initialized to 0
+
+	alignas(4) uint type; // OP_ prefix
+	alignas(4) uint i = 0; // index of first operand
+	alignas(4) uint j = 0; // index of second operand
+	alignas(4) char _; // padding
+};
+
 struct Primitive {
-	alignas(16) glm::mat4 invTransform; // inverse of transformation matrix
+	Primitive() { memset(this, 0, sizeof(*this)); } // make sure padding is initialized to 0
+
 	alignas(4) uint type; // PRIM_ prefix
-	alignas(4) float smallScale; // smallest scalar
 	alignas(4) float a; // first parameter
 	alignas(4) float b; // second parameter
 	alignas(4) uint mat; // material id
 };
 
-struct Operation {
-	alignas(4) uint type; // OP_ prefix
-	alignas(4) uint i; // index of first operand
-	alignas(4) uint j = 0; // index of second operand
-	alignas(4) bool render = false;
-};
-
 struct Transformation {
+	Transformation() { memset(this, 0, sizeof(*this)); } // make sure padding is initialized to 0
+
 	alignas(16) glm::mat4 invMatrix;
 	alignas(4) float smallScale;
 };
@@ -80,6 +86,11 @@ struct MarchUniforms {
 	alignas(4) float invZoom;
 
 	alignas(4) uint numOperations;
+};
+
+struct MarchUniformsFull { // useful for knowing uniforms size/offsets
+	MarchUniforms base; // offset from base uniforms
+
 	alignas(16) Operation operations[100];
 	alignas(16) Primitive primitives[100];
 	alignas(16) Transformation transformations[100];

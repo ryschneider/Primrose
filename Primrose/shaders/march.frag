@@ -27,23 +27,21 @@ const uint MAT_3 = 303;
 const uint OP_UNION = 901; // i(op) union j(op)
 const uint OP_INTERSECTION = 902; // i(op) union j(op)
 const uint OP_DIFFERENCE = 903; // i(op) - j(op)
-const uint OP_IDENTITY = 904; // i(op) identity
+const uint OP_IDENTITY = 904; // i(prim) identity
 const uint OP_TRANSFORM = 905; // fragment position transformed by i(matrix)
-
-struct Primitive {
-	mat4 invTransform; // inverse of transformation matrix
-	uint type; // PRIM_ prefix
-	float smallScale; // smallest scalar
-	float a; // first parameter
-	float b; // second parameter
-	uint mat; // material id
-};
+const uint OP_RENDER = 906; // draw i(op) to screen
 
 struct Operation {
 	uint type; // OP_ prefix
 	uint i; // index of first operand
 	uint j; // index of second operand
-	bool render; // whether to render operation
+};
+
+struct Primitive {
+	uint type; // PRIM_ prefix
+	float a; // first parameter
+	float b; // second parameter
+	uint mat; // material id
 };
 
 struct Transformation {
@@ -51,7 +49,7 @@ struct Transformation {
 	float smallScale;
 };
 
-layout(set = 0, binding = 0) uniform GlobalUniforms {
+layout(binding = 0) uniform MarchUniforms {
 	vec3 camPos;
 	vec3 camDir;
 	vec3 camUp;
@@ -68,7 +66,7 @@ layout(set = 0, binding = 0) uniform GlobalUniforms {
 
 layout(push_constant) uniform PushConstant {
 	float time;
-} p;
+} push;
 
 // constants
 const vec3 BG_COLOR = vec3(0.01f, 0.01f, 0.01f);
@@ -284,7 +282,7 @@ float primSDF(vec3 p, Primitive prim) {
 
 float map(vec3 p) { // scene sdf
 	float d = MAX_DIST;
-	float dists[100];
+	float opBuffer[100];
 
 	vec4 pos = vec4(p, 1.f);
 	float smallScale = 1.f;
@@ -298,39 +296,27 @@ float map(vec3 p) { // scene sdf
 
 		} else if (op.type == OP_IDENTITY) {
 			Primitive prim = u.primitives[op.i];
-			dists[i] = primSDF(pos.xyz, prim) * smallScale;
+			opBuffer[i] = primSDF(pos.xyz, prim) * smallScale;
 
 		} else if (op.type == OP_UNION) {
-			float d1 = dists[op.i];
-			float d2 = dists[op.j];
-			dists[i] = min(d1, d2);
+			float d1 = opBuffer[op.i];
+			float d2 = opBuffer[op.j];
+			opBuffer[i] = min(d1, d2);
 
 		} else if (op.type == OP_INTERSECTION) {
-			float d1 = dists[op.i];
-			float d2 = dists[op.j];
-			dists[i] = max(d1, d2);
+			float d1 = opBuffer[op.i];
+			float d2 = opBuffer[op.j];
+			opBuffer[i] = max(d1, d2);
 
 		} else if (op.type == OP_DIFFERENCE) {
-			float d1 = dists[op.i];
-			float d2 = dists[op.j];
-			dists[i] = max(d1, -d2);
+			float d1 = opBuffer[op.i];
+			float d2 = opBuffer[op.j];
+			opBuffer[i] = max(d1, -d2);
+
+		} else if (op.type == OP_RENDER) {
+			d = min(d, opBuffer[op.i]);
 		}
-
-		if (op.render) d = min(d, dists[i]);
 	}
-
-//	vec4 pos4 = vec4(p, 1.f);
-//	for (int i = 0; i < u.numPrimitives; ++i) {
-//		Primitive prim = u.primitives[i];
-//
-//		vec4 pos = prim.invTransform * pos4; // apply reverse transformation to correct sdf
-//		float primD = primSDF(pos.xyz, prim);
-//		primD *= prim.smallScale;
-//
-//		// primD -= 0.1f; // rounded corners
-//		// d = smoothUnion(d, primD, 1.5f); // smoothing
-//		d = min(d, primD);
-//	}
 
 	return d;
 }
@@ -342,16 +328,6 @@ vec3 mapNormal(Hit hit) {
 		map(hit.pos.xyz + vec3(0.f, 0.f, NORMAL_EPS))
 	) - hit.d);;
 }
-
-// vec3 mapNormal( Hit hit ) // for function f(p)
-// {
-//     const float h = NORMAL_EPS; // replace by an appropriate value
-//     const vec2 k = vec2(1,-1);
-//     return normalize( k.xyy*map( hit.pos.xyz + k.xyy*h ) + 
-//                       k.yyx*map( hit.pos.xyz + k.yyx*h ) + 
-//                       k.yxy*map( hit.pos.xyz + k.yxy*h ) + 
-//                       k.xxx*map( hit.pos.xyz + k.xxx*h ) );
-// }
 
 Hit march(Ray ray) {
 	float d;
@@ -372,9 +348,6 @@ Hit march(Ray ray) {
 
 // main
 void main() {
-//	fragColor = vec4(0.f, 1.f, 0.f, 1.f);
-//	return;
-
 	const vec3 forward = u.camDir;
 	const vec3 right = normalize(cross(u.camUp, forward));
 	const vec3 up = cross(forward, right);

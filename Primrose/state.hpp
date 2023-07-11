@@ -25,6 +25,9 @@ namespace Primrose {
 	extern bool windowFocused;
 
 	extern MarchUniforms uniforms;
+	extern std::vector<Operation> operations;
+	extern std::vector<Primitive> primitives;
+	extern std::vector<Transformation> transformations;
 
 	extern std::vector<std::unique_ptr<UIElement>> uiScene;
 

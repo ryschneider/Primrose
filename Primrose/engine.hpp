@@ -55,6 +55,7 @@ namespace Primrose {
 
 	// application functions
 	extern void(*mouseMovementCallback)(float xpos, float ypos, bool refocused);
+	extern void(*keyCallback)(int key, bool pressed);
 
 	// main functions
 	void setup(const char* applicationName, unsigned int applicationVersion);
@@ -102,7 +103,7 @@ namespace Primrose {
 	void createDeviceMemory(VkMemoryRequirements memReqs, VkMemoryPropertyFlags properties, VkDeviceMemory* memory);
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
 		VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-	void writeToDevice(VkDeviceMemory memory, void* data, size_t size);
+	void writeToDevice(VkDeviceMemory memory, void* data, size_t size, size_t offset = 0);
 
 	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 	void importTexture(const char* path, VkImage* image, VkDeviceMemory* imageMemory, float* aspect = nullptr);

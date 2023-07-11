@@ -14,6 +14,9 @@ namespace Primrose {
 	bool windowFocused = false;
 
 	MarchUniforms uniforms = {};
+	std::vector<Operation> operations;
+	std::vector<Primitive> primitives;
+	std::vector<Transformation> transformations;
 
 	std::vector<std::unique_ptr<UIElement>> uiScene{};
 

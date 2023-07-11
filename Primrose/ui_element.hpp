@@ -24,11 +24,11 @@ namespace Primrose {
 		void* pPush = nullptr;
 		uint32_t pushSize = 0;
 
-		VkBuffer vertexBuffer;
-		VkBuffer indexBuffer;
+		VkBuffer vertexBuffer = VK_NULL_HANDLE;
+		VkBuffer indexBuffer = VK_NULL_HANDLE;
 		int numIndices;
 
-		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+		VkDescriptorSet descriptorSet;
 
 		glm::vec2 pos;
 		glm::vec2 scale;
@@ -42,8 +42,8 @@ namespace Primrose {
 		virtual std::vector<UIVertex> genVertices();
 		virtual std::vector<uint16_t> genIndices();
 
-		VkDeviceMemory vertexBufferMemory;
-		VkDeviceMemory indexBufferMemory;
+		VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
+		VkDeviceMemory indexBufferMemory = VK_NULL_HANDLE;
 	};
 }
 

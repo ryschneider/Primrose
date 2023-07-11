@@ -6,21 +6,22 @@
 namespace Primrose {
 	bool operationsValid();
 
-	Primitive Prim(unsigned int type, glm::mat4 transform = glm::mat4(1.f));
-	Primitive Prim(unsigned int type, float a, glm::mat4 transform = glm::mat4(1.f));
-	Primitive Prim(unsigned int type, float a, float b, glm::mat4 transform = glm::mat4(1.f));
+	uint addPrim(uint type, float a = 0, float b = 0);
 
-	void addTransform(glm::mat4 matrix);
-	void addTranslate(float x, float y, float z);
-	void addScale(float scalar);
-	void addScale(float x, float y, float z);
-	void addRotate(float angle, glm::vec3 axis);
+	uint addTransform(glm::mat4 matrix);
+	uint addTranslate(float x, float y, float z);
+	uint addScale(float scalar);
+	uint addScale(float x, float y, float z);
+	uint addRotate(float angle, glm::vec3 axis);
 
-	unsigned int addIdentity(unsigned int i, bool render = false);
-	unsigned int addUnion(unsigned int i, unsigned int j, bool render = false);
-	unsigned int addIntersection(unsigned int i, unsigned int j, bool render = false);
-	unsigned int addDifference(unsigned int i, unsigned int j, bool render = false);
+	uint addIdentity(uint i);
+	uint addUnion(uint i, uint j);
+	uint addIntersection(uint i, uint j);
+	uint addDifference(uint i, uint j);
+	uint addRender(uint i);
 
+	glm::vec3 getScale(glm::mat4 matrix);
+	float getSmallScale(glm::mat4 matrix);
 	glm::mat4 transformMatrix(glm::vec3 translate, glm::vec3 scale, float rotAngle, glm::vec3 rotAxis);
 }
 
