@@ -1,0 +1,97 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"title": "Primrose Scene",
+	"description": "Describes a scene which can be loaded in the Primrose engine",
+	"type": "array",
+	"items": {
+		"type": "object",
+		"properties": {
+			"translate": { "$ref": "#/$defs/vec3" },
+			"scale": { "$ref": "#/$defs/vec3" },
+			"rotate": {
+				"type": "object",
+				"required": ["angle", "axis"],
+				"additionalProperties": false,
+				"properties": {
+					"angle": {
+						"type": "number",
+						"minimum": 0,
+						"exclusiveMaximum": 360
+					},
+					"axis": { "$ref": "#/$defs/vec3" }
+				}
+			}
+		},
+		"required": ["type"],
+		"additionalProperties": false,
+		"oneOf": [
+			{
+				"properties": {
+					"type": { "enum": ["sphere"] },
+					"radius": { "type": "number" }
+				},
+				"required": ["radius"]
+			},
+			{
+				"properties": {
+					"type": { "enum": ["box"] },
+					"size": { "$ref": "#/$defs/vec3" }
+				},
+				"required": ["size"]
+			},
+			{
+				"properties": {
+					"type": { "enum": ["torus"] },
+					"ringRadius": { "type": "number" },
+					"majorRadius": { "type": "number" }
+				},
+				"required": ["ringRadius", "majorRadius"]
+			},
+			{
+				"properties": {
+					"type": { "enum": ["line"] },
+					"height": { "type": "number" },
+					"radius": { "type": "number" }
+				},
+				"required": ["height", "radius"]
+			},
+			{
+				"properties": {
+					"type": { "enum": ["cylinder"] },
+					"radius": { "type": "number" }
+				},
+				"required": ["radius"]
+			},
+
+			{
+				"required": ["objects"],
+				"properties": {
+					"type": { "enum": ["union", "intersection"] },
+					"objects": {
+						"type": "array",
+						"items": { "$ref": "#/items" },
+						"minItems": 2
+					}
+				}
+			},
+			{
+				"required": ["base", "subtract"],
+				"properties": {
+					"type": { "enum": ["difference"] },
+					"base": { "$ref": "#/items" },
+					"subtract": { "$ref": "#/items" }
+				}
+			}
+		]
+	},
+	"$defs": {
+		"vec3": {
+			"type": "array",
+			"items": {
+				"type": "number"
+			},
+			"minItems": 3,
+			"maxItems": 3
+		}
+	}
+}

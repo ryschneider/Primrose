@@ -1,0 +1,37 @@
+[
+	{
+		"type": "difference",
+		"base": {
+			"type": "intersection",
+			"objects": [{
+				"type": "box",
+				"size": [1, 1, 1]
+			}, {
+				"type": "sphere",
+				"radius": 1
+			}]
+		},
+		"subtract": {
+			"type": "union",
+			"scale": [0.4, 0.4, 0.4],
+			"objects": [{
+				"type": "cylinder",
+				"radius": 1
+			}, {
+				"type": "cylinder",
+				"radius": 1,
+				"rotate": {
+					"angle": 90,
+					"axis": [1, 0, 0]
+				}
+			}, {
+				"type": "cylinder",
+				"radius": 1,
+				"rotate": {
+					"angle": 90,
+					"axis": [0, 0, 1]
+				}
+			}]
+		}
+	}
+]
