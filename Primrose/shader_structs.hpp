@@ -10,7 +10,6 @@
 typedef unsigned int uint;
 
 namespace Primrose {
-
 	enum {
 		PRIM_1 = 101,
 		PRIM_2 = 102,
@@ -28,13 +27,26 @@ namespace Primrose {
 		PRIM_CYLINDER = 205,
 	};
 
+	enum {
+		MAT_1 = 301,
+		MAT_2 = 302,
+		MAT_3 = 303,
+	};
 
-//	extern const uint PRIM_1, PRIM_2, PRIM_3, PRIM_4, PRIM_5, PRIM_6, PRIM_7, PRIM_8, PRIM_9;
-//	extern const uint PRIM_SPHERE, PRIM_BOX, PRIM_TORUS, PRIM_LINE, PRIM_CYLINDER;
-	extern const uint MAT_1, MAT_2, MAT_3;
-	extern const uint OP_UNION, OP_INTERSECTION, OP_DIFFERENCE, OP_IDENTITY, OP_TRANSFORM;
+	enum {
+		OP_UNION = 901,
+		OP_INTERSECTION = 902,
+		OP_DIFFERENCE = 903,
+		OP_IDENTITY = 904,
+		OP_TRANSFORM = 905,
+	};
 
-	extern const uint UI_NULL, UI_IMAGE, UI_PANEL, UI_TEXT;
+	enum {
+		UI_NULL = 0,
+		UI_IMAGE = 1,
+		UI_PANEL = 2,
+		UI_TEXT = 3,
+	};
 }
 
 struct Primitive {
