@@ -1,7 +1,7 @@
-#ifndef PRIMROSE_UI_IMAGE_HPP
-#define PRIMROSE_UI_IMAGE_HPP
+#ifndef PRIMROSE_IMAGE_HPP
+#define PRIMROSE_IMAGE_HPP
 
-#include "ui_element.hpp"
+#include "element.hpp"
 
 namespace Primrose {
 	class UIImage: public UIElement {

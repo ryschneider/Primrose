@@ -1,5 +1,5 @@
-#include "ui_text.hpp"
-#include "engine.hpp"
+#include "ui/text.hpp"
+#include "engine/setup.hpp"
 #include "state.hpp"
 
 #include <stdexcept>

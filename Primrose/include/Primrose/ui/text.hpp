@@ -1,9 +1,9 @@
-#ifndef PRIMROSE_UI_TEXT_HPP
-#define PRIMROSE_UI_TEXT_HPP
+#ifndef PRIMROSE_TEXT_HPP
+#define PRIMROSE_TEXT_HPP
 
-#include "ui_element.hpp"
+#include "element.hpp"
 
-#include <ft2build.h>
+#include <freetype/ft2build.h>
 #include FT_FREETYPE_H
 #include <map>
 

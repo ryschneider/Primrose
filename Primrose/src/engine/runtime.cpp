@@ -1,4 +1,4 @@
-#include "engine_runtime.hpp"
+#include "engine/runtime.hpp"
 #include "state.hpp"
 
 #define GLFW_INCLUDE_VULKAN
@@ -141,16 +141,6 @@ void Primrose::updateUniforms(FrameInFlight& frame) {
 
 	// write array data
 	// TODO don't update if hasn't changed
-	static bool p = true;
-	if (p) {
-		p = false;
-		for (const auto& op : operations) {
-			std::cout << op.type << ",";
-			std::cout << op.i << ",";
-			std::cout << op.j << std::endl;
-		}
-	}
-
 	updateVectorHelper(frame, operations,
 		sizeof(MarchUniformsFull().operations), offsetof(MarchUniformsFull, operations));
 	updateVectorHelper(frame, primitives,

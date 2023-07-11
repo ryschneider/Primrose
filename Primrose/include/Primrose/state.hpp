@@ -2,7 +2,7 @@
 #define PRIMROSE_STATE_HPP
 
 #include "shader_structs.hpp"
-#include "ui_element.hpp"
+#include "ui/element.hpp"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

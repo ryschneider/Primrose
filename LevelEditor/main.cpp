@@ -1,5 +1,5 @@
 #include <Primrose/core.hpp>
-#include <Primrose/ui.hpp>
+#include <Primrose/ui/text.hpp>
 #include <iostream>
 
 #include "player_movement.hpp"

@@ -1,8 +1,8 @@
 #ifndef PRIMROSE_CORE_H
 #define PRIMROSE_CORE_H
 
-#include "engine.hpp"
-#include "engine_runtime.hpp"
+#include "engine/setup.hpp"
+#include "engine/runtime.hpp"
 #include "state.hpp"
 #include "scene.hpp"
 

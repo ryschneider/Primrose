@@ -1,10 +1,9 @@
-#include "ui_element.hpp"
-#include "engine.hpp"
+#include "ui/element.hpp"
+#include "engine/setup.hpp"
 #include "shader_structs.hpp"
 #include "state.hpp"
 
 #include <glm/gtx/rotate_vector.hpp>
-#include <iostream>
 
 Primrose::UIElement::UIElement(glm::vec2 pos, glm::vec2 scale, float angle)
 	: pos(pos), scale(scale), angle(angle) {}

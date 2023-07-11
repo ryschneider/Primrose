@@ -1,7 +1,7 @@
-#ifndef PRIMROSE_UI_ELEMENT_HPP
-#define PRIMROSE_UI_ELEMENT_HPP
+#ifndef PRIMROSE_ELEMENT_HPP
+#define PRIMROSE_ELEMENT_HPP
 
-#include "shader_structs.hpp"
+#include "../shader_structs.hpp"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

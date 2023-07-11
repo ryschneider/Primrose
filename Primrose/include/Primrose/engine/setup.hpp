@@ -1,5 +1,5 @@
-#ifndef PRIMROSE_ENGINE_HPP
-#define PRIMROSE_ENGINE_HPP
+#ifndef PRIMROSE_SETUP_HPP
+#define PRIMROSE_SETUP_HPP
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

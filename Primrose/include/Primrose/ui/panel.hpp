@@ -1,7 +1,7 @@
-#ifndef PRIMROSE_UI_PANEL_HPP
-#define PRIMROSE_UI_PANEL_HPP
+#ifndef PRIMROSE_PANEL_HPP
+#define PRIMROSE_PANEL_HPP
 
-#include "ui_element.hpp"
+#include "element.hpp"
 
 namespace Primrose {
 	class UIPanel: public UIElement {

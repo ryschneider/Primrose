@@ -1,5 +1,4 @@
 #include "scene.hpp"
-#include "core.hpp"
 #include "state.hpp"
 #include "shader_structs.hpp"
 

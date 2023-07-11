@@ -1,5 +1,5 @@
 #include "fps_counter.hpp"
-#include <Primrose/ui_text.hpp>
+#include <Primrose/ui/text.hpp>
 #include <Primrose/state.hpp>
 
 using namespace Primrose;

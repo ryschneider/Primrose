@@ -1,5 +1,6 @@
-#include "ui_image.hpp"
-#include "engine.hpp"
+#include "ui/image.hpp"
+
+#include "engine/setup.hpp"
 #include "shader_structs.hpp"
 
 #include <iostream>

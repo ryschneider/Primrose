@@ -1,7 +1,7 @@
-#ifndef PRIMROSE_ENGINE_RUNTIME_HPP
-#define PRIMROSE_ENGINE_RUNTIME_HPP
+#ifndef PRIMROSE_RUNTIME_HPP
+#define PRIMROSE_RUNTIME_HPP
 
-#include "engine.hpp"
+#include "setup.hpp"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

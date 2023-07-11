@@ -1,6 +1,6 @@
+#include "ui/panel.hpp"
+
 #include <stdexcept>
-#include "ui_panel.hpp"
-#include "engine.hpp"
 
 void Primrose::UIPanel::init(glm::vec3 col) { init(glm::vec4(col, 1)); }
 
