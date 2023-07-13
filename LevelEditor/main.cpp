@@ -4,31 +4,31 @@
 
 #include "player_movement.hpp"
 #include "fps_counter.hpp"
-#include "../PrimroseDemo/planet_scene.hpp"
+//#include "../PrimroseDemo/planet_scene.hpp"
 
 const char* APP_NAME = "Level Editor";
 const unsigned int APP_VERSION = 001'000'000;
 
 using namespace Primrose;
 
-uint selectedTool = PRIM_BOX;
-std::map<uint, std::string> toolNames = {
-	{PRIM_1, "PRIM_1"},
-	{PRIM_2, "PRIM_2"},
-	{PRIM_3, "PRIM_3"},
-	{PRIM_4, "PRIM_4"},
-//	{PRIM_5, "PRIM_5"},
-//	{PRIM_6, "PRIM_6"},
-//	{PRIM_7, "PRIM_7"},
-//	{PRIM_8, "PRIM_8"},
-//	{PRIM_9, "PRIM_9"},
-	{PRIM_SPHERE, "PRIM_SPHERE"},
-	{PRIM_BOX, "PRIM_BOX"},
-	{PRIM_TORUS, "PRIM_TORUS"},
-	{PRIM_LINE, "PRIM_LINE"},
-	{PRIM_CYLINDER, "PRIM_CYLINDER"}
+PRIM selectedTool = PRIM::BOX;
+std::map<PRIM, std::string> toolNames = {
+	{PRIM::P1, "PRIM::P1"},
+	{PRIM::P2, "PRIM::P2"},
+	{PRIM::P3, "PRIM::P3"},
+	{PRIM::P4, "PRIM::P4"},
+//	{PRIM::P5, "PRIM::P5"},
+//	{PRIM::P6, "PRIM::P6"},
+//	{PRIM::P7, "PRIM::P7"},
+//	{PRIM::P8, "PRIM::P8"},
+//	{PRIM::P9, "PRIM::P9"},
+	{PRIM::SPHERE, "PRIM::SPHERE"},
+	{PRIM::BOX, "PRIM::BOX"},
+	{PRIM::TORUS, "PRIM::TORUS"},
+	{PRIM::LINE, "PRIM::LINE"},
+	{PRIM::CYLINDER, "PRIM::CYLINDER"}
 };
-uint nextTool(uint tool) {
+PRIM nextTool(PRIM tool) {
 	bool next = false;
 	for (const auto& pair : toolNames) {
 		if (next) return pair.first;
@@ -45,7 +45,7 @@ void update(float dt) {
 	updatePosition();
 	updateFps();
 
-//	primitives[previewPrim].type = selectedTool;
+//	primitives[previewPrim].nodeType = selectedTool;
 //
 //	glm::vec3 position = uniforms.camPos + uniforms.camDir * placeDist;
 //	glm::mat4 transform = transformMatrix(position, glm::vec3(1), 0, glm::vec3(1));
@@ -69,11 +69,20 @@ int main() {
 //	previewTransform = addScale(1);
 //	addRender(addIdentity(previewPrim));
 
-	uint sphere = addPrim(PRIM_SPHERE);
-	uint id = addIdentity(sphere);
-	addRender(id);
+//	uint sphere = addPrim(PRIM::SPHERE);
+//	uint id = addIdentity(sphere);
+//	addRender(id);
+//
+//	planetScene();
 
-	planetScene();
+	Scene scene("scenes/test.json");
+	std::cout << "SCENE:" << std::endl << scene.toString() << std::endl;
+	scene.load();
+
+	std::cout << "UNIFORMS:" << std::endl << uniforms.toString() << std::endl;
+
+//	for (int i = 0; i < uni)
+//	uniforms.operations
 
 	initFps();
 

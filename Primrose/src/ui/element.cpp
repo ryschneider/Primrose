@@ -5,11 +5,8 @@
 
 #include <glm/gtx/rotate_vector.hpp>
 
-Primrose::UIElement::UIElement(glm::vec2 pos, glm::vec2 scale, float angle)
-	: pos(pos), scale(scale), angle(angle) {}
-
-Primrose::UIElement::UIElement(glm::vec2 pos, float scale, float angle)
-    : pos(pos), scale(glm::vec3(scale)), angle(angle) {}
+Primrose::UIElement::UIElement(glm::vec2 pos, glm::vec2 scale, float angle) : pos(pos), scale(scale), angle(angle) {}
+Primrose::UIElement::UIElement(glm::vec2 pos, float scale, float angle) : pos(pos), scale(glm::vec3(scale)), angle(angle) {}
 
 Primrose::UIElement::~UIElement() {
 	vkDestroyBuffer(device, vertexBuffer, nullptr);
@@ -18,12 +15,7 @@ Primrose::UIElement::~UIElement() {
 	vkFreeMemory(device, indexBufferMemory, nullptr);
 }
 
-struct BasicPush {
-	BasicPush(unsigned int type) { uiType = type; }
-	alignas(4) unsigned int uiType;
-};
-
-void Primrose::UIElement::init(unsigned int type) {
+void Primrose::UIElement::init(UI type) {
 	uiType = type;
 
 	updateBuffers();
@@ -67,7 +59,7 @@ void Primrose::UIElement::updateBuffers() {
 	writeToDevice(indexBufferMemory, indices.data(), indexBufferSize);
 }
 
-std::vector<UIVertex> Primrose::UIElement::genVertices() {
+std::vector<Primrose::UIVertex> Primrose::UIElement::genVertices() {
 	return {
 		{{0, 0}, {0, 0}},
 		{{1, 0}, {1, 0}},

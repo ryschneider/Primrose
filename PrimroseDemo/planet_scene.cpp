@@ -8,11 +8,11 @@ using namespace Primrose;
 float r = 80;
 glm::vec3 planetPos(0, -r, 5);
 void planetScene() {
-	uint spherePrim = addPrim(PRIM_SPHERE);
-	uint cyl = addPrim(PRIM_CYLINDER);
-	uint box = addPrim(PRIM_BOX);
-	uint prim4 = addPrim(PRIM_4);
-	uint torus = addPrim(PRIM_TORUS, 0.5);
+	uint spherePrim = addPrim(PRIM::SPHERE);
+	uint cyl = addPrim(PRIM::CYLINDER);
+	uint box = addPrim(PRIM::BOX);
+	uint prim4 = addPrim(PRIM::P4);
+	uint torus = addPrim(PRIM::TORUS, 0.5);
 
     addTranslate(planetPos.x, planetPos.y, planetPos.z);
     addScale(r);

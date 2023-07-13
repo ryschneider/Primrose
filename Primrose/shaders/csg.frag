@@ -36,10 +36,10 @@ struct Ray {
 
 
 // primitives
-const uint PRIM_SPHERE = 1;
-const uint PRIM_CUBE = 2;
+const uint PRIM::SPHERE = 1;
+const uint PRIM::CUBE = 2;
 struct Primitive {
-	uint type; // PRIM_ prefix
+	uint type; // PRIM:: prefix
 	vec3 pos;
 	vec4 rot;
 	float a;
@@ -48,9 +48,9 @@ struct Primitive {
 };
 // prim initialisers
 Primitive Sphere(vec3 pos, float r) { // uses position and radius
-	return Primitive(PRIM_SPHERE, pos, vec4(0.f), r, 0.f, 0.f); }
+	return Primitive(PRIM::SPHERE, pos, vec4(0.f), r, 0.f, 0.f); }
 Primitive Cube(vec3 pos, vec4 rot, float s) { // uses position, rotation, and side length
-	return Primitive(PRIM_CUBE, pos, rot, s, 0.f, 0.f); }
+	return Primitive(PRIM::CUBE, pos, rot, s, 0.f, 0.f); }
 Primitive primitives[MAX_NUM_PRIMITIVES] = {
 	Sphere(vec3(-1.f, 0.f, -1.f), 2.f),
 	Sphere(vec3(1.f, 0.f, 1.f), 2.f)
@@ -59,16 +59,16 @@ Primitive primitives[MAX_NUM_PRIMITIVES] = {
 
 
 // instructions
-const uint OP_ADD_POINTS = 1;
-const uint OP_VOLUME_INTERSECTION = 3; // remove all points outside volume
-const uint OP_VOLUME_DIFFERENCE = 4; // remove all points inside volume
+const uint OP::ADD_POINTS = 1;
+const uint OP::VOLUME_INTERSECTION = 3; // remove all points outside volume
+const uint OP::VOLUME_DIFFERENCE = 4; // remove all points inside volume
 struct Instruction {
 	uint op; // operation to perform
 	uint index; // index used by operation
 };
 Instruction instructions[MAX_NUM_INSTRUCTIONS] = {
-	Instruction(OP_ADD_POINTS, 0),
-	Instruction(OP_VOLUME_INTERSECTION, 1)
+	Instruction(OP::ADD_POINTS, 0),
+	Instruction(OP::VOLUME_INTERSECTION, 1)
 };
 
 
@@ -106,7 +106,7 @@ void main() {
 		
 	}
 	
-	// PrimHit bestHit = NO_PRIM_HIT;
+	// PrimHit bestHit = NO_PRIM::HIT;
 	// for (int i = 0; i < renderCsgs.length(); ++i) {
 	// 	uint csgIndex = renderCsgs[i];
 	// 	Csg csg = csgs[csgIndex];
@@ -118,7 +118,7 @@ void main() {
 	// 	}
 	// }
 
-	if (bestHit == NO_PRIM_HIT) {
+	if (bestHit == NO_PRIM::HIT) {
 		fragColor = vec4(BG_COLOR, 1.f);
 	} else {
 		vec3 hitPos = ray.pos + ray.dir * bestHit.t;

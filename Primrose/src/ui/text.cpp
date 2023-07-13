@@ -26,7 +26,7 @@ void Primrose::UIText::init(const char* fontPath, int fntSize) {
 
 	loadAlphabet(fontPath);
 
-	UIElement::init(UI_TEXT);
+	UIElement::init(UI::TEXT);
 
 	std::cout << std::endl; // newline
 }
@@ -199,7 +199,7 @@ void Primrose::UIText::loadAlphabet(const char* fontPath) {
 	}
 }
 
-std::vector<UIVertex> Primrose::UIText::genVertices() {
+std::vector<Primrose::UIVertex> Primrose::UIText::genVertices() {
 	const float textScale = 1 / 400.f;
 
 	std::vector<UIVertex> vertices;

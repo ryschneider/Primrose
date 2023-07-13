@@ -6,10 +6,9 @@ layout(location = 0) out vec4 fragColor;
 
 layout(binding = 1) uniform sampler2D texSampler;
 
-const uint UI_NULL = 0;
-const uint UI_IMAGE = 1;
-const uint UI_PANEL = 2;
-const uint UI_TEXT = 3;
+const uint UI_IMAGE = 501;
+const uint UI_PANEL = 502;
+const uint UI_TEXT = 503;
 
 layout(push_constant) uniform PushConstant {
     uint uiType;
@@ -23,10 +22,13 @@ void main() {
     if (p.uiType == UI_IMAGE) {
         fragColor = texture(texSampler, uv);
     } else if (p.uiType == UI_TEXT) {
-        fragColor = vec4(texture(texSampler, uv).r);
+        float v = texture(texSampler, uv).r;
+        fragColor = vec4(vec3(1), v);
     } else if (p.uiType == UI_PANEL) {
         vec2 rel = abs(0.5 - uv); // distance from centre
         if (max(rel.x, rel.y) > 0.5 - p.borderStroke) fragColor = p.borderColor;
         else fragColor = p.color;
+    } else {
+        fragColor = vec4(1.f, 0.f, 0.f, 1.f);
     }
 }

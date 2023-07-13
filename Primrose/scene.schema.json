@@ -5,82 +5,77 @@
 	"type": "array",
 	"items": {
 		"type": "object",
-		"properties": {
-			"translate": { "$ref": "#/$defs/vec3" },
-			"scale": { "$ref": "#/$defs/vec3" },
-			"rotate": {
-				"type": "object",
-				"required": ["angle", "axis"],
-				"additionalProperties": false,
-				"properties": {
-					"angle": {
-						"type": "number",
-						"minimum": 0,
-						"exclusiveMaximum": 360
-					},
-					"axis": { "$ref": "#/$defs/vec3" }
-				}
-			}
-		},
 		"required": ["type"],
-		"additionalProperties": false,
 		"oneOf": [
 			{
 				"properties": {
 					"type": { "enum": ["sphere"] },
-					"radius": { "type": "number" }
+					"radius": { "type": "number" },
+					"transform": { "$ref": "#/$defs/transform" }
 				},
-				"required": ["radius"]
+				"required": ["radius"],
+				"additionalProperties": false
 			},
 			{
 				"properties": {
 					"type": { "enum": ["box"] },
-					"size": { "$ref": "#/$defs/vec3" }
+					"size": { "$ref": "#/$defs/vec3_or_float" },
+					"transform": { "$ref": "#/$defs/transform" }
 				},
-				"required": ["size"]
+				"required": ["size"],
+				"additionalProperties": false
 			},
 			{
 				"properties": {
 					"type": { "enum": ["torus"] },
 					"ringRadius": { "type": "number" },
-					"majorRadius": { "type": "number" }
+					"majorRadius": { "type": "number" },
+					"transform": { "$ref": "#/$defs/transform" }
 				},
-				"required": ["ringRadius", "majorRadius"]
+				"required": ["ringRadius", "majorRadius"],
+				"additionalProperties": false
 			},
 			{
 				"properties": {
 					"type": { "enum": ["line"] },
 					"height": { "type": "number" },
-					"radius": { "type": "number" }
+					"radius": { "type": "number" },
+					"transform": { "$ref": "#/$defs/transform" }
 				},
-				"required": ["height", "radius"]
+				"required": ["height", "radius"],
+				"additionalProperties": false
 			},
 			{
 				"properties": {
 					"type": { "enum": ["cylinder"] },
-					"radius": { "type": "number" }
+					"radius": { "type": "number" },
+					"transform": { "$ref": "#/$defs/transform" }
 				},
-				"required": ["radius"]
+				"required": ["radius"],
+				"additionalProperties": false
 			},
 
 			{
-				"required": ["objects"],
 				"properties": {
 					"type": { "enum": ["union", "intersection"] },
 					"objects": {
 						"type": "array",
-						"items": { "$ref": "#/items" },
-						"minItems": 2
-					}
-				}
+						"items": { "$ref": "#/items" }
+					},
+					"transform": { "$ref": "#/$defs/transform" }
+				},
+				"required": ["objects"],
+				"additionalProperties": false
 			},
 			{
-				"required": ["base", "subtract"],
 				"properties": {
 					"type": { "enum": ["difference"] },
 					"base": { "$ref": "#/items" },
-					"subtract": { "$ref": "#/items" }
-				}
+					"subtract": { "$ref": "#/items" },
+					"transform": { "$ref": "#/$defs/transform" }
+				},
+				"required": ["base", "subtract"],
+				"additionalProperties": false
 			}
 		]
 	},
@@ -92,6 +87,34 @@
 			},
 			"minItems": 3,
 			"maxItems": 3
+		},
+		"vec3_or_float": {
+			"oneOf": [
+				{ "$ref": "#/$defs/vec3" },
+				{ "type": "number" }
+			]
+		},
+		"transform": {
+			"type": "object",
+			"properties": {
+				"position": { "$ref": "#/$defs/vec3" },
+				"scale": { "$ref": "#/$defs/vec3_or_float" },
+				"rotation": {
+					"type": "object",
+					"required": ["angle", "axis"],
+					"additionalProperties": false,
+					"properties": {
+						"angle": {
+							"type": "number",
+							"minimum": 0,
+							"exclusiveMaximum": 360
+						},
+						"axis": { "$ref": "#/$defs/vec3" }
+					}
+				}
+			},
+			"minProperties": 1,
+			"additionalProperties": false
 		}
 	}
 }

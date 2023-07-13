@@ -1,9 +1,9 @@
 
 uint MAX_NUM_INSTRUCTIONS = 1000;
-uint OP_UNION;
-uint OP_INTERSECTION;
-uint OP_VOLUME_INTERSECTION; // remove all points outside volume
-uint OP_VOLUME_DIFFERENCE; // remove all points inside volume
+uint OP::UNION;
+uint OP::INTERSECTION;
+uint OP::VOLUME_INTERSECTION; // remove all points outside volume
+uint OP::VOLUME_DIFFERENCE; // remove all points inside volume
 struct Instruction {
 	uint op;
 	uint index;
@@ -11,8 +11,8 @@ struct Instruction {
 Instruction instructions[MAX_NUM_INSTRUCTIONS];
 
 uint MAX_NUM_PRIMITIVES = 200;
-uint PRIM_SPHERE;
-uint PRIM_CUBE;
+uint PRIM::SPHERE;
+uint PRIM::CUBE;
 struct Primitive {
 	uint type;
 	float a;

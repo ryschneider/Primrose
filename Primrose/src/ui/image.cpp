@@ -21,7 +21,7 @@ void Primrose::UIImage::init(const char *imagePath) {
 
 	createSampler();
 
-	UIElement::init(UI_IMAGE);
+	UIElement::init(UI::IMAGE);
 
 	std::cout << std::endl; // newline
 }
@@ -73,7 +73,7 @@ void Primrose::UIImage::createSampler() {
 	}
 }
 
-std::vector<UIVertex> Primrose::UIImage::genVertices() {
+std::vector<Primrose::UIVertex> Primrose::UIImage::genVertices() {
 	std::vector<UIVertex> verts = UIElement::genVertices();
 	for (auto& v : verts) {
 		v.pos.x *= aspect;

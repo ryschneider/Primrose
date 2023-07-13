@@ -24,7 +24,7 @@ const uint NO_CSG = 65535; // csg index, max int value (16 bit)
 const uint MAX_INTERSECTION_HITS = 2;
 const float NO_INTERSECTION[MAX_INTERSECTION_HITS] = float[](NO_HIT, NO_HIT);
 
-const uint MAX_GLOBAL_PRIM_HITS = 1000;
+const uint MAX_GLOBAL_PRIM::HITS = 1000;
 
 const vec3 BG_COLOR = vec3(0.01f, 0.01f, 0.01f);
 
@@ -35,10 +35,10 @@ struct Ray {
 };
 
 // primitive system
-const uint PRIM_SPHERE = 1;
-const uint PRIM_CUBE = 2;
+const uint PRIM::SPHERE = 1;
+const uint PRIM::CUBE = 2;
 struct Primitive {
-	uint type; // PRIM_ prefix
+	uint type; // PRIM:: prefix
 	vec3 pos;
 	vec4 rot;
 	float a;
@@ -47,11 +47,11 @@ struct Primitive {
 };
 Primitive Sphere(vec3 pos, float r) {
 	// uses position and radius
-	return Primitive(PRIM_SPHERE, pos, vec4(0.f), r, 0.f, 0.f);
+	return Primitive(PRIM::SPHERE, pos, vec4(0.f), r, 0.f, 0.f);
 }
 Primitive Cube(vec3 pos, vec4 rot, float s) {
 	// uses position, rotation, and side length
-	return Primitive(PRIM_CUBE, pos, rot, s, 0.f, 0.f);
+	return Primitive(PRIM::CUBE, pos, rot, s, 0.f, 0.f);
 }
 Primitive primitives[] = {
 	// // wall 50 units away
@@ -67,29 +67,29 @@ Primitive primitives[] = {
 // csg system
 const uint TYPE_CSG_CSG = 1; // csgs[a], csgs[b]
 const uint TYPE_CSG_PRIM = 2; // csgs[a], primitives[b]
-const uint TYPE_PRIM_CSG = 3; // primitives[a], csgs[b]
-const uint TYPE_PRIM_PRIM = 4; // primitives[a], primitives[b]
+const uint TYPE_PRIM::CSG = 3; // primitives[a], csgs[b]
+const uint TYPE_PRIM::PRIM = 4; // primitives[a], primitives[b]
 const uint TYPE_PRIM = 5; // no operation, primitives[a]
-const uint OP_UNION = 1; // csg = a || b
-const uint OP_INTERSECTION = 2; // csg = a && b
-const uint OP_DIFFERENCE = 3; // csg = a - b
-const uint OP_NONE = 4; // csg = a - b
+const uint OP::UNION = 1; // csg = a || b
+const uint OP::INTERSECTION = 2; // csg = a && b
+const uint OP::DIFFERENCE = 3; // csg = a - b
+const uint OP::NONE = 4; // csg = a - b
 
 struct Csg {
 	uint type; // TYPE_ prefix
-	uint operation; // OP_ prefix
+	uint operation; // OP:: prefix
 	uint a; // refers to the index of the object in
 	uint b; // either csgs[] or primitives[] depending on type
 };
 Csg PrimitiveCsg(uint primIndex) {
-	return Csg(TYPE_PRIM, OP_NONE, primIndex, NO_PRIM);
+	return Csg(TYPE_PRIM, OP::NONE, primIndex, NO_PRIM);
 }
 
 Csg csgs[] = {
 	// PrimitiveCsg(0),
 	// PrimitiveCsg(2)
-	Csg(TYPE_PRIM_PRIM, OP_DIFFERENCE, 0, 2),
-	Csg(TYPE_PRIM_PRIM, OP_DIFFERENCE, 1, 3)
+	Csg(TYPE_PRIM::PRIM, OP::DIFFERENCE, 0, 2),
+	Csg(TYPE_PRIM::PRIM, OP::DIFFERENCE, 1, 3)
 };
 uint renderCsgs[] = {
 	0, 1
@@ -99,9 +99,9 @@ struct PrimHit {
 	float t; // t-value
 	uint prim; // prim index
 };
-const PrimHit NO_PRIM_HIT = PrimHit(NO_HIT, NO_PRIM);
+const PrimHit NO_PRIM::HIT = PrimHit(NO_HIT, NO_PRIM);
 
-// PrimHit globalPrimHits[MAX_GLOBAL_PRIM_HITS];
+// PrimHit globalPrimHits[MAX_GLOBAL_PRIM::HITS];
 // uint numGlobalPrimHits = 0;
 
 // misc functions
@@ -149,9 +149,9 @@ float[MAX_INTERSECTION_HITS] cubeIntersection(Ray ray, uint cubeIndex) {
 float[MAX_INTERSECTION_HITS] primIntersection(Ray ray, uint primIndex) {
 	const Primitive prim = primitives[primIndex];
 
-	if (prim.type == PRIM_SPHERE) {
+	if (prim.type == PRIM::SPHERE) {
 		return sphereIntersection(ray, primIndex);
-	} else if (prim.type == PRIM_CUBE) {
+	} else if (prim.type == PRIM::CUBE) {
 		return cubeIntersection(ray, primIndex);
 	}
 	#ifdef DEBUG
@@ -163,7 +163,7 @@ float[MAX_INTERSECTION_HITS] primIntersection(Ray ray, uint primIndex) {
 }
 
 bool primContainsPoint(vec3 p, uint primIndex) {
-	if (primitives[primIndex].type == PRIM_SPHERE) {
+	if (primitives[primIndex].type == PRIM::SPHERE) {
 		// sphere constants
 		const Primitive sphere = primitives[primIndex];
 		const float r = sphere.a;
@@ -178,7 +178,7 @@ bool primContainsPoint(vec3 p, uint primIndex) {
 		} else {
 			return false;
 		}
-	} else if (primitives[primIndex].type == PRIM_CUBE) {
+	} else if (primitives[primIndex].type == PRIM::CUBE) {
 		return true;
 	}
 	#ifdef DEBUG
@@ -190,9 +190,9 @@ bool primContainsPoint(vec3 p, uint primIndex) {
 }
 
 vec3 primNormal(vec3 hit, Primitive prim) {
-	if (prim.type == PRIM_SPHERE) {
+	if (prim.type == PRIM::SPHERE) {
 		return normalize(hit - prim.pos);
-	} else if (prim.type == PRIM_CUBE) {
+	} else if (prim.type == PRIM::CUBE) {
 		return vec3(0.f, 1.f, 0.f);
 	}
 	#ifdef DEBUG
@@ -202,7 +202,7 @@ vec3 primNormal(vec3 hit, Primitive prim) {
 	#endif
 }
 vec3 primColor(vec3 hit, Primitive prim) {
-	if (prim.type == PRIM_SPHERE) {
+	if (prim.type == PRIM::SPHERE) {
 		Primitive sphere = prim; // sphere vals
 		float r = sphere.a;
 
@@ -217,7 +217,7 @@ vec3 primColor(vec3 hit, Primitive prim) {
 
 		return hsv2rgb(hue, sat, 1.f);
 		// return vec3(hue);
-	} else if (prim.type == PRIM_CUBE) {
+	} else if (prim.type == PRIM::CUBE) {
 		return vec3(0.f, 1.f, 0.f);
 	}
 	#ifdef DEBUG
@@ -232,7 +232,7 @@ PrimHit renderUnionPP(Ray ray, uint primIndexA, uint primIndexB) {
 	float aHits[] = primIntersection(ray, primIndexA);
 	float bHits[] = primIntersection(ray, primIndexB);
 
-	PrimHit hit = NO_PRIM_HIT; // best hit found
+	PrimHit hit = NO_PRIM::HIT; // best hit found
 
 	// check a and b hits
 	for (uint i = 0; i < MAX_INTERSECTION_HITS; ++i) {
@@ -257,7 +257,7 @@ PrimHit renderIntersectionPP(Ray ray, uint primIndexA, uint primIndexB) {
 	float aHits[] = primIntersection(ray, primIndexA);
 	float bHits[] = primIntersection(ray, primIndexB);
 
-	PrimHit hit = NO_PRIM_HIT;
+	PrimHit hit = NO_PRIM::HIT;
 
 	// check for the A surface intersections inside B
 	for (uint i = 0; i < MAX_INTERSECTION_HITS; ++i) {
@@ -290,7 +290,7 @@ PrimHit renderDifferencePP(Ray ray, uint primIndexA, uint primIndexB) {
 	float aHits[] = primIntersection(ray, primIndexA);
 	float bHits[] = primIntersection(ray, primIndexB);
 
-	PrimHit hit = NO_PRIM_HIT;
+	PrimHit hit = NO_PRIM::HIT;
 
 	// get all A hits not inside B
 	for (uint i = 0; i < MAX_INTERSECTION_HITS; ++i) {
@@ -322,7 +322,7 @@ PrimHit renderDifferencePP(Ray ray, uint primIndexA, uint primIndexB) {
 PrimHit renderIdentityP(Ray ray, uint primIndex) {
 	float hits[] = primIntersection(ray, primIndex);
 
-	PrimHit hit = NO_PRIM_HIT;
+	PrimHit hit = NO_PRIM::HIT;
 	for (uint i = 0; i < MAX_INTERSECTION_HITS; ++i) {
 		float t = hits[i];
 		if (t < hit.t) {
@@ -343,7 +343,7 @@ PrimHit renderUnionPC(Ray ray, uint primIndex, uint csgIndex) {
 	while (currentCsgIndex != NO_CSG) {
 		Csg currentCsg = csgs[currentCsgIndex];
 
-		if (currentCsg.type == TYPE_PRIM_PRIM) {
+		if (currentCsg.type == TYPE_PRIM::PRIM) {
 
 			const uint primIndexA = currentCsg.a;
 			const uint primIndexB = currentCsg.b;
@@ -360,7 +360,7 @@ PrimHit renderUnionPC(Ray ray, uint primIndex, uint csgIndex) {
 				allPrimHits[numPrimHits++] = PrimHit(hitsB[i], primIndexB);
 			}
 
-		} else if (currentCsg.type == TYPE_PRIM_CSG) {
+		} else if (currentCsg.type == TYPE_PRIM::CSG) {
 
 			const uint primIndex = currentCsg.a;
 			const uint csgIndex = currentCsg.b;
@@ -377,33 +377,33 @@ PrimHit renderUnionPC(Ray ray, uint primIndex, uint csgIndex) {
 		}
 	}
 
-	return NO_PRIM_HIT;
+	return NO_PRIM::HIT;
 
 }
 
 PrimHit renderIntersectionPC(Ray ray, uint primIndex, uint csgIndex) {
-	return NO_PRIM_HIT;
+	return NO_PRIM::HIT;
 }
 
 PrimHit renderDifferencePC(Ray ray, uint primIndex, uint csgIndex) {
-	return NO_PRIM_HIT;
+	return NO_PRIM::HIT;
 }
 
 PrimHit renderDifferenceCP(Ray ray, uint csgIndex, uint primIndex) {
-	return NO_PRIM_HIT;
+	return NO_PRIM::HIT;
 }
 
 PrimHit render(Ray ray, Csg csg) {
-	if (csg.type == TYPE_PRIM_CSG) {
+	if (csg.type == TYPE_PRIM::CSG) {
 
 		uint primIndex = csg.a;
 		uint csgIndex = csg.b;
 
-		if (csg.operation == OP_UNION) {
+		if (csg.operation == OP::UNION) {
 			return renderUnionPC(ray, primIndex, csgIndex);
-		} else if (csg.operation == OP_INTERSECTION) {
+		} else if (csg.operation == OP::INTERSECTION) {
 			return renderIntersectionPC(ray, primIndex, csgIndex);
-		} else if (csg.operation == OP_DIFFERENCE) {
+		} else if (csg.operation == OP::DIFFERENCE) {
 			return renderDifferencePC(ray, primIndex, csgIndex);
 		}
 		
@@ -414,26 +414,26 @@ PrimHit render(Ray ray, Csg csg) {
 		uint csgIndex = csg.a;
 		uint primIndex = csg.b;
 
-		if (csg.operation == OP_UNION) { // prim-csg is equivalent to csg-prim for union and intersection
+		if (csg.operation == OP::UNION) { // prim-csg is equivalent to csg-prim for union and intersection
 			return renderUnionPC(ray, primIndex, csgIndex);
-		} else if (csg.operation == OP_INTERSECTION) {
+		} else if (csg.operation == OP::INTERSECTION) {
 			return renderIntersectionPC(ray, primIndex, csgIndex);
-		} else if (csg.operation == OP_DIFFERENCE) { // difference is not commutative so it has its own func
+		} else if (csg.operation == OP::DIFFERENCE) { // difference is not commutative so it has its own func
 			return renderDifferenceCP(ray, csgIndex, primIndex);
 		}
 
 	}
 
-	else if (csg.type == TYPE_PRIM_PRIM) {
+	else if (csg.type == TYPE_PRIM::PRIM) {
 
 		uint primIndexA = csg.a;
 		uint primIndexB = csg.b;
 
-		if (csg.operation == OP_UNION) {
+		if (csg.operation == OP::UNION) {
 			return renderUnionPP(ray, primIndexA, primIndexB);
-		} else if (csg.operation == OP_INTERSECTION) {
+		} else if (csg.operation == OP::INTERSECTION) {
 			return renderIntersectionPP(ray, primIndexA, primIndexB);
-		} else if (csg.operation == OP_DIFFERENCE) {
+		} else if (csg.operation == OP::DIFFERENCE) {
 			return renderDifferencePP(ray, primIndexA, primIndexB);
 		}
 
@@ -441,7 +441,7 @@ PrimHit render(Ray ray, Csg csg) {
 
 		uint primIndex = csg.a;
 
-		if (csg.operation == OP_NONE) {
+		if (csg.operation == OP::NONE) {
 			return renderIdentityP(ray, primIndex);
 		}
 
@@ -450,7 +450,7 @@ PrimHit render(Ray ray, Csg csg) {
 	#ifdef DEBUG
 	discard;
 	#else
-	return NO_PRIM_HIT;
+	return NO_PRIM::HIT;
 	#endif
 }
 
@@ -471,7 +471,7 @@ void main() {
 		normalize(fragPos - focalPos)
 	};
 	
-	PrimHit bestHit = NO_PRIM_HIT;
+	PrimHit bestHit = NO_PRIM::HIT;
 	for (int i = 0; i < renderCsgs.length(); ++i) {
 		uint csgIndex = renderCsgs[i];
 		Csg csg = csgs[csgIndex];
@@ -483,7 +483,7 @@ void main() {
 		}
 	}
 
-	if (bestHit == NO_PRIM_HIT) {
+	if (bestHit == NO_PRIM::HIT) {
 		fragColor = vec4(BG_COLOR, 1.f);
 	} else {
 		vec3 hitPos = ray.pos + ray.dir * bestHit.t;

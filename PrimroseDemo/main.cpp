@@ -126,8 +126,8 @@ glm::mat4 fromRotation(float angle, glm::vec3 axis) {
 }
 
 void planetScene() {
-	uniforms.primitives[0] = Prim(PRIM_SPHERE);
-	uniforms.primitives[4] = Prim(PRIM_4);
+	uniforms.primitives[0] = Prim(PRIM::SPHERE);
+	uniforms.primitives[4] = Prim(PRIM::P4);
 
 	addTranslate(planetPos.x, planetPos.y, planetPos.z);
 	addScale(r);
@@ -145,12 +145,12 @@ void planetScene() {
 
 
 
-	uniforms.primitives[1] = Prim(PRIM_CYLINDER);
+	uniforms.primitives[1] = Prim(PRIM::CYLINDER);
 	addTranslate(0, 2, 5);
 	addIdentity(1, true);
 
-	uniforms.primitives[2] = Prim(PRIM_BOX);
-	uniforms.primitives[3] = Prim(PRIM_CYLINDER);
+	uniforms.primitives[2] = Prim(PRIM::BOX);
+	uniforms.primitives[3] = Prim(PRIM::CYLINDER);
 
 	glm::mat4 csgModel = Primrose::transformMatrix(
 		planetPos + glm::vec3(0, 0.7071, 0.7071) * (r+2),
@@ -184,7 +184,7 @@ void planetScene() {
 	addScale(10, 2, 10);
 	addIdentity(2, true);
 
-	uniforms.primitives[5] = Prim(PRIM_TORUS, 0.5);
+	uniforms.primitives[5] = Prim(PRIM::TORUS, 0.5);
 	addTranslate(0,-2*r - 40, 5);
 	addScale(10);
 	addIdentity(5, true);

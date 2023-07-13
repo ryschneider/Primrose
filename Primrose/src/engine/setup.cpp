@@ -273,7 +273,7 @@ void Primrose::createDeviceMemory(VkMemoryRequirements memReqs,
 		}
 	}
 	if (!found) {
-		throw std::runtime_error("failed to find suitable memory type");
+		throw std::runtime_error("failed to find suitable memory nodeType");
 	}
 
 	uint32_t heapIndex = memProperties.memoryTypes[bestMemory].heapIndex;
@@ -510,10 +510,6 @@ void Primrose::setup(const char* applicationName, unsigned int applicationVersio
 	initWindow();
 	initVulkan();
 
-	operations.reserve(100);
-	primitives.reserve(100);
-	transformations.reserve(100);
-
 	// TODO put screenHeight definition in swapchainExtent setter
 	setFov(Settings::fov); // initial set fov
 	setZoom(1.f); // initial set zoom
@@ -712,7 +708,7 @@ void Primrose::pickPhysicalDevice() {
 			continue;
 		}
 
-		// score graphics devices based on type and specs
+		// score graphics devices based on nodeType and specs
 		int score = 0;
 
 		// priority for dedicated graphics cards - arbitrary large number for priority
@@ -725,7 +721,7 @@ void Primrose::pickPhysicalDevice() {
 			score += 1 << 29; // 2^29
 		}
 
-		// score multiple graphics cards of same type by vram
+		// score multiple graphics cards of same nodeType by vram
 		score += getPhysicalDeviceVramMb(phyDevice);
 
 		if (score > bestScore) {
@@ -1250,7 +1246,7 @@ void Primrose::createFramesInFlight() {
 		}
 
 		// create uniform buffers
-		createBuffer(sizeof(MarchUniformsFull), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		createBuffer(sizeof(MarchUniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 //			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, // smart access memory (256 mb)
 			&frame.uniformBuffer, &frame.uniformBufferMemory);
@@ -1266,7 +1262,7 @@ void Primrose::createFramesInFlight() {
 		VkDescriptorBufferInfo uniformBufferInfo{};
 		uniformBufferInfo.buffer = frame.uniformBuffer;
 		uniformBufferInfo.offset = 0;
-		uniformBufferInfo.range = sizeof(MarchUniformsFull);
+		uniformBufferInfo.range = sizeof(MarchUniforms);
 		descriptorWrite.dstBinding = 0; // which binding index
 		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrite.pBufferInfo = &uniformBufferInfo;

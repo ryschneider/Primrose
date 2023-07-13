@@ -16,11 +16,11 @@ namespace Primrose {
 		UIElement(glm::vec2 pos, float scale, float angle = 0);
 		virtual ~UIElement();
 
-		virtual void init(unsigned int uiType);
+		void init(UI type);
 
 		bool hide = false;
 
-		unsigned int uiType = UI_NULL;
+		UI uiType;
 		void* pPush = nullptr;
 		uint32_t pushSize = 0;
 

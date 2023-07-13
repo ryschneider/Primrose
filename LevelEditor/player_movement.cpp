@@ -18,7 +18,9 @@ void updatePosition() {
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) movement += up;
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) movement -= up;
 
-	float speed = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? 30 : 10;
+	float speed = 10;
+	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) speed *= 3;
+	if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) speed /= 3;
 
 	movement *= speed * deltaTime;
 

@@ -14,7 +14,7 @@ void Primrose::UIPanel::init(glm::vec4 col, glm::vec4 borderCol, float stroke) {
 	pPush = &push;
 	pushSize = sizeof(push);
 
-	UIElement::init(UI_NULL);
+	UIElement::init(UI::PANEL);
 }
 
 void Primrose::UIPanel::createDescriptorSet() {}

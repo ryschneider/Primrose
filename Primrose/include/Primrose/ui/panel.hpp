@@ -15,7 +15,7 @@ namespace Primrose {
 		void createDescriptorSet();
 
 		struct {
-			alignas(4) unsigned int type = UI_PANEL;
+			alignas(4) UI type = UI::PANEL;
 
 			alignas(16) glm::vec4 color;
 			alignas(16) glm::vec4 borderColor;
