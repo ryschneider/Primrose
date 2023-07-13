@@ -2,83 +2,17 @@
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"title": "Primrose Scene",
 	"description": "Describes a scene which can be loaded in the Primrose engine",
-	"type": "array",
-	"items": {
-		"type": "object",
-		"required": ["type"],
-		"oneOf": [
-			{
-				"properties": {
-					"type": { "enum": ["sphere"] },
-					"radius": { "type": "number" },
-					"transform": { "$ref": "#/$defs/transform" }
-				},
-				"required": ["radius"],
-				"additionalProperties": false
-			},
-			{
-				"properties": {
-					"type": { "enum": ["box"] },
-					"size": { "$ref": "#/$defs/vec3_or_float" },
-					"transform": { "$ref": "#/$defs/transform" }
-				},
-				"required": ["size"],
-				"additionalProperties": false
-			},
-			{
-				"properties": {
-					"type": { "enum": ["torus"] },
-					"ringRadius": { "type": "number" },
-					"majorRadius": { "type": "number" },
-					"transform": { "$ref": "#/$defs/transform" }
-				},
-				"required": ["ringRadius", "majorRadius"],
-				"additionalProperties": false
-			},
-			{
-				"properties": {
-					"type": { "enum": ["line"] },
-					"height": { "type": "number" },
-					"radius": { "type": "number" },
-					"transform": { "$ref": "#/$defs/transform" }
-				},
-				"required": ["height", "radius"],
-				"additionalProperties": false
-			},
-			{
-				"properties": {
-					"type": { "enum": ["cylinder"] },
-					"radius": { "type": "number" },
-					"transform": { "$ref": "#/$defs/transform" }
-				},
-				"required": ["radius"],
-				"additionalProperties": false
-			},
-
-			{
-				"properties": {
-					"type": { "enum": ["union", "intersection"] },
-					"objects": {
-						"type": "array",
-						"items": { "$ref": "#/items" }
-					},
-					"transform": { "$ref": "#/$defs/transform" }
-				},
-				"required": ["objects"],
-				"additionalProperties": false
-			},
-			{
-				"properties": {
-					"type": { "enum": ["difference"] },
-					"base": { "$ref": "#/items" },
-					"subtract": { "$ref": "#/items" },
-					"transform": { "$ref": "#/$defs/transform" }
-				},
-				"required": ["base", "subtract"],
-				"additionalProperties": false
+	"anyOf": [
+		{
+			"$ref": "#/$defs/node"
+		},
+		{
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/node"
 			}
-		]
-	},
+		}
+	],
 	"$defs": {
 		"vec3": {
 			"type": "array",
@@ -115,6 +49,95 @@
 			},
 			"minProperties": 1,
 			"additionalProperties": false
+		},
+		"node": {
+			"type": "object",
+			"required": ["type"],
+			"oneOf": [
+				{
+					"properties": {
+						"type": { "enum": ["ref"] },
+						"ref": {
+							"type": "string",
+							"format": "uri-reference"
+						},
+						"transform": { "$ref": "#/$defs/transform" }
+					},
+					"required": ["ref"],
+					"additionalProperties": false
+				},
+
+				{
+					"properties": {
+						"type": { "enum": ["sphere"] },
+						"radius": { "type": "number" },
+						"transform": { "$ref": "#/$defs/transform" }
+					},
+					"required": ["radius"],
+					"additionalProperties": false
+				},
+				{
+					"properties": {
+						"type": { "enum": ["box"] },
+						"size": { "$ref": "#/$defs/vec3_or_float" },
+						"transform": { "$ref": "#/$defs/transform" }
+					},
+					"required": ["size"],
+					"additionalProperties": false
+				},
+				{
+					"properties": {
+						"type": { "enum": ["torus"] },
+						"ringRadius": { "type": "number" },
+						"majorRadius": { "type": "number" },
+						"transform": { "$ref": "#/$defs/transform" }
+					},
+					"required": ["ringRadius", "majorRadius"],
+					"additionalProperties": false
+				},
+				{
+					"properties": {
+						"type": { "enum": ["line"] },
+						"height": { "type": "number" },
+						"radius": { "type": "number" },
+						"transform": { "$ref": "#/$defs/transform" }
+					},
+					"required": ["height", "radius"],
+					"additionalProperties": false
+				},
+				{
+					"properties": {
+						"type": { "enum": ["cylinder"] },
+						"radius": { "type": "number" },
+						"transform": { "$ref": "#/$defs/transform" }
+					},
+					"required": ["radius"],
+					"additionalProperties": false
+				},
+
+				{
+					"properties": {
+						"type": { "enum": ["union", "intersection"] },
+						"objects": {
+							"type": "array",
+							"items": { "$ref": "#/$defs/node" }
+						},
+						"transform": { "$ref": "#/$defs/transform" }
+					},
+					"required": ["objects"],
+					"additionalProperties": false
+				},
+				{
+					"properties": {
+						"type": { "enum": ["difference"] },
+						"base": { "$ref": "#/$defs/node" },
+						"subtract": { "$ref": "#/$defs/node" },
+						"transform": { "$ref": "#/$defs/transform" }
+					},
+					"required": ["base", "subtract"],
+					"additionalProperties": false
+				}
+			]
 		}
 	}
 }

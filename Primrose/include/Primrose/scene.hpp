@@ -33,16 +33,18 @@ namespace Primrose {
 
 	class Scene {
 	public:
-		Scene(const char* sceneFile);
+		Scene(std::filesystem::path sceneFile);
 
-		void load();
+		void generateUniforms();
 		std::string toString();
 
 	private:
 		static std::unique_ptr<rapidjson::SchemaDocument> schema;
 
 		static void loadSchema();
-		SceneNode* processNode(const rapidjson::Value& v);
+		rapidjson::Document loadDoc(std::filesystem::path filePath);
+		SceneNode* processNode(const rapidjson::Value& v, std::filesystem::path dir);
+
 
 		std::vector<std::unique_ptr<SceneNode>> root;
 	};

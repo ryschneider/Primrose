@@ -1,46 +1,30 @@
 [
 	{
-		"type": "difference",
+		"type": "ref",
+		"ref": "csg.json",
 		"transform": {
-			"scale": 10
-		},
-		"base": {
-			"type": "intersection",
-			"objects": [{
-				"type": "box",
-				"size": 0.75
-			}, {
-				"type": "sphere",
-				"radius": 1
-			}]
-		},
-		"subtract": {
-			"type": "union",
-			"transform": {
-				"scale": [0.5, 0.5, 0.5]
-			},
-			"objects": [{
-				"type": "cylinder",
-				"radius": 1
-			}, {
-				"type": "cylinder",
-				"radius": 1,
-				"transform": {
-					"rotation": {
-						"angle": 90,
-						"axis": [1, 0, 0]
-					}
-				}
-			}, {
-				"type": "cylinder",
-				"radius": 1,
-				"transform": {
-					"rotation": {
-						"angle": 90,
-						"axis": [0, 0, 1]
-					}
-				}
-			}]
+			"position": [0, 0, 5]
+		}
+	},
+	{
+		"type": "ref",
+		"ref": "csg.json",
+		"transform": {
+			"position": [0, 0, -5]
+		}
+	},
+	{
+		"type": "ref",
+		"ref": "csg.json",
+		"transform": {
+			"position": [5, 0, 0]
+		}
+	},
+	{
+		"type": "ref",
+		"ref": "csg.json",
+		"transform": {
+			"position": [-5, 0, 0]
 		}
 	}
 ]

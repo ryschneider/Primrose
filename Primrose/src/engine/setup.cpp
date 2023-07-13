@@ -391,7 +391,7 @@ void Primrose::transitionImageLayout(VkImage image, VkFormat format, VkImageLayo
 	endSingleTimeCommandBuffer(cmdBuffer);
 }
 void Primrose::importTexture(const char* path, VkImage* image, VkDeviceMemory* imageMemory, float* aspect) {
-	// load image data
+	// generateUniforms image data
 	int width, height, channels;
 	std::cout << "Importing " << path << std::endl;
 	stbi_uc* data = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);

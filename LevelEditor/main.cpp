@@ -65,24 +65,11 @@ int main() {
 	mouseMovementCallback = mouseCallback;
 	keyCallback = myKeyCallback;
 
-//	previewPrim = addPrim(selectedTool);
-//	previewTransform = addScale(1);
-//	addRender(addIdentity(previewPrim));
-
-//	uint sphere = addPrim(PRIM::SPHERE);
-//	uint id = addIdentity(sphere);
-//	addRender(id);
-//
-//	planetScene();
-
 	Scene scene("scenes/test.json");
-	std::cout << "SCENE:" << std::endl << scene.toString() << std::endl;
-	scene.load();
+	scene.generateUniforms();
 
-	std::cout << "UNIFORMS:" << std::endl << uniforms.toString() << std::endl;
-
-//	for (int i = 0; i < uni)
-//	uniforms.operations
+	std::cout << std::endl << "SCENE:" << std::endl << scene.toString() << std::endl;
+	std::cout << std::endl << "UNIFORMS:" << std::endl << uniforms.toString() << std::endl;
 
 	initFps();
 

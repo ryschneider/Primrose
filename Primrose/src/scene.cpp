@@ -22,10 +22,12 @@ void Primrose::Scene::loadSchema() {
 	schema = std::make_unique<rapidjson::SchemaDocument>(sd);
 }
 
-Primrose::Scene::Scene(const char* sceneFile) {
+rapidjson::Document Primrose::Scene::loadDoc(std::filesystem::path filePath) {
 	if (schema.get() == nullptr) loadSchema();
 
-	FILE* file = fopen(sceneFile, "rb");
+	std::cout << "Loading scene from " << filePath.make_preferred() << std::endl;
+
+	FILE* file = fopen(filePath.string().c_str(), "rb");
 
 	char buffer[65536];
 	rapidjson::FileReadStream stream(file, buffer, sizeof(buffer));
@@ -51,16 +53,25 @@ Primrose::Scene::Scene(const char* sceneFile) {
 
 	fclose(file);
 
-	for (const auto& v : doc.GetArray()) {
-		root.emplace_back(processNode(v));
+	return doc;
+}
+
+Primrose::Scene::Scene(std::filesystem::path sceneFile) {
+	rapidjson::Document doc = loadDoc(sceneFile.string().c_str());
+
+	if (doc.IsObject()) {
+		root.emplace_back(processNode(doc, sceneFile.parent_path()));
+	} else {
+		for (const auto& v : doc.GetArray()) {
+			root.emplace_back(processNode(v, sceneFile.parent_path()));
+		}
 	}
 }
 
-Primrose::SceneNode* Primrose::Scene::processNode(const rapidjson::Value& v) {
+Primrose::SceneNode* Primrose::Scene::processNode(const rapidjson::Value& v, std::filesystem::path dir) {
 	const char* type = v["type"].GetString();
 	SceneNode* node = nullptr;
 
-	std::cout << "hello" << std::endl;
 	if (strcmp(type, "sphere") == 0) {
 		node = new SphereNode(v["radius"].GetFloat());
 	} else if (strcmp(type, "box") == 0) {
@@ -86,10 +97,22 @@ Primrose::SceneNode* Primrose::Scene::processNode(const rapidjson::Value& v) {
 		}
 
 		for (const auto& sub : v["objects"].GetArray()) {
-			((UnionNode*)node)->objects.emplace_back(processNode(sub));
+			((UnionNode*)node)->objects.emplace_back(processNode(sub, dir));
 		}
 	} else if (strcmp(type, "difference") == 0) {
-		node = new DifferenceNode(processNode(v["base"]), processNode(v["subtract"]));
+		node = new DifferenceNode(processNode(v["base"], dir), processNode(v["subtract"], dir));
+	} else if (strcmp(type, "ref") == 0) {
+		std::filesystem::path ref = v["ref"].GetString();
+		rapidjson::Document refDoc = loadDoc((dir / ref).string().c_str());
+
+		if (refDoc.IsObject()) {
+			node = processNode(refDoc, (dir / ref).parent_path().string().c_str());
+		} else {
+			node = new UnionNode();
+			for (const auto& sub : refDoc.GetArray()) {
+				((UnionNode*)node)->objects.emplace_back(processNode(sub, (dir / ref).parent_path()));
+			}
+		}
 	} else {
 		throw std::runtime_error("failed to identify scene node");
 	}
@@ -97,24 +120,28 @@ Primrose::SceneNode* Primrose::Scene::processNode(const rapidjson::Value& v) {
 	if (v.HasMember("transform")) {
 		const auto& t = v["transform"];
 		if (t.HasMember("position")) {
-			node->translate.x = t["position"][0].GetFloat();
-			node->translate.y = t["position"][1].GetFloat();
-			node->translate.z = t["position"][2].GetFloat();
+			node->translate.x += t["position"][0].GetFloat();
+			node->translate.y += t["position"][1].GetFloat();
+			node->translate.z += t["position"][2].GetFloat();
 		}
 		if (t.HasMember("scale")) {
 			if (t["scale"].IsArray()) {
-				node->scale.x = t["scale"][0].GetFloat();
-				node->scale.y = t["scale"][1].GetFloat();
-				node->scale.z = t["scale"][2].GetFloat();
+				node->scale.x *= t["scale"][0].GetFloat();
+				node->scale.y *= t["scale"][1].GetFloat();
+				node->scale.z *= t["scale"][2].GetFloat();
 			} else {
-				node->scale = glm::vec3(t["scale"].GetFloat());
+				node->scale *= glm::vec3(t["scale"].GetFloat());
 			}
 		}
 		if (t.HasMember("rotation")) {
-			node->axis.x = t["rotation"]["axis"][0].GetFloat();
-			node->axis.y = t["rotation"]["axis"][1].GetFloat();
-			node->axis.z = t["rotation"]["axis"][2].GetFloat();
-			node->angle = t["rotation"]["angle"].GetFloat();
+			auto rotVal = t["rotation"].GetObject();
+			glm::quat orig = glm::angleAxis(glm::radians(node->angle), node->axis);
+			glm::quat rot = glm::angleAxis(glm::radians(rotVal["angle"].GetFloat()),
+				glm::vec3(rotVal["axis"][0].GetFloat(), rotVal["axis"][1].GetFloat(), rotVal["axis"][2].GetFloat()));
+
+			glm::quat result = orig * rot;
+			node->angle = glm::degrees(glm::angle(result));
+			node->axis = glm::axis(result);
 		}
 	}
 
@@ -131,7 +158,6 @@ std::string Primrose::Scene::toString() {
 
 
 
-#include <glm/gtx/string_cast.hpp>
 namespace {
 	using namespace Primrose;
 
@@ -306,7 +332,9 @@ namespace {
 #pragma GCC diagnostic pop
 }
 
-void Primrose::Scene::load() {
+void Primrose::Scene::generateUniforms() {
+	std::cout << "Generating uniforms for scene" << std::endl;
+
 	std::vector<Primitive> prims;
 	std::vector<Transformation> transforms;
 	std::vector<Operation> ops;

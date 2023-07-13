@@ -60,20 +60,20 @@ void Primrose::UIText::loadAlphabet(const char* fontPath) {
 
 	FT_Face face;
 	if (FT_New_Face(ft, fontPath, 0, &face)) {
-		throw std::runtime_error(std::string("could not load font: ").append(fontPath));
+		throw std::runtime_error(std::string("could not generateUniforms font: ").append(fontPath));
 	}
 
 	FT_Set_Pixel_Sizes(face, 0, fontSize);
 
 	textureWidth = 0;
 	textureHeight = 0;
-	alphabet += ' '; // always load space since it uses zero data in texture
+	alphabet += ' '; // always generateUniforms space since it uses zero data in texture
 	for (const char& c : alphabet) {
 		if (characters.find(c) != characters.end()) continue; // skip already loaded chars
 		CharTexture charTexture;
 
 		if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-			throw std::runtime_error(std::string("failed to load character: '") + c + std::string("'"));
+			throw std::runtime_error(std::string("failed to generateUniforms character: '") + c + std::string("'"));
 		}
 		const auto& bitmap = face->glyph->bitmap;
 
