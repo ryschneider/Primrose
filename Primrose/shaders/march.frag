@@ -5,20 +5,20 @@ layout(location = 0) out vec4 fragColor;
 
 #define DEBUG
 
-const uint PRIM_1 = 101;
-const uint PRIM_2 = 102;
-const uint PRIM_3 = 103;
-const uint PRIM_4 = 104;
-const uint PRIM_5 = 105;
-const uint PRIM_6 = 106;
-const uint PRIM_7 = 107;
-const uint PRIM_8 = 108;
-const uint PRIM_9 = 109;
-const uint PRIM_SPHERE = 201;
-const uint PRIM_BOX = 202;
-const uint PRIM_TORUS = 203; // params: minor radius
-const uint PRIM_LINE = 204; // params: half height, radius
-const uint PRIM_CYLINDER = 205;
+const uint PRIM_P1 = 101;
+const uint PRIM_P2 = 102;
+const uint PRIM_P3 = 103;
+const uint PRIM_P4 = 104;
+const uint PRIM_P5 = 105;
+const uint PRIM_P6 = 106;
+const uint PRIM_P7 = 107;
+const uint PRIM_P8 = 108;
+const uint PRIM_P9 = 109;
+const uint PRIM_SPHERE = 201; // radius=1
+const uint PRIM_BOX = 202; // sidelength=1
+const uint PRIM_TORUS = 203; // params: ring radius (major radius=1)
+const uint PRIM_LINE = 204; // params: half height (radius=1)
+const uint PRIM_CYLINDER = 205; // radius=1
 
 const uint MAT_1 = 301;
 const uint MAT_2 = 302;
@@ -38,7 +38,7 @@ struct Operation {
 };
 
 struct Primitive {
-	uint type; // PRIM_ prefix
+	uint type; // PRIM:: prefix
 	float a; // first parameter
 	float b; // second parameter
 	uint mat; // material id
@@ -70,9 +70,9 @@ layout(push_constant) uniform PushConstant {
 
 // constants
 const vec3 BG_COLOR = vec3(0.01f, 0.01f, 0.01f);
-const float MAX_DIST = 1000.f;
-const float HIT_MARGIN = 0.05f;
-const float NORMAL_EPS = 0.001f; // small epsilon for normal calculations
+const float MAX_DIST = 10000.f;
+const float HIT_MARGIN = 0.001f;
+const float NORMAL_EPS = 0.0001f; // small epsilon for normal calculations
 
 const int MAX_MARCHES = 100;
 const int MAX_REFLECTIONS = 2;
@@ -170,7 +170,10 @@ float noise(vec3 P){
   float n_xyz = mix(n_yz.x, n_yz.y, fade_xyz.x); 
   return 2.2 * n_xyz;
 }
-float rand(float n){return fract(sin(n) * 43758.5453123);}
+float rand(float n) { return fract(sin(n) * 43758.5453123); }
+float rand(vec2 co) {
+	return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
 float smin(float d1, float d2, float k) {
 	// https://iquilezles.org/articles/distfunctions/
 	float h = clamp( 0.5f + 0.5f*(d2-d1)/k, 0.f, 1.f);
@@ -195,9 +198,9 @@ float torusSDF(vec3 p, float minorRadius) { // major radius 1
 	return length(vec2(length(p.xz) - 1.f, p.y)) - minorRadius;
 }
 
-float lineSDF(vec3 p, float height, float radius) {
+float lineSDF(vec3 p, float height) {
 	p.y -= clamp(p.y, -height, height);
-	return length(p) - radius;
+	return length(p) - 1;
 }
 
 float cylinderSDF(vec3 p) {
@@ -271,12 +274,12 @@ float primSDF(vec3 p, Primitive prim) {
 		case PRIM_SPHERE: return sphereSDF(p);
 		case PRIM_BOX: return cubeSDF(p);
 		case PRIM_TORUS: return torusSDF(p, prim.a);
-		case PRIM_LINE: return lineSDF(p, prim.a, prim.b);
+		case PRIM_LINE: return lineSDF(p, prim.a);
 		case PRIM_CYLINDER: return cylinderSDF(p);
-		case PRIM_1: return prim1SDF(p, prim.a);
-		case PRIM_2: return prim2SDF(p, prim.a);
-		case PRIM_3: return prim3SDF(p);
-		case PRIM_4: return prim4SDF(p);
+		case PRIM_P1: return prim1SDF(p, prim.a);
+		case PRIM_P2: return prim2SDF(p, prim.a);
+		case PRIM_P3: return prim3SDF(p);
+		case PRIM_P4: return prim4SDF(p);
 	}
 }
 
@@ -337,13 +340,21 @@ Hit march(Ray ray) {
 	for (int m = 0; m < MAX_MARCHES; ++m) {
 		d = map(pos);
 		
-		if (d <= HIT_MARGIN || t >= MAX_DIST) break;
+		if (d <= HIT_MARGIN || t > MAX_DIST) break;
 
 		t += d;
-		pos += ray.dir*d;
+		pos += ray.dir * d;
 	}
 
 	return Hit(pos, t, d);
+}
+
+Hit dither(Hit hit, Ray ray) {
+//	float b = rand(screenXY) * HIT_MARGIN + hit.d; // b in range (d - HIT_MARGIN, d)
+	float b = rand(screenXY * push.time) * HIT_MARGIN + hit.d; // b in range (d - HIT_MARGIN, d)
+	hit.pos += ray.dir * b;
+	hit.d = map(hit.pos);
+	return hit;
 }
 
 // main
@@ -370,7 +381,10 @@ void main() {
 	for (int r = 0; r < MAX_REFLECTIONS; ++r) {
 		Hit hit = march(ray);
 
-		if (hit.d <= HIT_MARGIN) {
+//		if (hit.d <= HIT_MARGIN) {
+		if (hit.t <= MAX_DIST) {
+			hit = dither(hit, ray);
+
 			vec3 normal = mapNormal(hit);
 
 			vec3 hitColor = abs(normal);
@@ -382,7 +396,6 @@ void main() {
 
 				reflCo *= REFL;
 			}
-
 		} else {
 			break;
 		}
