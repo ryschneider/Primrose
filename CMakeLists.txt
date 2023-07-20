@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 project(Primrose)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 ## add warnings
 #if (MSVC)
@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD 17)
 #else()
 #	add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 #endif()
+
+add_compile_options(-Wswitch-enum)
 
 # build shader files
 add_custom_command(OUTPUT
@@ -44,13 +46,26 @@ add_library(Primrose
 	Primrose/src/embed/ui_frag_spv.h
 	Primrose/src/embed/scene_schema_json.h
 
-	Primrose/src/engine/runtime.cpp Primrose/src/engine/setup.cpp Primrose/src/scene.cpp Primrose/src/state.cpp
-	Primrose/src/ui/element.cpp Primrose/src/ui/panel.cpp Primrose/src/ui/image.cpp Primrose/src/ui/text.cpp
-	Primrose/src/shader_structs.cpp)
+	Primrose/src/engine/runtime.cpp Primrose/include/Primrose/engine/runtime.hpp
+	Primrose/src/engine/setup.cpp Primrose/include/Primrose/engine/setup.hpp
+	Primrose/src/ui/element.cpp Primrose/include/Primrose/ui/element.hpp
+	Primrose/src/ui/image.cpp Primrose/include/Primrose/ui/image.hpp
+	Primrose/src/ui/panel.cpp Primrose/include/Primrose/ui/panel.hpp
+	Primrose/src/ui/text.cpp Primrose/include/Primrose/ui/text.hpp
+	Primrose/src/state.cpp Primrose/include/Primrose/state.hpp
+	Primrose/src/shader_structs.cpp Primrose/include/Primrose/shader_structs.hpp
 
-target_include_directories(Primrose PUBLIC C:/dev/include)
-target_include_directories(Primrose PUBLIC C:/VulkanSDK/1.3.250.0/Include)
-target_include_directories(Primrose PUBLIC C:/dev/include/freetype)
+	Primrose/src/scene_json.cpp
+	Primrose/src/scene_engine.cpp
+	Primrose/src/scene_nodes.cpp
+
+	Primrose/include/Primrose/scene.hpp
+	Primrose/include/Primrose/core.hpp
+	)
+
+target_include_directories(Primrose SYSTEM PUBLIC C:/dev/include)
+target_include_directories(Primrose SYSTEM PUBLIC C:/VulkanSDK/1.3.250.0/Include)
+target_include_directories(Primrose SYSTEM PUBLIC C:/dev/include/freetype)
 target_include_directories(Primrose PRIVATE ${PROJECT_SOURCE_DIR}/Primrose/include/Primrose)
 target_include_directories(Primrose PRIVATE ${PROJECT_SOURCE_DIR}/Primrose/src)
 target_include_directories(Primrose INTERFACE ${PROJECT_SOURCE_DIR}/Primrose/include)
@@ -72,10 +87,16 @@ target_link_libraries(PrimroseDemo LINK_PUBLIC Primrose)
 
 # build level editor
 add_executable(LevelEditor
-	LevelEditor/imgui/imgui.cpp LevelEditor/imgui/imgui_draw.cpp LevelEditor/imgui/imgui_tables.cpp LevelEditor/imgui/imgui_widgets.cpp
-	LevelEditor/imgui/imgui_demo.cpp LevelEditor/imgui/misc/cpp/imgui_stdlib.cpp
-	LevelEditor/imgui/backends/imgui_impl_glfw.cpp LevelEditor/imgui/backends/imgui_impl_vulkan.cpp
+	C:/dev/include/imgui/imgui.cpp C:/dev/include/imgui/imgui_draw.cpp C:/dev/include/imgui/imgui_tables.cpp
+	C:/dev/include/imgui/imgui_widgets.cpp C:/dev/include/imgui/imgui_demo.cpp
+	C:/dev/include/imgui/misc/cpp/imgui_stdlib.cpp C:/dev/include/imgui/backends/imgui_impl_glfw.cpp
+	C:/dev/include/imgui/backends/imgui_impl_vulkan.cpp
 
-	LevelEditor/main.cpp LevelEditor/player_movement.cpp LevelEditor/fps_counter.cpp LevelEditor/gui.cpp)
-target_include_directories(LevelEditor PRIVATE LevelEditor/imgui)
+	LevelEditor/player_movement.cpp LevelEditor/player_movement.hpp
+	LevelEditor/fps_counter.cpp LevelEditor/fps_counter.hpp
+	LevelEditor/gui.cpp LevelEditor/gui.hpp
+
+	LevelEditor/main.cpp
+	)
+target_include_directories(LevelEditor SYSTEM PRIVATE C:/dev/include/imgui)
 target_link_libraries(LevelEditor LINK_PUBLIC Primrose)

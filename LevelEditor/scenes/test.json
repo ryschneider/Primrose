@@ -1,5 +1,6 @@
 [
 	{
+		"name": "CSG 1",
 		"type": "ref",
 		"ref": "csg.json",
 		"transform": {
@@ -7,6 +8,7 @@
 		}
 	},
 	{
+		"name": "CSG 2",
 		"type": "ref",
 		"ref": "csg.json",
 		"transform": {
@@ -14,6 +16,7 @@
 		}
 	},
 	{
+		"name": "CSG 3",
 		"type": "ref",
 		"ref": "csg.json",
 		"transform": {
@@ -21,6 +24,7 @@
 		}
 	},
 	{
+		"name": "CSG 4",
 		"type": "ref",
 		"ref": "csg.json",
 		"transform": {

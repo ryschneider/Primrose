@@ -26,8 +26,8 @@ namespace Primrose {
 		bool isPrim();
 
 		std::string name = "Node";
-		SceneNode* parent;
-		// TODO add hide
+		SceneNode* parent = nullptr;
+		bool hide = false;
 
 		glm::vec3 translate = glm::vec3(0);
 		glm::vec3 scale = glm::vec3(1);
@@ -39,6 +39,7 @@ namespace Primrose {
 
 	class Scene {
 	public:
+		Scene() = default;
 		Scene(std::filesystem::path sceneFile);
 
 		void generateUniforms();
@@ -104,7 +105,7 @@ namespace Primrose {
 		NodeType type();
 	};
 	struct DifferenceNode : public SceneNode {
-		DifferenceNode(SceneNode* base, SceneNode* subtract);
+		DifferenceNode();
 		NodeType type();
 		std::string toString(std::string prefix);
 

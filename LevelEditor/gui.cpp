@@ -5,23 +5,23 @@
 #include <stdexcept>
 #include <iostream>
 #include <map>
-#include "imgui/imgui_internal.h"
-#include "imgui/misc/cpp/imgui_stdlib.h"
+#include <imgui/imgui_internal.h>
+#include <imgui/misc/cpp/imgui_stdlib.h>
 
 using namespace Primrose;
 
 VkDescriptorPool imguiDescriptorPool;
 
 bool addObjectDialog = false;
-bool renameNode = false;
+bool newScene = false;
 void guiKeyCb(int key, int mods, bool pressed) {
 	if (pressed) {
 		if (mods & GLFW_MOD_SHIFT && key == GLFW_KEY_A) {
 			addObjectDialog = true;
 		}
 
-		else if (key == GLFW_KEY_F2) {
-			renameNode = true;
+		if (mods & GLFW_MOD_CONTROL && key == GLFW_KEY_N) {
+			newScene = true;
 		}
 	}
 }
@@ -91,7 +91,7 @@ void setupGui() {
 
 	ImVector<ImWchar> ranges;
 	ImFontGlyphRangesBuilder builder;
-	builder.AddText(u8"θ");
+	builder.AddText((const char*)u8"θ");
 	builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
 	builder.BuildRanges(&ranges);
 
@@ -114,6 +114,7 @@ void setupGui() {
 }
 
 SceneNode* clickedNode = nullptr;
+SceneNode* doubleClickedNode = nullptr;
 std::unique_ptr<SceneNode>* dragSrc = nullptr;
 std::unique_ptr<SceneNode>* dragDst = nullptr;
 static void processNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
@@ -122,8 +123,7 @@ static void processNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
 
 	SceneNode* node = nodePtr->get();
 
-	int treeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
-					| ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+	int treeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow;
 
 	if (node == clickedNode) treeFlags |= ImGuiTreeNodeFlags_Selected;
 	if (node->children.size() == 0) treeFlags |= ImGuiTreeNodeFlags_Leaf;
@@ -146,6 +146,7 @@ static void processNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
 
 	if (treeOpened) {
 		if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) clickedNode = node;
+		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) doubleClickedNode = node;
 
 		for (auto& child : node->children) {
 			processNode(scene, &child);
@@ -155,13 +156,18 @@ static void processNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
 	}
 }
 
-float getInc(glm::vec3& vec) {
-	// increment position by 1% of the power of 10 used in the max translate component
-	float m = fmax(vec[0], fmax(vec[1], vec[2]));
+static float getInc(float val) {
+	// increment position by 1% of the power of 10 used in val
 	float inc = 0;
-	if (m != 0) inc = pow(10, floor(log(m) / log(10)) - 2);
+	if (val != 0) inc = pow(10, floor(log(abs(val)) / log(10)) - 2);
 
 	return fmax(0.01, inc); // at least inc by 0.01
+}
+
+static float getInc(glm::vec3& vec) {
+	return getInc(fmax( // get inc of the largest component
+		abs(vec[0]), fmax(
+			abs(vec[1]), abs(vec[2]))));
 }
 
 bool addVec3(const char* label, glm::vec3& vec, bool* isScalar = nullptr) {
@@ -219,6 +225,10 @@ bool addVec3(const char* label, glm::vec3& vec, bool* isScalar = nullptr) {
 	return value_changed;
 }
 
+bool addFloat(const char* label, float& val) {
+	return ImGui::DragFloat(label, &val, getInc(val), 0, 0, "%.2f");
+}
+
 void updateGui(Primrose::Scene& scene) {
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
@@ -229,6 +239,9 @@ void updateGui(Primrose::Scene& scene) {
 	ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_MenuBar);
 	if (ImGui::BeginMenuBar()) {
 		if (ImGui::BeginMenu("File")) {
+			if (ImGui::MenuItem("New", "Ctrl+N")) {
+				newScene = true;
+			}
 			if (ImGui::MenuItem("Open...", "Ctrl+O")) {
 				std::cout << "open scene" << std::endl;
 			}
@@ -350,10 +363,12 @@ void updateGui(Primrose::Scene& scene) {
 				&& ((BoxNode*)clickedNode)->size[1] == ((BoxNode*)clickedNode)->size[2];
 		}
 
+		ImGui::Checkbox("Hide", &clickedNode->hide);
+
 		switch (clickedNode->type()) {
 			case NODE_SPHERE:
 				ImGui::SeparatorText("SphereNode");
-				ImGui::InputFloat("Radius", &((SphereNode*)clickedNode)->radius);
+				addFloat("Radius", ((SphereNode*)clickedNode)->radius);
 				break;
 			case NODE_BOX:
 				ImGui::SeparatorText("BoxNode");
@@ -361,17 +376,17 @@ void updateGui(Primrose::Scene& scene) {
 				break;
 			case NODE_TORUS:
 				ImGui::SeparatorText("TorusNode");
-				ImGui::InputFloat("Ring Radius", &((TorusNode*)clickedNode)->ringRadius);
-				ImGui::InputFloat("Major Radius", &((TorusNode*)clickedNode)->majorRadius);
+				addFloat("Ring Radius", ((TorusNode*)clickedNode)->ringRadius);
+				addFloat("Major Radius", ((TorusNode*)clickedNode)->majorRadius);
 				break;
 			case NODE_LINE:
 				ImGui::SeparatorText("LineNode");
-				ImGui::InputFloat("Height", &((LineNode*)clickedNode)->height);
-				ImGui::InputFloat("Radius", &((LineNode*)clickedNode)->radius);
+				addFloat("Height", ((LineNode*)clickedNode)->height);
+				addFloat("Radius", ((LineNode*)clickedNode)->radius);
 				break;
 			case NODE_CYLINDER:
 				ImGui::SeparatorText("CylinderNode");
-				ImGui::InputFloat("Radius", &((CylinderNode*)clickedNode)->radius);
+				addFloat("Radius", ((CylinderNode*)clickedNode)->radius);
 				break;
 			case NODE_UNION:
 				ImGui::SeparatorText("UnionNode");
@@ -381,6 +396,21 @@ void updateGui(Primrose::Scene& scene) {
 				break;
 			case NODE_DIFFERENCE:
 				ImGui::SeparatorText("DifferenceNode");
+				if (clickedNode->children.size() > 0) {
+					ImGui::Text("Mark as subtract:");
+				}
+				for (const auto& child : clickedNode->children) {
+					bool isSubtract = ((DifferenceNode*)clickedNode)->subtractNodes.contains(child.get());
+					ImGui::PushID(child.get());
+					if (ImGui::Checkbox(child->name.c_str(), &isSubtract)) {
+						if (isSubtract) {
+							((DifferenceNode*)clickedNode)->subtractNodes.insert(child.get());
+						} else {
+							((DifferenceNode*)clickedNode)->subtractNodes.erase(child.get());
+						}
+					}
+					ImGui::PopID();
+				}
 				break;
 		}
 		ImGui::EndChild();
@@ -395,18 +425,37 @@ void updateGui(Primrose::Scene& scene) {
 
 	ImGui::SetNextWindowBgAlpha(1);
 	if (ImGui::BeginPopup("Add Object")) {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_HeaderActive]);
+		ImGui::Text("Add Object");
+		ImGui::PopStyleColor();
+
+		ImGui::Separator();
+
 		if (ImGui::Selectable("Sphere")) {
-//			scene.root.push_back()
+			scene.root.emplace_back(new SphereNode(1));
 		} else if (ImGui::Selectable("Box")) {
-			std::cout << "Box" << std::endl;
+			scene.root.emplace_back(new BoxNode(glm::vec3(1)));
 		} else if (ImGui::Selectable("Torus")) {
-			std::cout << "Torus" << std::endl;
+			scene.root.emplace_back(new TorusNode(0.1, 1));
 		} else if (ImGui::Selectable("Line")) {
-			std::cout << "Line" << std::endl;
+			scene.root.emplace_back(new LineNode(1, 0.1));
 		} else if (ImGui::Selectable("Cylinder")) {
-			std::cout << "Cylinder" << std::endl;
+			scene.root.emplace_back(new CylinderNode(1));
+		} else if (ImGui::Selectable("Union")) {
+			scene.root.emplace_back(new UnionNode());
+		} else if (ImGui::Selectable("Intersection")) {
+			scene.root.emplace_back(new IntersectionNode());
+		} else if (ImGui::Selectable("Difference")) {
+			scene.root.emplace_back(new DifferenceNode());
 		}
+
 		ImGui::EndPopup();
+	}
+
+	if (newScene) {
+		scene.root.clear();
+		clickedNode = nullptr;
+		newScene = false;
 	}
 
 	ImGui::Render();

@@ -1,10 +1,12 @@
 #ifndef SETUP_HPP
 #define SETUP_HPP
 
-#include "imgui/imgui.h"
-#include "imgui/backends/imgui_impl_glfw.h"
-#include "imgui/backends/imgui_impl_vulkan.h"
+#include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_glfw.h>
+#include <imgui/backends/imgui_impl_vulkan.h>
 #include <Primrose/scene.hpp>
+
+extern Primrose::SceneNode* doubleClickedNode;
 
 void guiKeyCb(int key, int mods, bool pressed);
 

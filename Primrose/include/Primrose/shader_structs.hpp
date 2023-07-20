@@ -15,6 +15,7 @@
 typedef unsigned int uint;
 
 namespace Primrose {
+	glm::vec3 getTranslate(glm::mat4 transform);
 	glm::vec3 getScale(glm::mat4 transform);
 	float getSmallScale(glm::mat4 matrix);
 	glm::mat4 transformMatrix(glm::vec3 translate, glm::vec3 scale, float rotAngle, glm::vec3 rotAxis);

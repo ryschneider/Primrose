@@ -61,7 +61,14 @@
 							"type": "string",
 							"format": "uri-reference"
 						},
-						"transform": { "$ref": "#/$defs/transform" }
+						"transform": { "$ref": "#/$defs/transform" },
+						"name":  {
+							"type": "string"
+						},
+						"children": {
+							"type": "array",
+							"items": { "$ref": "#/$defs/node" }
+						}
 					},
 					"required": ["ref"],
 					"additionalProperties": false
@@ -71,7 +78,14 @@
 					"properties": {
 						"type": { "enum": ["sphere"] },
 						"radius": { "type": "number" },
-						"transform": { "$ref": "#/$defs/transform" }
+						"transform": { "$ref": "#/$defs/transform" },
+						"name":  {
+							"type": "string"
+						},
+						"children": {
+							"type": "array",
+							"items": { "$ref": "#/$defs/node" }
+						}
 					},
 					"required": ["radius"],
 					"additionalProperties": false
@@ -80,7 +94,14 @@
 					"properties": {
 						"type": { "enum": ["box"] },
 						"size": { "$ref": "#/$defs/vec3_or_float" },
-						"transform": { "$ref": "#/$defs/transform" }
+						"transform": { "$ref": "#/$defs/transform" },
+						"name":  {
+							"type": "string"
+						},
+						"children": {
+							"type": "array",
+							"items": { "$ref": "#/$defs/node" }
+						}
 					},
 					"required": ["size"],
 					"additionalProperties": false
@@ -90,7 +111,14 @@
 						"type": { "enum": ["torus"] },
 						"ringRadius": { "type": "number" },
 						"majorRadius": { "type": "number" },
-						"transform": { "$ref": "#/$defs/transform" }
+						"transform": { "$ref": "#/$defs/transform" },
+						"name":  {
+							"type": "string"
+						},
+						"children": {
+							"type": "array",
+							"items": { "$ref": "#/$defs/node" }
+						}
 					},
 					"required": ["ringRadius", "majorRadius"],
 					"additionalProperties": false
@@ -100,7 +128,14 @@
 						"type": { "enum": ["line"] },
 						"height": { "type": "number" },
 						"radius": { "type": "number" },
-						"transform": { "$ref": "#/$defs/transform" }
+						"transform": { "$ref": "#/$defs/transform" },
+						"name":  {
+							"type": "string"
+						},
+						"children": {
+							"type": "array",
+							"items": { "$ref": "#/$defs/node" }
+						}
 					},
 					"required": ["height", "radius"],
 					"additionalProperties": false
@@ -109,7 +144,14 @@
 					"properties": {
 						"type": { "enum": ["cylinder"] },
 						"radius": { "type": "number" },
-						"transform": { "$ref": "#/$defs/transform" }
+						"transform": { "$ref": "#/$defs/transform" },
+						"name":  {
+							"type": "string"
+						},
+						"children": {
+							"type": "array",
+							"items": { "$ref": "#/$defs/node" }
+						}
 					},
 					"required": ["radius"],
 					"additionalProperties": false
@@ -118,23 +160,39 @@
 				{
 					"properties": {
 						"type": { "enum": ["union", "intersection"] },
-						"objects": {
+						"transform": { "$ref": "#/$defs/transform" },
+						"name":  {
+							"type": "string"
+						},
+						"children": {
 							"type": "array",
 							"items": { "$ref": "#/$defs/node" }
-						},
-						"transform": { "$ref": "#/$defs/transform" }
+						}
 					},
-					"required": ["objects"],
+					"required": [],
 					"additionalProperties": false
 				},
 				{
 					"properties": {
 						"type": { "enum": ["difference"] },
-						"base": { "$ref": "#/$defs/node" },
-						"subtract": { "$ref": "#/$defs/node" },
-						"transform": { "$ref": "#/$defs/transform" }
+						"transform": { "$ref": "#/$defs/transform" },
+						"name":  {
+							"type": "string"
+						},
+						"children": {
+							"type": "array",
+							"items": { "$ref": "#/$defs/node" }
+						},
+						"subtractIndices": {
+							"type": "array",
+							"items": {
+								"type": "integer",
+								"minimum": 0
+							},
+							"uniqueItems": true
+						}
 					},
-					"required": ["base", "subtract"],
+					"required": [],
 					"additionalProperties": false
 				}
 			]

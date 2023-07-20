@@ -13,7 +13,8 @@ const unsigned int APP_VERSION = 001'000'000;
 
 using namespace Primrose;
 
-Scene mainScene = Scene("scenes/csg.json");
+Scene mainScene = Scene("scenes/test.json");
+//Scene mainScene = Scene();
 
 std::string sceneSig;
 
@@ -26,9 +27,21 @@ static glm::vec3 pivot = glm::vec3(0);
 void update(float dt) {
 //	updateFps();
 
-	updateGui(mainScene);
+	if (doubleClickedNode != nullptr) {
+		glm::mat4 transform(1);
+		SceneNode* node = doubleClickedNode;
+		while (node != nullptr) {
+			transform = transformMatrix(node->translate, node->scale, node->angle, node->axis) * transform;
+			node = node->parent;
+		}
 
-//	std::cout << mainScene.toString() << std::endl;
+		pivot = getTranslate(transform);
+		uniforms.camPos = pivot - uniforms.camDir * orbitDist;
+
+		doubleClickedNode = nullptr;
+	}
+
+	updateGui(mainScene);
 
 	if (mainScene.toString() != sceneSig) {
 		sceneSig = mainScene.toString();

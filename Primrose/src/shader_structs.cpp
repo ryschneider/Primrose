@@ -42,6 +42,10 @@ namespace Primrose {
 	};
 }
 
+glm::vec3 Primrose::getTranslate(glm::mat4 transform) {
+	return glm::vec3(transform[3]);
+}
+
 glm::vec3 Primrose::getScale(glm::mat4 transform) {
 	return glm::vec3(
 		glm::length(transform[0]),
@@ -189,7 +193,15 @@ std::string Primrose::MarchUniforms::toString() {
 			case PRIM::LINE:
 				line.push_back(fmt::format("({}: {} {})", i, PRIM_NAMES[p.type], p.a));
 				break;
-			default:
+			case PRIM::P1:
+			case PRIM::P2:
+			case PRIM::P3:
+			case PRIM::P4:
+			case PRIM::P5:
+			case PRIM::P6:
+			case PRIM::P7:
+			case PRIM::P8:
+			case PRIM::P9:
 				line.push_back("PRIM TYPE UNKNOWN");
 				break;
 		}
