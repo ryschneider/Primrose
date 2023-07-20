@@ -59,26 +59,9 @@ rapidjson::Document Scene::loadDoc(std::filesystem::path filePath) {
 }
 
 static void updateParents(SceneNode* node) {
-	switch (node->type()) {
-		case Primrose::NODE_SPHERE:
-		case Primrose::NODE_BOX:
-		case Primrose::NODE_TORUS:
-		case Primrose::NODE_LINE:
-		case Primrose::NODE_CYLINDER:
-			break;
-		case Primrose::NODE_UNION:
-		case Primrose::NODE_INTERSECTION:
-			for (const auto& child : ((MultiNode*)node)->objects) {
-				child->parent = node;
-				updateParents(child.get());
-			}
-			break;
-		case Primrose::NODE_DIFFERENCE:
-			((DifferenceNode*)node)->base->parent = node;
-			updateParents(((DifferenceNode*)node)->base.get());
-			((DifferenceNode*)node)->subtract->parent = node;
-			updateParents(((DifferenceNode*)node)->subtract.get());
-			break;
+	for (const auto& child : node->children) {
+		child->parent = node;
+		updateParents(child.get());
 	}
 }
 
@@ -127,7 +110,7 @@ Primrose::SceneNode* Primrose::Scene::processNode(const rapidjson::Value& v, std
 		}
 
 		for (const auto& sub : v["objects"].GetArray()) {
-			((UnionNode*)node)->objects.emplace_back(processNode(sub, dir));
+			node->children.emplace_back(processNode(sub, dir));
 		}
 	} else if (strcmp(type, "difference") == 0) {
 		node = new DifferenceNode(processNode(v["base"], dir), processNode(v["subtract"], dir));
@@ -140,7 +123,7 @@ Primrose::SceneNode* Primrose::Scene::processNode(const rapidjson::Value& v, std
 		} else {
 			node = new UnionNode();
 			for (const auto& sub : refDoc.GetArray()) {
-				((UnionNode*)node)->objects.emplace_back(processNode(sub, (dir / ref).parent_path()));
+				node->children.emplace_back(processNode(sub, (dir / ref).parent_path()));
 			}
 		}
 	} else {
@@ -246,24 +229,20 @@ namespace {
 			case NODE_BOX:
 			case NODE_TORUS:
 			case NODE_LINE:
-			case NODE_CYLINDER: {
-				Primitive p = toPrim(node);
+			case NODE_CYLINDER:
+			{
+				Primitive p = toPrim(node); // TODO add isPrim function to simplify
 
 				if (std::find(prims.begin(), prims.end(), p) == prims.end()) {
 					prims.push_back(p);
 				}
-
-				return;
 			}
 			case NODE_UNION:
 			case NODE_INTERSECTION:
-				for (const auto &ptr: ((MultiNode*)node)->objects) {
+			case NODE_DIFFERENCE:
+				for (const auto &ptr: node->children) {
 					extractPrims(prims, ptr.get());
 				}
-				return;
-			case NODE_DIFFERENCE:
-				extractPrims(prims, ((DifferenceNode*)node)->base.get());
-				extractPrims(prims, ((DifferenceNode*)node)->subtract.get());
 				return;
 		}
 	}
@@ -278,23 +257,8 @@ namespace {
 			transforms.push_back(t);
 		}
 
-		switch (node->type()) {
-			case NODE_SPHERE:
-			case NODE_BOX:
-			case NODE_TORUS:
-			case NODE_LINE:
-			case NODE_CYLINDER:
-				break;
-			case NODE_UNION:
-			case NODE_INTERSECTION:
-				for (const auto& ptr : ((MultiNode*)node)->objects) {
-					extractTransforms(transforms, ptr.get(), nodeMatrix);
-				}
-				break;
-			case NODE_DIFFERENCE:
-				extractTransforms(transforms, ((DifferenceNode *) node)->base.get(), nodeMatrix);
-				extractTransforms(transforms, ((DifferenceNode *) node)->subtract.get(), nodeMatrix);
-				break;
+		for (const auto& ptr : node->children) {
+			extractTransforms(transforms, ptr.get(), nodeMatrix);
 		}
 	}
 
@@ -309,7 +273,8 @@ namespace {
 			case NODE_BOX:
 			case NODE_TORUS:
 			case NODE_LINE:
-			case NODE_CYLINDER: {
+			case NODE_CYLINDER:
+			{
 				uint primI = std::find(prims.begin(), prims.end(), toPrim(node)) - prims.begin();
 				uint transformI = std::find(transforms.begin(), transforms.end(), transform) - transforms.begin();
 
@@ -319,35 +284,32 @@ namespace {
 				return ops.size() - 1;
 			}
 			case NODE_UNION:
-			case NODE_INTERSECTION: {
-				MultiNode* multi = (MultiNode*)node;
-
-				std::vector<uint> objectOps;
-				for (const auto& o : multi->objects) {
-					uint index = createOperations(prims, transforms, ops, o.get(), nodeMatrix);
-					if (index != -1) objectOps.push_back(index);
+			case NODE_INTERSECTION:
+			{
+				std::vector<uint> childOps;
+				for (const auto& child : node->children) {
+					uint index = createOperations(prims, transforms, ops, child.get(), nodeMatrix);
+					if (index != -1) childOps.push_back(index);
 				}
 
-				if (objectOps.size() == 0) {
+				if (childOps.size() == 0) {
 					return -1;
-				} else if (objectOps.size() == 1) {
-					return objectOps[0];
+				} else if (childOps.size() == 1) {
+					return childOps[0];
 				}
 
-				uint index = objectOps[0];
-				for (int i = 1; i < objectOps.size(); ++i) {
-					if (multi->type() == NODE_UNION) ops.push_back(Operation::Union(index, objectOps[i]));
-					if (multi->type() == NODE_INTERSECTION) ops.push_back(Operation::Intersection(index, objectOps[i]));
+				uint index = childOps[0];
+				for (int i = 1; i < childOps.size(); ++i) {
+					if (node->type() == NODE_UNION) ops.push_back(Operation::Union(index, childOps[i]));
+					if (node->type() == NODE_INTERSECTION) ops.push_back(Operation::Intersection(index, childOps[i]));
 					index = ops.size() - 1;
 				}
 
 				return index;
 			}
 			case NODE_DIFFERENCE: {
-				DifferenceNode* dif = (DifferenceNode*)node;
-
-				uint base = createOperations(prims, transforms, ops, dif->base.get(), nodeMatrix);
-				uint subtract = createOperations(prims, transforms, ops, dif->subtract.get(), nodeMatrix);
+				uint base = createOperations(prims, transforms, ops, node->children[0].get(), nodeMatrix); // TODO make work for >1 bases
+				uint subtract = createOperations(prims, transforms, ops, *(((DifferenceNode*)node)->subtractNodes.begin()), nodeMatrix);
 
 				if (base == -1) return -1;
 				if (subtract == -1) return base;
@@ -442,41 +404,50 @@ std::string Primrose::CylinderNode::toString(std::string prefix) {
 	return fmt::format("{}cylinder({}){}", prefix, radius, SceneNode::toString(""));
 }
 
-Primrose::MultiNode::MultiNode(std::vector<SceneNode*> nodes) {
-	for (const auto& ptr : nodes) {
-		objects.emplace_back(ptr);
-	}
-}
-std::string Primrose::MultiNode::toString(std::string prefix) {
-	std::string out = "";
-	for (const auto& node : objects) {
-		out += fmt::format("\n{}", node->toString(prefix));
-	}
-	return out;
-}
 
-Primrose::UnionNode::UnionNode(std::vector<SceneNode*> nodes) : MultiNode(nodes) {
+Primrose::UnionNode::UnionNode() {
 	name = "Union";
 }
 Primrose::NodeType Primrose::UnionNode::type() { return NodeType::NODE_UNION; }
 std::string Primrose::UnionNode::toString(std::string prefix) {
-	return fmt::format("{}union{}", prefix, MultiNode::toString(prefix + "  | "));
+	std::string childrenStr = "";
+	for (const auto& node : children) {
+		childrenStr += fmt::format("\n{}", node->toString(prefix + "  | "));
+	}
+
+	return fmt::format("{}union{}", prefix, childrenStr);
 }
 
-Primrose::IntersectionNode::IntersectionNode(std::vector<SceneNode*> nodes) : MultiNode(nodes) {
+Primrose::IntersectionNode::IntersectionNode() {
 	name = "Intersection";
 }
 Primrose::NodeType Primrose::IntersectionNode::type() { return NodeType::NODE_INTERSECTION; }
 std::string Primrose::IntersectionNode::toString(std::string prefix) {
-	return fmt::format("{}intersection{}", prefix, MultiNode::toString(prefix + "  & "));
+	std::string childrenStr = "";
+	for (const auto& node : children) {
+		childrenStr += fmt::format("\n{}", node->toString(prefix + "  & "));
+	}
+
+	return fmt::format("{}intersection{}", prefix, childrenStr);
 }
 
-Primrose::DifferenceNode::DifferenceNode(SceneNode* base, SceneNode* subtract) : base(base), subtract(subtract) {
+Primrose::DifferenceNode::DifferenceNode(SceneNode* base, SceneNode* subtract)  {
+	children.emplace_back(base);
+	children.emplace_back(subtract);
+	subtractNodes.insert(subtract);
 	name = "Difference";
 }
 Primrose::NodeType Primrose::DifferenceNode::type() { return NodeType::NODE_DIFFERENCE; }
 std::string Primrose::DifferenceNode::toString(std::string prefix) {
-	return fmt::format("difference\n{}\n{}", base->toString(prefix + "  + "), subtract->toString(prefix + "  - "));
+	std::string out = fmt::format("{}difference", prefix);
+	for (const auto& node : children) {
+		if (subtractNodes.find(node.get()) != subtractNodes.end()) { // TODO upgrade to c++20 to use .contains
+			out += fmt::format("\n{}", node->toString(prefix + "  - "));
+		} else {
+			out += fmt::format("\n{}", node->toString(prefix + "  + "));
+		}
+	}
+	return out;
 }
 
 

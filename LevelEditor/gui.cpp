@@ -114,6 +114,8 @@ void setupGui() {
 }
 
 SceneNode* clickedNode = nullptr;
+std::unique_ptr<SceneNode>* dragSrc = nullptr;
+std::unique_ptr<SceneNode>* dragDst = nullptr;
 static void processNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
 	// https://www.avoyd.com/
 	// ^ code for icons
@@ -123,78 +125,15 @@ static void processNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
 	int treeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
 					| ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 
-	if (node == clickedNode) {
-		treeFlags |= ImGuiTreeNodeFlags_Selected;
-	}
-
-	switch (node->type()) {
-		case NODE_SPHERE:
-		case NODE_BOX:
-		case NODE_TORUS:
-		case NODE_LINE:
-		case NODE_CYLINDER:
-			treeFlags |= ImGuiTreeNodeFlags_Leaf;
-			break;
-		case NODE_UNION:
-		case NODE_INTERSECTION:
-			if (((MultiNode*)node)->objects.size() == 0) treeFlags |= ImGuiTreeNodeFlags_Leaf;
-			break;
-		case NODE_DIFFERENCE:
-			break;
-	}
+	if (node == clickedNode) treeFlags |= ImGuiTreeNodeFlags_Selected;
+	if (node->children.size() == 0) treeFlags |= ImGuiTreeNodeFlags_Leaf;
 
 	bool treeOpened = ImGui::TreeNodeEx(node, treeFlags, node->name.c_str());
 
 	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("uniqueptr")) {
-			std::unique_ptr<SceneNode>* acceptPtr = *((std::unique_ptr<SceneNode>**)ImGui::GetDragDropPayload()->Data);
-			SceneNode* acceptNode = acceptPtr->get();
-			std::cout << node->name << " received payload " << acceptNode->name << std::endl;
-
-			bool moved = false; // won't move if not supported
-			std::vector<std::unique_ptr<SceneNode>>::iterator it;
-			if (node->parent->type() == NODE_UNION || node->parent->type() == NODE_INTERSECTION) {
-				it = std::find(
-					((MultiNode*)(node->parent))->objects.begin(), ((MultiNode*)(node->parent))->objects.end(), *nodePtr);
-			}
-			switch (node->type()) {
-				case NODE_SPHERE:
-				case NODE_BOX:
-				case NODE_TORUS:
-				case NODE_LINE:
-				case NODE_CYLINDER:
-					if (node->parent != nullptr) {
-						if (node->parent->type() == NODE_UNION || node->parent->type() == NODE_INTERSECTION) {
-							std::cout << "intersection base\n";
-							((MultiNode*)(node->parent))->objects.push_back(std::move(*acceptPtr));
-							moved = true;
-						} // TODO add moving into difference base/subtract
-					} else {
-						scene.root.push_back(std::move(*acceptPtr));
-						moved = true;
-					}
-					break;
-				case NODE_UNION:
-				case NODE_INTERSECTION:
-					((MultiNode*)node)->objects.push_back(std::move(*acceptPtr));
-					moved = true;
-					break;
-				case NODE_DIFFERENCE:
-					break;
-			}
-
-			if (moved) {
-				// delete node from original parent
-				if (acceptNode->parent != nullptr) {
-					if (acceptNode->parent->type() == NODE_UNION || acceptNode->parent->type() == NODE_INTERSECTION) {
-						auto& parentObjects = ((MultiNode*)(acceptNode->parent))->objects;
-//						parentObjects.erase(parentObjects.begin() + (acceptPtr - parentObjects.data()));
-						parentObjects.erase(it);
-					}
-				} else {
-					scene.root.erase(scene.root.begin() + (acceptPtr - scene.root.data()));
-				}
-			}
+		if (ImGui::AcceptDragDropPayload("uniqueptr")) {
+			dragSrc = *((std::unique_ptr<SceneNode>**)ImGui::GetDragDropPayload()->Data);
+			dragDst = nodePtr;
 		}
 
 		ImGui::EndDragDropTarget();
@@ -202,20 +141,14 @@ static void processNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
 
 	if (ImGui::BeginDragDropSource()) {
 		ImGui::SetDragDropPayload("uniqueptr", &nodePtr, sizeof(nodePtr));
-//		std::cout << node->name << " sent " << nodePtr << std::endl;
 		ImGui::EndDragDropSource();
 	}
 
 	if (treeOpened) {
 		if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) clickedNode = node;
 
-		if (node->type() == NODE_DIFFERENCE) {
-			processNode(scene, &((DifferenceNode*)node)->base);
-			processNode(scene, &((DifferenceNode*)node)->subtract);
-		} else if (node->type() == NODE_UNION || node->type() == NODE_INTERSECTION) {
-			for (auto& child : ((MultiNode*)node)->objects) {
-				processNode(scene, &child);
-			}
+		for (auto& child : node->children) {
+			processNode(scene, &child);
 		}
 
 		ImGui::TreePop();
@@ -318,6 +251,29 @@ void updateGui(Primrose::Scene& scene) {
 		processNode(scene, &node);
 	}
 	ImGui::EndChild();
+
+	// if nodes were dragged during processNode
+	if (dragSrc != nullptr && dragDst != nullptr) {
+		SceneNode* srcNode = dragSrc->get();
+		SceneNode* dstNode = dragDst->get();
+		std::cout << dstNode->name << " received payload " << srcNode->name << std::endl;
+
+		std::vector<std::unique_ptr<SceneNode>>* srcVector;
+		if (srcNode->parent != nullptr) {
+			srcVector = &srcNode->parent->children;
+		} else {
+			srcVector = &scene.root;
+		}
+		const auto it = std::find(srcVector->begin(), srcVector->end(), *dragSrc);
+
+		dstNode->children.push_back(std::move(*it));
+		srcNode->parent = dstNode;
+
+		srcVector->erase(it);
+
+		dragSrc = nullptr;
+		dragDst = nullptr;
+	}
 
 	if (clickedNode != nullptr) {
 		static SceneNode* oldNode = nullptr;

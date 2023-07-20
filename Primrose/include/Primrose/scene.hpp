@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <rapidjson/schema.h>
 #include <glm/gtx/quaternion.hpp>
+#include <set>
 
 #include "shader_structs.hpp"
 
@@ -28,9 +29,10 @@ namespace Primrose {
 
 		glm::vec3 translate = glm::vec3(0);
 		glm::vec3 scale = glm::vec3(1);
-
 		float angle = 0; // in degrees
 		glm::vec3 axis = glm::vec3(0, 0, 1);
+
+		std::vector<std::unique_ptr<SceneNode>> children;
 	};
 
 	class Scene {
@@ -87,20 +89,14 @@ namespace Primrose {
 		float radius;
 	};
 
-	struct MultiNode : public SceneNode {
-		MultiNode(std::vector<SceneNode*> nodes = {});
-
-		std::string toString(std::string indent);
-		std::vector<std::unique_ptr<SceneNode>> objects;
-	};
-	struct UnionNode : public MultiNode {
-		UnionNode(std::vector<SceneNode*> nodes = {});
+	struct UnionNode : public SceneNode {
+		UnionNode();
 
 		std::string toString(std::string prefix);
 		NodeType type();
 	};
-	struct IntersectionNode : public MultiNode {
-		IntersectionNode(std::vector<SceneNode*> nodes = {});
+	struct IntersectionNode : public SceneNode {
+		IntersectionNode();
 
 		std::string toString(std::string prefix);
 		NodeType type();
@@ -110,8 +106,7 @@ namespace Primrose {
 		NodeType type();
 		std::string toString(std::string prefix);
 
-		std::unique_ptr<SceneNode> base;
-		std::unique_ptr<SceneNode> subtract;
+		std::set<SceneNode*> subtractNodes;
 	};
 
 	bool operationsValid();
