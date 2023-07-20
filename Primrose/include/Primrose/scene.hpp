@@ -23,9 +23,11 @@ namespace Primrose {
 	struct SceneNode {
 		virtual NodeType type() = 0;
 		virtual std::string toString(std::string prefix);
+		bool isPrim();
 
 		std::string name = "Node";
 		SceneNode* parent;
+		// TODO add hide
 
 		glm::vec3 translate = glm::vec3(0);
 		glm::vec3 scale = glm::vec3(1);
