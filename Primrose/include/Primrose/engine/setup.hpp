@@ -30,6 +30,9 @@ namespace Primrose {
 	extern VkFormat swapchainImageFormat; // pixel format used in swapchain
 	extern VkExtent2D swapchainExtent; // resolution of swapchain
 
+	extern int windowWidth;
+	extern int windowHeight;
+
 	extern VkDescriptorPool descriptorPool;
 
 	struct FrameInFlight {
@@ -55,7 +58,11 @@ namespace Primrose {
 
 	// application functions
 	extern void(*mouseMovementCallback)(float xpos, float ypos, bool refocused);
-	extern void(*keyCallback)(int key, bool pressed);
+	extern void(*mouseButtonCallback)(int button, int action);
+	extern void(*keyCallback)(int key, int mods, bool pressed);
+	extern void(*endCallback)();
+	extern void(*renderPassCallback)(VkCommandBuffer& cmd);
+	extern void(*scrollCallback)(float scroll);
 
 	// main functions
 	void setup(const char* applicationName, unsigned int applicationVersion);

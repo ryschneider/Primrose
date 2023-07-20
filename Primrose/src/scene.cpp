@@ -333,8 +333,6 @@ namespace {
 }
 
 void Primrose::Scene::generateUniforms() {
-	std::cout << "Generating uniforms for scene" << std::endl;
-
 	std::vector<Primitive> prims;
 	std::vector<Transformation> transforms;
 	std::vector<Operation> ops;
@@ -373,37 +371,53 @@ std::string Primrose::SceneNode::toString(std::string prefix) {
 	return out;
 }
 
-Primrose::SphereNode::SphereNode(float radius) : radius(radius) {}
+
+
+Primrose::SphereNode::SphereNode(float radius) : radius(radius) {
+	name = "Sphere";
+}
 Primrose::NodeType Primrose::SphereNode::type() { return NodeType::NODE_SPHERE; }
 std::string Primrose::SphereNode::toString(std::string prefix) {
 	return fmt::format("{}sphere({}){}", prefix, radius, SceneNode::toString(""));
 }
 
-Primrose::BoxNode::BoxNode(glm::vec3 size) : size(size) {}
+Primrose::BoxNode::BoxNode(glm::vec3 size) : size(size) {
+	name = "Box";
+}
 Primrose::NodeType Primrose::BoxNode::type() { return NodeType::NODE_BOX; }
 std::string Primrose::BoxNode::toString(std::string prefix) {
 	return fmt::format("{}box(({}, {}, {})){}", prefix, size.x, size.y, size.z, SceneNode::toString(""));
 }
 
-Primrose::TorusNode::TorusNode(float ringRadius, float majorRadius)
-	: ringRadius(ringRadius), majorRadius(majorRadius) {}
+Primrose::TorusNode::TorusNode(float ringRadius, float majorRadius) : ringRadius(ringRadius), majorRadius(majorRadius) {
+	name = "Torus";
+}
 Primrose::NodeType Primrose::TorusNode::type() { return NodeType::NODE_TORUS; }
 std::string Primrose::TorusNode::toString(std::string prefix) {
 	return fmt::format("{}torus({}, {}){}", prefix, ringRadius, majorRadius, SceneNode::toString(""));
 }
 
-Primrose::LineNode::LineNode(float height, float radius) : height(height), radius(radius) {}
+Primrose::LineNode::LineNode(float height, float radius) : height(height), radius(radius) {
+	name = "Line";
+}
 Primrose::NodeType Primrose::LineNode::type() { return NodeType::NODE_LINE; }
 std::string Primrose::LineNode::toString(std::string prefix) {
 	return fmt::format("{}line({}, {}){}", prefix, height, radius, SceneNode::toString(""));
 }
 
-Primrose::CylinderNode::CylinderNode(float radius) : radius(radius) {}
+Primrose::CylinderNode::CylinderNode(float radius) : radius(radius) {
+	name = "Cylinder";
+}
 Primrose::NodeType Primrose::CylinderNode::type() { return NodeType::NODE_CYLINDER; }
 std::string Primrose::CylinderNode::toString(std::string prefix) {
 	return fmt::format("{}cylinder({}){}", prefix, radius, SceneNode::toString(""));
 }
 
+Primrose::MultiNode::MultiNode(std::vector<SceneNode*> nodes) {
+	for (const auto& ptr : nodes) {
+		objects.emplace_back(ptr);
+	}
+}
 std::string Primrose::MultiNode::toString(std::string prefix) {
 	std::string out = "";
 	for (const auto& node : objects) {
@@ -412,17 +426,25 @@ std::string Primrose::MultiNode::toString(std::string prefix) {
 	return out;
 }
 
+Primrose::UnionNode::UnionNode(std::vector<SceneNode*> nodes) : MultiNode(nodes) {
+	name = "Union";
+}
 Primrose::NodeType Primrose::UnionNode::type() { return NodeType::NODE_UNION; }
 std::string Primrose::UnionNode::toString(std::string prefix) {
 	return fmt::format("{}union{}", prefix, MultiNode::toString(prefix + "  | "));
 }
 
+Primrose::IntersectionNode::IntersectionNode(std::vector<SceneNode*> nodes) : MultiNode(nodes) {
+	name = "Intersection";
+}
 Primrose::NodeType Primrose::IntersectionNode::type() { return NodeType::NODE_INTERSECTION; }
 std::string Primrose::IntersectionNode::toString(std::string prefix) {
 	return fmt::format("{}intersection{}", prefix, MultiNode::toString(prefix + "  & "));
 }
 
-Primrose::DifferenceNode::DifferenceNode(SceneNode* base, SceneNode* subtract) : base(base), subtract(subtract) {}
+Primrose::DifferenceNode::DifferenceNode(SceneNode* base, SceneNode* subtract) : base(base), subtract(subtract) {
+	name = "Difference";
+}
 Primrose::NodeType Primrose::DifferenceNode::type() { return NodeType::NODE_DIFFERENCE; }
 std::string Primrose::DifferenceNode::toString(std::string prefix) {
 	return fmt::format("difference\n{}\n{}", base->toString(prefix + "  + "), subtract->toString(prefix + "  - "));

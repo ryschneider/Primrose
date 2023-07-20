@@ -32,6 +32,8 @@ void Primrose::run(void(*callback)(float)) {
 
 	vkDeviceWaitIdle(device);
 
+	endCallback();
+
 	cleanup();
 }
 
@@ -115,6 +117,8 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
 		vkCmdDrawIndexed(commandBuffer, element->numIndices, 1, 0, 0, 0);
 	}
+
+	renderPassCallback(commandBuffer);
 
 	vkCmdEndRenderPass(commandBuffer); // cmd: end render
 

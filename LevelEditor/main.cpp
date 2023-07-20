@@ -1,78 +1,152 @@
 #include <Primrose/core.hpp>
 #include <Primrose/ui/text.hpp>
+#include <Primrose/ui/panel.hpp>
 #include <iostream>
+#include <glm/gtx/rotate_vector.hpp>
 
 #include "player_movement.hpp"
 #include "fps_counter.hpp"
-//#include "../PrimroseDemo/planet_scene.hpp"
+#include "gui.hpp"
 
 const char* APP_NAME = "Level Editor";
 const unsigned int APP_VERSION = 001'000'000;
 
 using namespace Primrose;
 
-PRIM selectedTool = PRIM::BOX;
-std::map<PRIM, std::string> toolNames = {
-	{PRIM::P1, "PRIM::P1"},
-	{PRIM::P2, "PRIM::P2"},
-	{PRIM::P3, "PRIM::P3"},
-	{PRIM::P4, "PRIM::P4"},
-//	{PRIM::P5, "PRIM::P5"},
-//	{PRIM::P6, "PRIM::P6"},
-//	{PRIM::P7, "PRIM::P7"},
-//	{PRIM::P8, "PRIM::P8"},
-//	{PRIM::P9, "PRIM::P9"},
-	{PRIM::SPHERE, "PRIM::SPHERE"},
-	{PRIM::BOX, "PRIM::BOX"},
-	{PRIM::TORUS, "PRIM::TORUS"},
-	{PRIM::LINE, "PRIM::LINE"},
-	{PRIM::CYLINDER, "PRIM::CYLINDER"}
-};
-PRIM nextTool(PRIM tool) {
-	bool next = false;
-	for (const auto& pair : toolNames) {
-		if (next) return pair.first;
-		if (pair.first == tool) next = true;
-	}
-	return (*(toolNames.begin())).first;
-}
+Scene mainScene = Scene("scenes/csg.json");
 
-float placeDist = 10;
-unsigned int previewPrim;
-unsigned int previewTransform;
+std::string sceneSig;
+
+bool mouseMiddleDown = false;
+bool shiftHeld = false;
+
+static float orbitDist = 10;
+static glm::vec3 pivot = glm::vec3(0);
 
 void update(float dt) {
-	updatePosition();
-	updateFps();
+//	updateFps();
 
-//	primitives[previewPrim].nodeType = selectedTool;
-//
-//	glm::vec3 position = uniforms.camPos + uniforms.camDir * placeDist;
-//	glm::mat4 transform = transformMatrix(position, glm::vec3(1), 0, glm::vec3(1));
-//	transformations[previewTransform].invMatrix = glm::inverse(transform);
-//	transformations[previewTransform].smallScale = getSmallScale(transform);
+	updateGui(mainScene);
+
+	if (mainScene.toString() != sceneSig) {
+		sceneSig = mainScene.toString();
+	}
+	mainScene.generateUniforms();
 }
 
-void myKeyCallback(int key, bool pressed) {
-	if (key == GLFW_KEY_T && pressed) {
-		selectedTool = nextTool(selectedTool);
-		std::cout << "Selected " << toolNames[selectedTool] << std::endl;
+void mouseButtonCb(int button, int action) {
+	if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
+		mouseMiddleDown = action == GLFW_PRESS;
 	}
+}
+
+void mouseOrbitCb(float xpos, float ypos, bool refocused) {
+	static bool justPressed = true;
+
+	if (mouseMiddleDown) {
+		static float lastX = 0;
+		static float lastY = 0;
+
+		if (justPressed || refocused) {
+			lastX = xpos;
+			lastY = ypos;
+		}
+
+		float dx = xpos - lastX; // in px
+		float dy = ypos - lastY;
+
+		if (shiftHeld) {
+			float w = 2 * orbitDist * tan(fov / 2);
+			float panSens = w / (float)windowWidth;
+
+			glm::vec3 right = glm::normalize(glm::cross(uniforms.camUp, uniforms.camDir));
+
+			pivot += uniforms.camUp * dy * panSens;
+			pivot -= right * dx * panSens;
+			uniforms.camPos = pivot - uniforms.camDir * orbitDist;
+		} else {
+			float yaw = Settings::mouseSens * dx;
+			float pitch = Settings::mouseSens * dy;
+
+			glm::vec3 right = glm::normalize(glm::cross(uniforms.camUp, uniforms.camDir));
+
+			glm::vec3 newPos = glm::rotate(uniforms.camPos - pivot, pitch, right) + pivot;
+
+			if (abs(glm::dot(glm::normalize(pivot - newPos), uniforms.camUp)) < 0.9) {
+				uniforms.camPos = newPos; // if direction isnt too vertical
+			}
+			uniforms.camPos = glm::rotate(uniforms.camPos - pivot, yaw, uniforms.camUp) + pivot;
+			uniforms.camDir = glm::normalize(pivot - uniforms.camPos);
+		}
+
+		lastX = xpos;
+		lastY = ypos;
+		justPressed = false;
+	} else {
+		justPressed = true;
+	}
+}
+
+void myMouseCb(float xpos, float ypos, bool refocused) {
+	static float relX = 0;
+	static float relY = 0;
+	static bool justPressed = true;
+
+	if (mouseMiddleDown) {
+		if (justPressed) {
+			relX = xpos;
+			relY = ypos;
+		}
+
+		mouseCallback(xpos - relX, ypos - relY, justPressed || refocused);
+
+		justPressed = false;
+	} else {
+		justPressed = true;
+	}
+}
+
+void scrollZoomCb(float scroll) {
+	float co = 1.05;
+	setZoom(zoom * pow(co, scroll));
+}
+
+void scrollOrbitCb(float scroll) {
+	ImGuiIO& io = ImGui::GetIO();
+	if (!io.WantCaptureMouse) { // only zoom if not captured by imgui
+		orbitDist *= pow(0.95, scroll);
+		if (orbitDist < 1) orbitDist = 1;
+		uniforms.camPos = pivot - uniforms.camDir * orbitDist;
+	}
+}
+
+void keyCb(int key, int mods, bool pressed) {
+	if (key == GLFW_KEY_LEFT_SHIFT || key == GLFW_KEY_RIGHT_SHIFT) {
+		shiftHeld = pressed;
+	}
+
+	guiKeyCb(key, mods, pressed);
 }
 
 int main() {
 	setup(APP_NAME, APP_VERSION);
-	mouseMovementCallback = mouseCallback;
-	keyCallback = myKeyCallback;
 
-	Scene scene("scenes/test.json");
-	scene.generateUniforms();
+	// setup gui
+	endCallback = cleanupGui;
+	renderPassCallback = renderGui;
+	setupGui();
 
-	std::cout << std::endl << "SCENE:" << std::endl << scene.toString() << std::endl;
-	std::cout << std::endl << "UNIFORMS:" << std::endl << uniforms.toString() << std::endl;
+	// mouse orbit
+	uniforms.camPos = pivot - uniforms.camDir * orbitDist;
+	mouseMovementCallback = mouseOrbitCb;
+	mouseButtonCallback = mouseButtonCb;
+	scrollCallback = scrollOrbitCb;
+	keyCallback = keyCb;
 
-	initFps();
+	std::cout << mainScene.toString() << std::endl;
+	std::cout << mainScene.root[0]->name << std::endl;
 
-	std::cout << "Selected " << toolNames[selectedTool] << std::endl;
+//	initFps();
+
 	run(update);
 }

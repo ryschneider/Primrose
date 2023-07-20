@@ -41,6 +41,9 @@ namespace Primrose {
 	VkFormat swapchainImageFormat; // pixel format used in swapchain
 	VkExtent2D swapchainExtent; // resolution of swapchain
 
+	int windowWidth = 0;
+	int windowHeight = 0;
+
 	VkDescriptorPool descriptorPool;
 
 	std::vector<FrameInFlight> framesInFlight;
@@ -52,39 +55,44 @@ namespace Primrose {
 	VkDebugUtilsMessengerEXT debugMessenger; // handles logging validation details
 
 	void(*mouseMovementCallback)(float xpos, float ypos, bool refocused) = nullptr;
-	void(*keyCallback)(int key, bool pressed) = nullptr;
+	void(*mouseButtonCallback)(int button, int action) = nullptr;
+	void(*keyCallback)(int key, int mods, bool pressed) = nullptr;
+	void(*endCallback)() = nullptr;
+	void(*renderPassCallback)(VkCommandBuffer& cmd) = nullptr;
+	void(*scrollCallback)(float scroll) = nullptr;
 
 	// glfw callbacks
 	namespace {
 		void windowResizedCallback(GLFWwindow*, int, int) {
 			windowResized = true;
 		}
-		void windowFocusCallback(GLFWwindow*, int focused) {
+		void windowFocusGlfwCallback(GLFWwindow*, int focused) {
 			if (focused != GL_TRUE) {
 				windowFocused = false;
 			}
 		}
-		void cursorPosCallback(GLFWwindow*, double xpos, double ypos) {
+		void cursorPosGlfwCallback(GLFWwindow*, double xpos, double ypos) {
 			bool refocused = !windowFocused && glfwGetWindowAttrib(window, GLFW_FOCUSED) == GL_TRUE;
 			if (refocused) windowFocused = true;
 			if (mouseMovementCallback != nullptr) mouseMovementCallback(xpos, ypos, refocused);
 		}
-		void engineKeyCallback(GLFWwindow*, int key, int, int action, int) {
+		void keyGlfwCallback(GLFWwindow*, int key, int, int action, int mods) {
 			if (key == GLFW_KEY_ESCAPE) {
 				glfwSetWindowShouldClose(window, GL_TRUE);
 			}
 			if (keyCallback != nullptr && action != GLFW_REPEAT) {
-				keyCallback(key, action == GLFW_PRESS);
+				keyCallback(key, mods, action == GLFW_PRESS);
 			}
 		}
-		void mouseButtonCallback(GLFWwindow*, int button, int, int) {
+		void mouseButtonGlfwCallback(GLFWwindow*, int button, int action, int mods) {
 			if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
 				setZoom(1.f);
 			}
+
+			if (mouseButtonCallback != nullptr) mouseButtonCallback(button, action);
 		}
-		void scrollCallback(GLFWwindow*, double, double scroll) {
-			float co = 1.05;
-			setZoom(zoom * pow(co, scroll));
+		void scrollGlfwCallback(GLFWwindow*, double, double scroll) {
+			if (scrollCallback != nullptr) scrollCallback(scroll);
 		}
 	}
 
@@ -544,11 +552,11 @@ void Primrose::initWindow() {
 	}
 
 	glfwSetFramebufferSizeCallback(window, windowResizedCallback);
-	glfwSetWindowFocusCallback(window, windowFocusCallback);
-	glfwSetKeyCallback(window, engineKeyCallback);
-	glfwSetCursorPosCallback(window, cursorPosCallback);
-	glfwSetMouseButtonCallback(window, mouseButtonCallback);
-	glfwSetScrollCallback(window, scrollCallback);
+	glfwSetWindowFocusCallback(window, windowFocusGlfwCallback);
+	glfwSetKeyCallback(window, keyGlfwCallback);
+	glfwSetCursorPosCallback(window, cursorPosGlfwCallback);
+	glfwSetMouseButtonCallback(window, mouseButtonGlfwCallback);
+	glfwSetScrollCallback(window, scrollGlfwCallback);
 
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
@@ -804,19 +812,18 @@ void Primrose::createSwapchain() {
 	}
 	std::cout << "Swapchain present mode: " << PRESENT_MODE_STRINGS.find(presentMode)->second << (ideal ? " (ideal)" : " (not ideal)") << std::endl;
 
+	glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
+
 	// choose swap extent (resolution of images)
 	if (swapDetails.capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
 		// if currentExtent.width is max value, use the size of the window as extent
-		int width, height;
-		glfwGetFramebufferSize(window, &width, &height);
 
 		// keep within min and max image extent allowed by swapchain
-		swapchainExtent.width = std::clamp((uint32_t)width,
+		swapchainExtent.width = std::clamp((uint32_t)windowWidth,
 			swapDetails.capabilities.minImageExtent.width, swapDetails.capabilities.maxImageExtent.width);
-		swapchainExtent.height = std::clamp((uint32_t)height,
+		swapchainExtent.height = std::clamp((uint32_t)windowHeight,
 			swapDetails.capabilities.minImageExtent.height, swapDetails.capabilities.maxImageExtent.height);
-	}
-	else {
+	} else {
 		swapchainExtent = swapDetails.capabilities.currentExtent; // use extent given
 	}
 	std::cout << "Swapchain extent: (" << swapchainExtent.width << ", " << swapchainExtent.height << ")" << std::endl;

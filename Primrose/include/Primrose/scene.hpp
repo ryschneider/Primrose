@@ -20,9 +20,10 @@ namespace Primrose {
 	};
 
 	struct SceneNode {
-	public:
 		virtual NodeType type() = 0;
 		virtual std::string toString(std::string prefix);
+
+		std::string name = "Node";
 
 		glm::vec3 translate = glm::vec3(0);
 		glm::vec3 scale = glm::vec3(1);
@@ -38,15 +39,13 @@ namespace Primrose {
 		void generateUniforms();
 		std::string toString();
 
+		std::vector<std::unique_ptr<SceneNode>> root;
 	private:
 		static std::unique_ptr<rapidjson::SchemaDocument> schema;
 
 		static void loadSchema();
 		rapidjson::Document loadDoc(std::filesystem::path filePath);
 		SceneNode* processNode(const rapidjson::Value& v, std::filesystem::path dir);
-
-
-		std::vector<std::unique_ptr<SceneNode>> root;
 	};
 
 	struct SphereNode : public SceneNode {
@@ -88,14 +87,20 @@ namespace Primrose {
 	};
 
 	struct MultiNode : public SceneNode {
+		MultiNode(std::vector<SceneNode*> nodes = {});
+
 		std::string toString(std::string indent);
 		std::vector<std::unique_ptr<SceneNode>> objects;
 	};
 	struct UnionNode : public MultiNode {
+		UnionNode(std::vector<SceneNode*> nodes = {});
+
 		std::string toString(std::string prefix);
 		NodeType type();
 	};
 	struct IntersectionNode : public MultiNode {
+		IntersectionNode(std::vector<SceneNode*> nodes = {});
+
 		std::string toString(std::string prefix);
 		NodeType type();
 	};

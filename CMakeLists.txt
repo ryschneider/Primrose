@@ -43,6 +43,7 @@ add_library(Primrose
 	Primrose/src/embed/ui_vert_spv.h
 	Primrose/src/embed/ui_frag_spv.h
 	Primrose/src/embed/scene_schema_json.h
+
 	Primrose/src/engine/runtime.cpp Primrose/src/engine/setup.cpp Primrose/src/scene.cpp Primrose/src/state.cpp
 	Primrose/src/ui/element.cpp Primrose/src/ui/panel.cpp Primrose/src/ui/image.cpp Primrose/src/ui/text.cpp
 	Primrose/src/shader_structs.cpp)
@@ -70,6 +71,11 @@ target_link_libraries(PrimroseDemo LINK_PUBLIC Primrose)
 
 
 # build level editor
-add_executable(LevelEditor LevelEditor/main.cpp LevelEditor/player_movement.cpp LevelEditor/fps_counter.cpp)
-#target_include_directories(LevelEditor PUBLIC ${PROJECT_SOURCE_DIR})
+add_executable(LevelEditor
+	LevelEditor/imgui/imgui.cpp LevelEditor/imgui/imgui_draw.cpp LevelEditor/imgui/imgui_tables.cpp LevelEditor/imgui/imgui_widgets.cpp
+	LevelEditor/imgui/imgui_demo.cpp
+	LevelEditor/imgui/backends/imgui_impl_glfw.cpp LevelEditor/imgui/backends/imgui_impl_vulkan.cpp
+
+	LevelEditor/main.cpp LevelEditor/player_movement.cpp LevelEditor/fps_counter.cpp LevelEditor/gui.cpp)
+target_include_directories(LevelEditor PRIVATE LevelEditor/imgui)
 target_link_libraries(LevelEditor LINK_PUBLIC Primrose)
