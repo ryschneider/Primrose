@@ -28,6 +28,8 @@ void update(float dt) {
 
 	updateGui(mainScene);
 
+//	std::cout << mainScene.toString() << std::endl;
+
 	if (mainScene.toString() != sceneSig) {
 		sceneSig = mainScene.toString();
 	}
@@ -142,9 +144,6 @@ int main() {
 	mouseButtonCallback = mouseButtonCb;
 	scrollCallback = scrollOrbitCb;
 	keyCallback = keyCb;
-
-	std::cout << mainScene.toString() << std::endl;
-	std::cout << mainScene.root[0]->name << std::endl;
 
 //	initFps();
 

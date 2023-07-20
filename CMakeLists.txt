@@ -73,7 +73,7 @@ target_link_libraries(PrimroseDemo LINK_PUBLIC Primrose)
 # build level editor
 add_executable(LevelEditor
 	LevelEditor/imgui/imgui.cpp LevelEditor/imgui/imgui_draw.cpp LevelEditor/imgui/imgui_tables.cpp LevelEditor/imgui/imgui_widgets.cpp
-	LevelEditor/imgui/imgui_demo.cpp
+	LevelEditor/imgui/imgui_demo.cpp LevelEditor/imgui/misc/cpp/imgui_stdlib.cpp
 	LevelEditor/imgui/backends/imgui_impl_glfw.cpp LevelEditor/imgui/backends/imgui_impl_vulkan.cpp
 
 	LevelEditor/main.cpp LevelEditor/player_movement.cpp LevelEditor/fps_counter.cpp LevelEditor/gui.cpp)

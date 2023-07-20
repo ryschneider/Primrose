@@ -12,8 +12,10 @@
 #include <rapidjson/stringbuffer.h>
 #include <fmt/format.h>
 
-std::unique_ptr<rapidjson::SchemaDocument> Primrose::Scene::schema(nullptr);
-void Primrose::Scene::loadSchema() {
+using namespace Primrose;
+
+std::unique_ptr<rapidjson::SchemaDocument> Scene::schema(nullptr);
+void Scene::loadSchema() {
 	rapidjson::Document sd;
 	if (sd.Parse(sceneSchemaJsonData, sceneSchemaJsonSize).HasParseError()) {
 		throw std::runtime_error("failed to parse scene json schema");
@@ -22,7 +24,7 @@ void Primrose::Scene::loadSchema() {
 	schema = std::make_unique<rapidjson::SchemaDocument>(sd);
 }
 
-rapidjson::Document Primrose::Scene::loadDoc(std::filesystem::path filePath) {
+rapidjson::Document Scene::loadDoc(std::filesystem::path filePath) {
 	if (schema.get() == nullptr) loadSchema();
 
 	std::cout << "Loading scene from " << filePath.make_preferred() << std::endl;
@@ -56,6 +58,30 @@ rapidjson::Document Primrose::Scene::loadDoc(std::filesystem::path filePath) {
 	return doc;
 }
 
+static void updateParents(SceneNode* node) {
+	switch (node->type()) {
+		case Primrose::NODE_SPHERE:
+		case Primrose::NODE_BOX:
+		case Primrose::NODE_TORUS:
+		case Primrose::NODE_LINE:
+		case Primrose::NODE_CYLINDER:
+			break;
+		case Primrose::NODE_UNION:
+		case Primrose::NODE_INTERSECTION:
+			for (const auto& child : ((MultiNode*)node)->objects) {
+				child->parent = node;
+				updateParents(child.get());
+			}
+			break;
+		case Primrose::NODE_DIFFERENCE:
+			((DifferenceNode*)node)->base->parent = node;
+			updateParents(((DifferenceNode*)node)->base.get());
+			((DifferenceNode*)node)->subtract->parent = node;
+			updateParents(((DifferenceNode*)node)->subtract.get());
+			break;
+	}
+}
+
 Primrose::Scene::Scene(std::filesystem::path sceneFile) {
 	rapidjson::Document doc = loadDoc(sceneFile.string().c_str());
 
@@ -65,6 +91,10 @@ Primrose::Scene::Scene(std::filesystem::path sceneFile) {
 		for (const auto& v : doc.GetArray()) {
 			root.emplace_back(processNode(v, sceneFile.parent_path()));
 		}
+	}
+
+	for (const auto& node : root) {
+		updateParents(node.get());
 	}
 }
 
@@ -370,7 +400,6 @@ std::string Primrose::SceneNode::toString(std::string prefix) {
 	if (out == "[]") out = "";
 	return out;
 }
-
 
 
 Primrose::SphereNode::SphereNode(float radius) : radius(radius) {

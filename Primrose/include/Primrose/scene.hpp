@@ -24,6 +24,7 @@ namespace Primrose {
 		virtual std::string toString(std::string prefix);
 
 		std::string name = "Node";
+		SceneNode* parent;
 
 		glm::vec3 translate = glm::vec3(0);
 		glm::vec3 scale = glm::vec3(1);
