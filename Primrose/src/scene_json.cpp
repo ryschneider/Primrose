@@ -4,53 +4,18 @@
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/stringbuffer.h>
+#include <rapidjson/ostreamwrapper.h>
+#include <rapidjson/writer.h>
 #include <iostream>
+#include <fstream>
 
 using namespace Primrose;
 
-std::unique_ptr<rapidjson::SchemaDocument> Scene::schema(nullptr);
-void Scene::loadSchema() {
-	rapidjson::Document sd;
-	if (sd.Parse(sceneSchemaJsonData, sceneSchemaJsonSize).HasParseError()) {
-		throw std::runtime_error("failed to parse scene json schema");
-	}
-
-	schema = std::make_unique<rapidjson::SchemaDocument>(sd);
+Scene::Scene(std::filesystem::path sceneFile) {
+	importScene(sceneFile);
 }
 
-rapidjson::Document Scene::loadDoc(std::filesystem::path filePath) {
-	if (schema.get() == nullptr) loadSchema();
 
-	std::cout << "Loading scene from " << filePath.make_preferred() << std::endl;
-
-	FILE* file = fopen(filePath.string().c_str(), "rb");
-
-	char buffer[65536];
-	rapidjson::FileReadStream stream(file, buffer, sizeof(buffer));
-
-	rapidjson::SchemaValidatingReader<rapidjson::kParseDefaultFlags, rapidjson::FileReadStream, rapidjson::UTF8<>>
-		reader(stream, *schema);
-
-	rapidjson::Document doc;
-	doc.Populate(reader);
-
-	if (!reader.GetParseResult()) {
-		if (!reader.IsValid()) {
-			rapidjson::StringBuffer sb;
-			reader.GetInvalidSchemaPointer().StringifyUriFragment(sb);
-			std::cout << "invalid schema: " << sb.GetString() << std::endl;
-			std::cout << "invalid keyword: " << reader.GetInvalidSchemaKeyword() << std::endl;
-			sb.Clear();
-			reader.GetInvalidDocumentPointer().StringifyUriFragment(sb);
-			std::cout << "invalid document: " << sb.GetString() << std::endl;
-			throw std::runtime_error("failed to validate json scene");
-		}
-	}
-
-	fclose(file);
-
-	return doc;
-}
 
 static void updateParents(SceneNode* node) {
 	for (const auto& child : node->children) {
@@ -59,17 +24,34 @@ static void updateParents(SceneNode* node) {
 	}
 }
 
-std::map<std::string, NodeType> jsonNodeType = {
-	{"sphere", NodeType::NODE_SPHERE},
-	{"box", NodeType::NODE_BOX},
-	{"torus", NodeType::NODE_TORUS},
-	{"line", NodeType::NODE_LINE},
-	{"cylinder", NodeType::NODE_CYLINDER},
-	{"union", NodeType::NODE_UNION},
-	{"intersection", NodeType::NODE_INTERSECTION},
-	{"difference", NodeType::NODE_DIFFERENCE},
-};
+void Scene::importScene(std::filesystem::path sceneFile) {
+	rapidjson::Document doc = loadDoc(sceneFile.string().c_str());
+
+	if (doc.IsObject()) {
+		root.emplace_back(processNode(doc, sceneFile.parent_path()));
+	} else {
+		for (const auto& v : doc.GetArray()) {
+			root.emplace_back(processNode(v, sceneFile.parent_path()));
+		}
+	}
+
+	for (const auto& node : root) {
+		updateParents(node.get());
+	}
+}
+
 SceneNode* Scene::processNode(const rapidjson::Value& v, std::filesystem::path dir) {
+	std::map<std::string, NodeType> jsonNodeType = {
+		{"sphere", NodeType::NODE_SPHERE},
+		{"box", NodeType::NODE_BOX},
+		{"torus", NodeType::NODE_TORUS},
+		{"line", NodeType::NODE_LINE},
+		{"cylinder", NodeType::NODE_CYLINDER},
+		{"union", NodeType::NODE_UNION},
+		{"intersection", NodeType::NODE_INTERSECTION},
+		{"difference", NodeType::NODE_DIFFERENCE},
+	};
+
 	std::string type = v["type"].GetString();
 	SceneNode* node = nullptr;
 
@@ -172,18 +154,70 @@ SceneNode* Scene::processNode(const rapidjson::Value& v, std::filesystem::path d
 	return node;
 }
 
-Scene::Scene(std::filesystem::path sceneFile) {
-	rapidjson::Document doc = loadDoc(sceneFile.string().c_str());
 
-	if (doc.IsObject()) {
-		root.emplace_back(processNode(doc, sceneFile.parent_path()));
+
+void Scene::saveScene(std::filesystem::path savePath) {
+	std::ofstream stream(savePath);
+	rapidjson::OStreamWrapper osw(stream);
+	rapidjson::Writer<rapidjson::OStreamWrapper> writer(osw);
+
+	if (root.size() == 1) {
+		writer.StartObject();
+		root[0]->serialize(writer);
+		writer.EndObject();
 	} else {
-		for (const auto& v : doc.GetArray()) {
-			root.emplace_back(processNode(v, sceneFile.parent_path()));
+		writer.StartArray();
+		for (const auto& node : root) {
+			writer.StartObject();
+			node->serialize(writer);
+			writer.EndObject();
+		}
+		writer.EndArray();
+	}
+}
+
+
+
+rapidjson::Document Scene::loadDoc(std::filesystem::path filePath) {
+	if (schema.get() == nullptr) loadSchema();
+
+	std::cout << "Loading scene from " << filePath.make_preferred() << std::endl;
+
+	FILE* file = fopen(filePath.string().c_str(), "rb");
+
+	char buffer[65536];
+	rapidjson::FileReadStream stream(file, buffer, sizeof(buffer));
+
+	rapidjson::SchemaValidatingReader<rapidjson::kParseDefaultFlags, rapidjson::FileReadStream, rapidjson::UTF8<>>
+		reader(stream, *schema);
+
+	rapidjson::Document doc;
+	doc.Populate(reader);
+
+	if (!reader.GetParseResult()) {
+		if (!reader.IsValid()) {
+			rapidjson::StringBuffer sb;
+			reader.GetInvalidSchemaPointer().StringifyUriFragment(sb);
+			std::cout << "invalid schema: " << sb.GetString() << std::endl;
+			std::cout << "invalid keyword: " << reader.GetInvalidSchemaKeyword() << std::endl;
+			sb.Clear();
+			reader.GetInvalidDocumentPointer().StringifyUriFragment(sb);
+			std::cout << "invalid document: " << sb.GetString() << std::endl;
+			throw std::runtime_error("failed to validate json scene");
 		}
 	}
 
-	for (const auto& node : root) {
-		updateParents(node.get());
+	fclose(file);
+
+	return doc;
+}
+
+std::unique_ptr<rapidjson::SchemaDocument> Scene::schema(nullptr);
+void Scene::loadSchema() {
+	rapidjson::Document sd;
+	if (sd.Parse(sceneSchemaJsonData, sceneSchemaJsonSize).HasParseError()) {
+		throw std::runtime_error("failed to parse scene json schema");
 	}
+
+	schema = std::make_unique<rapidjson::SchemaDocument>(sd);
 }

@@ -13,8 +13,7 @@ const unsigned int APP_VERSION = 001'000'000;
 
 using namespace Primrose;
 
-Scene mainScene = Scene("scenes/test.json");
-//Scene mainScene = Scene();
+Scene mainScene = Scene();
 
 std::string sceneSig;
 
@@ -23,6 +22,21 @@ bool shiftHeld = false;
 
 static float orbitDist = 10;
 static glm::vec3 pivot = glm::vec3(0);
+
+
+void makeTmpSave() {
+	const std::vector<std::filesystem::path> tmpSaves = {
+		"C:\\temp\\temp_scene_1.json",
+		"C:\\temp\\temp_scene_2.json",
+		"C:\\temp\\temp_scene_3.json",
+		"C:\\temp\\temp_scene_4.json",
+		"C:\\temp\\temp_scene_5.json"
+	};
+	static int currentTmp = 0;
+
+	mainScene.saveScene(tmpSaves[currentTmp++]);
+	if (currentTmp >= tmpSaves.size()) currentTmp = 0;
+}
 
 void update(float dt) {
 //	updateFps();
@@ -45,8 +59,9 @@ void update(float dt) {
 
 	if (mainScene.toString() != sceneSig) {
 		sceneSig = mainScene.toString();
+		mainScene.generateUniforms();
+		makeTmpSave();
 	}
-	mainScene.generateUniforms();
 }
 
 void mouseButtonCb(int button, int action) {
@@ -75,8 +90,9 @@ void mouseOrbitCb(float xpos, float ypos, bool refocused) {
 			float panSens = w / (float)windowWidth;
 
 			glm::vec3 right = glm::normalize(glm::cross(uniforms.camUp, uniforms.camDir));
+			glm::vec3 screenUp = glm::normalize(glm::cross(uniforms.camDir, right));
 
-			pivot += uniforms.camUp * dy * panSens;
+			pivot += screenUp * dy * panSens;
 			pivot -= right * dx * panSens;
 			uniforms.camPos = pivot - uniforms.camDir * orbitDist;
 		} else {
@@ -87,7 +103,7 @@ void mouseOrbitCb(float xpos, float ypos, bool refocused) {
 
 			glm::vec3 newPos = glm::rotate(uniforms.camPos - pivot, pitch, right) + pivot;
 
-			if (abs(glm::dot(glm::normalize(pivot - newPos), uniforms.camUp)) < 0.9) {
+			if (abs(glm::dot(glm::normalize(pivot - newPos), uniforms.camUp)) < 0.999) {
 				uniforms.camPos = newPos; // if direction isnt too vertical
 			}
 			uniforms.camPos = glm::rotate(uniforms.camPos - pivot, yaw, uniforms.camUp) + pivot;
@@ -157,6 +173,9 @@ int main() {
 	mouseButtonCallback = mouseButtonCb;
 	scrollCallback = scrollOrbitCb;
 	keyCallback = keyCb;
+
+	// load scene
+	mainScene.importScene("scenes/test.json");
 
 //	initFps();
 

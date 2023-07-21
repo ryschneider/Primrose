@@ -7,6 +7,7 @@
 #include <Primrose/scene.hpp>
 
 extern Primrose::SceneNode* doubleClickedNode;
+extern std::filesystem::path lastLoadedScene;
 
 void guiKeyCb(int key, int mods, bool pressed);
 

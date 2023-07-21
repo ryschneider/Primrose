@@ -7,22 +7,36 @@
 #include <map>
 #include <imgui/imgui_internal.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
+#include <tinyfiledialogs.h>
 
 using namespace Primrose;
 
 VkDescriptorPool imguiDescriptorPool;
 
-bool addObjectDialog = false;
-bool newScene = false;
+std::filesystem::path lastLoadedScene = "scenes/";
+
+static bool addObject = false;
+static bool duplicateObject = false;
+static bool deleteObject = false;
+
+static bool newScene = false;
+static bool openScene = false;
+static bool saveScene = false;
+
 void guiKeyCb(int key, int mods, bool pressed) {
 	if (pressed) {
-		if (mods & GLFW_MOD_SHIFT && key == GLFW_KEY_A) {
-			addObjectDialog = true;
+		if (mods & GLFW_MOD_CONTROL) {
+			if (key == GLFW_KEY_N) newScene = true;
+			if (key == GLFW_KEY_O) openScene = true;
+			if (key == GLFW_KEY_S) saveScene = true;
 		}
 
-		if (mods & GLFW_MOD_CONTROL && key == GLFW_KEY_N) {
-			newScene = true;
+		if (mods & GLFW_MOD_SHIFT) {
+			if (key == GLFW_KEY_A) addObject = true;
+			if (key == GLFW_KEY_D) duplicateObject = true;
 		}
+
+		if (key == GLFW_KEY_DELETE) deleteObject = true;
 	}
 }
 
@@ -117,7 +131,7 @@ SceneNode* clickedNode = nullptr;
 SceneNode* doubleClickedNode = nullptr;
 std::unique_ptr<SceneNode>* dragSrc = nullptr;
 std::unique_ptr<SceneNode>* dragDst = nullptr;
-static void processNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
+static void addTreeNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
 	// https://www.avoyd.com/
 	// ^ code for icons
 
@@ -149,7 +163,7 @@ static void processNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
 		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) doubleClickedNode = node;
 
 		for (auto& child : node->children) {
-			processNode(scene, &child);
+			addTreeNode(scene, &child);
 		}
 
 		ImGui::TreePop();
@@ -229,6 +243,23 @@ bool addFloat(const char* label, float& val) {
 	return ImGui::DragFloat(label, &val, getInc(val), 0, 0, "%.2f");
 }
 
+bool Splitter(bool split_vertically, float thickness, float* size1, float* size2, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f) {
+	// https://github.com/ocornut/imgui/issues/319#issuecomment-345795629
+	using namespace ImGui;
+	ImGuiContext& g = *GImGui;
+	ImGuiWindow* guiWindow = g.CurrentWindow;
+	ImGuiID id = guiWindow->GetID("##Splitter");
+	ImRect bb;
+
+	bb.Min = guiWindow->DC.CursorPos;
+	if (split_vertically) bb.Min.x += *size1;
+	else bb.Min.y += *size1;
+
+	ImVec2 item = CalcItemSize(split_vertically ? ImVec2(thickness, splitter_long_axis_size) : ImVec2(splitter_long_axis_size, thickness), 0.0f, 0.0f);
+	bb.Max = ImVec2(bb.Min.x + item.x, bb.Min.y + item.y);
+	return SplitterBehavior(bb, id, split_vertically ? ImGuiAxis_X : ImGuiAxis_Y, size1, size2, min_size1, min_size2, 0.0f);
+}
+
 void updateGui(Primrose::Scene& scene) {
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
@@ -239,37 +270,40 @@ void updateGui(Primrose::Scene& scene) {
 	ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_MenuBar);
 	if (ImGui::BeginMenuBar()) {
 		if (ImGui::BeginMenu("File")) {
-			if (ImGui::MenuItem("New", "Ctrl+N")) {
-				newScene = true;
-			}
-			if (ImGui::MenuItem("Open...", "Ctrl+O")) {
-				std::cout << "open scene" << std::endl;
-			}
-			if (ImGui::MenuItem("Save", "Ctrl+S")) {
-				std::cout << "save scene" << std::endl;
-			}
+			if (ImGui::MenuItem("New", "Ctrl+N")) newScene = true;
+			if (ImGui::MenuItem("Open...", "Ctrl+O")) openScene = true;
+			if (ImGui::MenuItem("Save", "Ctrl+S")) saveScene = true;
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu("Object")) {
-			if (ImGui::MenuItem("Add", "Shift+A")) {
-				addObjectDialog = true;
-			};
+			if (ImGui::MenuItem("Add", "Shift+A")) addObject = true;
+			if (ImGui::MenuItem("Duplicate", "Shift+D")) duplicateObject = true;
+			if (ImGui::MenuItem("Delete", "Del")) deleteObject = true;
 			ImGui::EndMenu();
 		}
 		ImGui::EndMenuBar();
 	}
 
-	ImGui::BeginChild("Scene", ImVec2(ImGui::GetContentRegionAvail().x, 260), true);
+	static float hierarchySize = 260;
+	float propertiesSize = ImGui::GetContentRegionAvail().y - hierarchySize - 4;
+	Splitter(false, 8, &hierarchySize, &propertiesSize, 8, 8, ImGui::GetContentRegionAvail().x);
+
+	ImGui::BeginChild("Scene", ImVec2(ImGui::GetContentRegionAvail().x, hierarchySize));
 	for (auto& node : scene.root) {
-		processNode(scene, &node);
+		addTreeNode(scene, &node);
 	}
 	ImGui::EndChild();
 
-	// if nodes were dragged during processNode
+
+	ImGui::BeginChild("Properties", ImVec2(ImGui::GetContentRegionAvail().x, propertiesSize));
+
+	// if nodes were dragged during addTreeNode
 	if (dragSrc != nullptr && dragDst != nullptr) {
 		SceneNode* srcNode = dragSrc->get();
 		SceneNode* dstNode = dragDst->get();
 		std::cout << dstNode->name << " received payload " << srcNode->name << std::endl;
+
+//		if ()
 
 		std::vector<std::unique_ptr<SceneNode>>* srcVector;
 		if (srcNode->parent != nullptr) {
@@ -298,9 +332,9 @@ void updateGui(Primrose::Scene& scene) {
 			switchedNode = false;
 		}
 
-		ImGui::BeginChild("Properties");
-
 		ImGui::SeparatorText("SceneNode");
+
+		ImGui::Text("%p", clickedNode);
 
 		ImGui::InputText("Name", &clickedNode->name);
 
@@ -413,14 +447,14 @@ void updateGui(Primrose::Scene& scene) {
 				}
 				break;
 		}
-		ImGui::EndChild();
 	}
 
+	ImGui::EndChild();
 	ImGui::End();
 
-	if (addObjectDialog) {
+	if (addObject) {
+		addObject = false;
 		ImGui::OpenPopup("Add Object");
-		addObjectDialog = false;
 	}
 
 	ImGui::SetNextWindowBgAlpha(1);
@@ -452,10 +486,85 @@ void updateGui(Primrose::Scene& scene) {
 		ImGui::EndPopup();
 	}
 
+	if (duplicateObject) {
+		duplicateObject = false;
+
+		if (clickedNode != nullptr) {
+			SceneNode* duplicateNode = clickedNode->copy();
+
+			if (clickedNode->parent != nullptr) {
+				clickedNode->parent->children.emplace_back(duplicateNode);
+			} else {
+				scene.root.emplace_back(duplicateNode);
+			}
+		}
+	}
+
+	if (openScene) {
+		openScene = false;
+
+		const char* patterns = "*.json";
+		const char* path = tinyfd_openFileDialog("Save Scene", lastLoadedScene.string().c_str(), 1,
+			&patterns, "Scene File", false);
+
+		if (path) {
+			scene.root.clear();
+			clickedNode = nullptr;
+			scene.importScene(path);
+			lastLoadedScene = path;
+		}
+	}
+
+	if (saveScene) {
+		saveScene = false;
+
+		const char* patterns = "*.json";
+		const char* path = tinyfd_saveFileDialog("Save Scene", lastLoadedScene.string().c_str(), 1,
+			&patterns, "Scene File");
+
+		if (path) {
+			std::cout << "Saving scene to " << std::filesystem::path(path).make_preferred() << std::endl;
+			scene.saveScene(path);
+			lastLoadedScene = path;
+		}
+	}
+
+	if (deleteObject) {
+		deleteObject = false;
+
+		if (clickedNode != nullptr) {
+			std::vector<std::unique_ptr<SceneNode>>* originVector;
+			if (clickedNode->parent != nullptr) {
+				originVector = &clickedNode->parent->children;
+			} else {
+				originVector = &scene.root;
+			}
+
+			bool deleted = false;
+			for (auto it = originVector->begin(); it != originVector->end(); ++it) {
+				if (it->get() == clickedNode) {
+					originVector->erase(it);
+					clickedNode = nullptr;
+					deleted = true;
+					break;
+				}
+			}
+
+			if (!deleted) {
+				std::cout << "could not find node to delete, parent structure might be broken" << std::endl;
+			}
+		}
+	}
+
 	if (newScene) {
-		scene.root.clear();
-		clickedNode = nullptr;
 		newScene = false;
+
+		int warning = tinyfd_messageBox("Level Editor", "Create a new scene?",
+			"yesno", "question", 0);
+		if (warning == 1) { // yes
+			scene.root.clear();
+			clickedNode = nullptr;
+		}
 	}
 
 	ImGui::Render();

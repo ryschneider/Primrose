@@ -85,12 +85,17 @@ target_link_libraries(PrimroseDemo LINK_PUBLIC Primrose)
 
 
 
+set(IMGUI_DIR C:/dev/include/imgui)
+set(TINYFD_DIR C:/dev/include/tinyfiledialogs)
+
 # build level editor
 add_executable(LevelEditor
-	C:/dev/include/imgui/imgui.cpp C:/dev/include/imgui/imgui_draw.cpp C:/dev/include/imgui/imgui_tables.cpp
-	C:/dev/include/imgui/imgui_widgets.cpp C:/dev/include/imgui/imgui_demo.cpp
-	C:/dev/include/imgui/misc/cpp/imgui_stdlib.cpp C:/dev/include/imgui/backends/imgui_impl_glfw.cpp
-	C:/dev/include/imgui/backends/imgui_impl_vulkan.cpp
+	${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_tables.cpp
+	${IMGUI_DIR}/imgui_widgets.cpp ${IMGUI_DIR}/imgui_demo.cpp
+	${IMGUI_DIR}/misc/cpp/imgui_stdlib.cpp ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+	${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+
+	${TINYFD_DIR}/tinyfiledialogs.c
 
 	LevelEditor/player_movement.cpp LevelEditor/player_movement.hpp
 	LevelEditor/fps_counter.cpp LevelEditor/fps_counter.hpp
@@ -98,5 +103,6 @@ add_executable(LevelEditor
 
 	LevelEditor/main.cpp
 	)
-target_include_directories(LevelEditor SYSTEM PRIVATE C:/dev/include/imgui)
+target_include_directories(LevelEditor SYSTEM PRIVATE ${IMGUI_DIR})
+target_include_directories(LevelEditor SYSTEM PRIVATE ${TINYFD_DIR})
 target_link_libraries(LevelEditor LINK_PUBLIC Primrose)
