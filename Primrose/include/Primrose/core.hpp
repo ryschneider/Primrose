@@ -4,6 +4,6 @@
 #include "engine/setup.hpp"
 #include "engine/runtime.hpp"
 #include "state.hpp"
-#include "scene.hpp"
+#include "Primrose/scene/scene.hpp"
 
 #endif

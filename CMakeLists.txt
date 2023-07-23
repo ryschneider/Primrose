@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 #endif()
 
 add_compile_options(-Wswitch-enum)
+add_compile_options(-Wold-style-cast)
 
 # build shader files
 add_custom_command(OUTPUT
@@ -53,15 +54,13 @@ add_library(Primrose
 	Primrose/src/ui/panel.cpp Primrose/include/Primrose/ui/panel.hpp
 	Primrose/src/ui/text.cpp Primrose/include/Primrose/ui/text.hpp
 	Primrose/src/state.cpp Primrose/include/Primrose/state.hpp
-	Primrose/src/shader_structs.cpp Primrose/include/Primrose/shader_structs.hpp
+	Primrose/src/scene/shader_structs.cpp Primrose/include/Primrose/shader_structs.hpp
 
-	Primrose/src/scene_json.cpp
-	Primrose/src/scene_engine.cpp
-	Primrose/src/scene_nodes.cpp
+	Primrose/src/scene/scene.cpp
 
-	Primrose/include/Primrose/scene.hpp
+	Primrose/include/Primrose/scene/scene.hpp
 	Primrose/include/Primrose/core.hpp
-	)
+	Primrose/include/Primrose/scene/node.hpp Primrose/src/scene/node.cpp Primrose/src/scene/primitive_node.cpp Primrose/include/Primrose/scene/primitive_node.hpp Primrose/src/scene/construction_node.cpp Primrose/include/Primrose/scene/construction_node.hpp Primrose/include/Primrose/scene/node_visitor.hpp)
 
 target_include_directories(Primrose SYSTEM PUBLIC C:/dev/include)
 target_include_directories(Primrose SYSTEM PUBLIC C:/VulkanSDK/1.3.250.0/Include)

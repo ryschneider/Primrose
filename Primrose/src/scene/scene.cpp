@@ -1,5 +1,8 @@
-#include "scene.hpp"
+#include "scene/scene.hpp"
 #include "embed/scene_schema_json.h"
+#include "scene/primitive_node.hpp"
+#include "scene/construction_node.hpp"
+#include "state.hpp"
 
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
@@ -15,94 +18,58 @@ Scene::Scene(std::filesystem::path sceneFile) {
 	importScene(sceneFile);
 }
 
-
-
-static void updateParents(SceneNode* node) {
-	for (const auto& child : node->children) {
-		child->parent = node;
-		updateParents(child.get());
-	}
-}
-
 void Scene::importScene(std::filesystem::path sceneFile) {
 	rapidjson::Document doc = loadDoc(sceneFile.string().c_str());
 
 	if (doc.IsObject()) {
-		root.emplace_back(processNode(doc, sceneFile.parent_path()));
+		processJson((Node*)&root, doc, sceneFile.parent_path());
 	} else {
 		for (const auto& v : doc.GetArray()) {
-			root.emplace_back(processNode(v, sceneFile.parent_path()));
+			processJson((Node*)&root, v, sceneFile.parent_path());
 		}
-	}
-
-	for (const auto& node : root) {
-		updateParents(node.get());
 	}
 }
 
-SceneNode* Scene::processNode(const rapidjson::Value& v, std::filesystem::path dir) {
-	std::map<std::string, NodeType> jsonNodeType = {
-		{"sphere", NodeType::NODE_SPHERE},
-		{"box", NodeType::NODE_BOX},
-		{"torus", NodeType::NODE_TORUS},
-		{"line", NodeType::NODE_LINE},
-		{"cylinder", NodeType::NODE_CYLINDER},
-		{"union", NodeType::NODE_UNION},
-		{"intersection", NodeType::NODE_INTERSECTION},
-		{"difference", NodeType::NODE_DIFFERENCE},
-	};
-
+Node* Scene::processJson(Node* parent, const rapidjson::Value& v, std::filesystem::path dir) {
 	std::string type = v["type"].GetString();
-	SceneNode* node = nullptr;
+
+	Node* node;
 
 	if (type == "ref") {
 		std::filesystem::path ref = v["ref"].GetString();
 		rapidjson::Document refDoc = loadDoc((dir / ref).string().c_str());
 
 		if (refDoc.IsObject()) {
-			node = processNode(refDoc, (dir / ref).parent_path().string().c_str());
+			node = processJson(parent, refDoc, (dir / ref).parent_path().string().c_str());
 		} else {
-			node = new UnionNode();
+			node = new UnionNode(parent);
 			for (const auto& sub : refDoc.GetArray()) {
-				node->children.emplace_back(processNode(sub, (dir / ref).parent_path()));
+				processJson(node, sub, (dir / ref).parent_path());
 			}
 		}
-	} else {
-		switch (jsonNodeType[type]) {
-			case NODE_SPHERE:
-				node = new SphereNode(v["radius"].GetFloat());
-				break;
-			case NODE_BOX:
-			{
-				glm::vec3 size;
-				if (v["size"].IsArray()) {
-					auto a = v["size"].GetArray();
-					size = glm::vec3(a[0].GetFloat(), a[1].GetFloat(), a[2].GetFloat());
-				} else {
-					size = glm::vec3(v["size"].GetFloat());
-				}
-				node = new BoxNode(size);
-			}
-				break;
-			case NODE_TORUS:
-				node = new TorusNode(v["ringRadius"].GetFloat(), v["majorRadius"].GetFloat());
-				break;
-			case NODE_LINE:
-				node = new LineNode(v["height"].GetFloat(), v["radius"].GetFloat());
-				break;
-			case NODE_CYLINDER:
-				node = new CylinderNode(v["radius"].GetFloat());
-				break;
-			case NODE_UNION:
-				node = new UnionNode();
-				break;
-			case NODE_INTERSECTION:
-				node = new IntersectionNode();
-				break;
-			case NODE_DIFFERENCE:
-				node = new DifferenceNode();
-				break;
+	} else if (type == "sphere") {
+		node = new SphereNode(parent, v["radius"].GetFloat());
+	} else if (type == "box") {
+		glm::vec3 size;
+		if (v["size"].IsArray()) {
+			auto a = v["size"].GetArray();
+			size = glm::vec3(a[0].GetFloat(), a[1].GetFloat(), a[2].GetFloat());
+		} else {
+			size = glm::vec3(v["size"].GetFloat());
 		}
+		node = new BoxNode(parent, size);
+	} else if (type == "torus") {
+		node = new TorusNode(parent, v["ringRadius"].GetFloat(), v["majorRadius"].GetFloat());
+	} else if (type == "line") {
+		node = new LineNode(parent, v["height"].GetFloat(), v["radius"].GetFloat());
+	} else if (type == "cylinder") {
+		node = new CylinderNode(parent, v["radius"].GetFloat());
+	} else if (type == "union") {
+		node = new UnionNode(parent);
+	} else if (type == "intersection") {
+		node = new IntersectionNode(parent);
+	} else if (type == "difference") {
+		node = new DifferenceNode(parent);
 	}
 
 	if (v.HasMember("name")) {
@@ -111,16 +78,15 @@ SceneNode* Scene::processNode(const rapidjson::Value& v, std::filesystem::path d
 
 	if (v.HasMember("children")) {
 		for (const auto& child : v["children"].GetArray()) {
-			node->children.emplace_back(processNode(child, dir));
+			processJson(node, child, dir);
 		}
 	}
 
 	if (type == "difference" && v.HasMember("subtractIndices")) {
 		for (const auto& sub : v["subtractIndices"].GetArray()) {
 			int i = sub.GetInt();
-			((DifferenceNode*)node)->subtractNodes.insert(node->children[i].get());
+			((DifferenceNode*)node)->subtractNodes.insert(node->getChildren()[i].get());
 		}
-
 	}
 
 	if (v.HasMember("transform")) {
@@ -161,13 +127,13 @@ void Scene::saveScene(std::filesystem::path savePath) {
 	rapidjson::OStreamWrapper osw(stream);
 	rapidjson::Writer<rapidjson::OStreamWrapper> writer(osw);
 
-	if (root.size() == 1) {
+	if (root.getChildren().size() == 1) {
 		writer.StartObject();
-		root[0]->serialize(writer);
+		root.getChildren()[0]->serialize(writer);
 		writer.EndObject();
 	} else {
 		writer.StartArray();
-		for (const auto& node : root) {
+		for (const auto& node : root.getChildren()) {
 			writer.StartObject();
 			node->serialize(writer);
 			writer.EndObject();
@@ -220,4 +186,30 @@ void Scene::loadSchema() {
 	}
 
 	schema = std::make_unique<rapidjson::SchemaDocument>(sd);
+}
+
+
+
+std::string Primrose::Scene::toString() {
+	std::string out = "";
+	for (const auto& node : root.getChildren()) {
+		out += node->toString() + "\n";
+	}
+	return out;
+}
+
+void Primrose::Scene::generateUniforms() {
+	std::vector<Primitive> prims = root.extractPrims();
+	std::vector<Transformation> transforms = root.extractTransforms();
+	std::vector<Operation> ops;
+	root.createOperations(prims, transforms, ops);
+
+	if (prims.size() > 100 || transforms.size() > 100 || ops.size() > 100) {
+		throw std::runtime_error("vector exceeded buffer size");
+	}
+
+	uniforms.numOperations = ops.size();
+	std::copy(ops.begin(), ops.end(), uniforms.operations);
+	std::copy(prims.begin(), prims.end(), uniforms.primitives);
+	std::copy(transforms.begin(), transforms.end(), uniforms.transformations);
 }

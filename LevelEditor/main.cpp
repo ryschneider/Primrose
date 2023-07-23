@@ -15,8 +15,6 @@ using namespace Primrose;
 
 Scene mainScene = Scene();
 
-std::string sceneSig;
-
 bool mouseMiddleDown = false;
 bool shiftHeld = false;
 
@@ -42,12 +40,7 @@ void update(float dt) {
 //	updateFps();
 
 	if (doubleClickedNode != nullptr) {
-		glm::mat4 transform(1);
-		SceneNode* node = doubleClickedNode;
-		while (node != nullptr) {
-			transform = transformMatrix(node->translate, node->scale, node->angle, node->axis) * transform;
-			node = node->parent;
-		}
+		glm::mat4 transform = doubleClickedNode->modelMatrix();
 
 		pivot = getTranslate(transform);
 		uniforms.camPos = pivot - uniforms.camDir * orbitDist;
@@ -55,10 +48,8 @@ void update(float dt) {
 		doubleClickedNode = nullptr;
 	}
 
-	updateGui(mainScene);
-
-	if (mainScene.toString() != sceneSig) {
-		sceneSig = mainScene.toString();
+	bool updatedScene = updateGui(mainScene);
+	if (updatedScene) {
 		mainScene.generateUniforms();
 		makeTmpSave();
 	}
@@ -151,12 +142,12 @@ void scrollOrbitCb(float scroll) {
 	}
 }
 
-void keyCb(int key, int mods, bool pressed) {
+void keyCb(int key, int action, int mods) {
 	if (key == GLFW_KEY_LEFT_SHIFT || key == GLFW_KEY_RIGHT_SHIFT) {
-		shiftHeld = pressed;
+		shiftHeld = action == GLFW_PRESS;
 	}
 
-	guiKeyCb(key, mods, pressed);
+	guiKeyCb(key, action, mods);
 }
 
 int main() {
@@ -175,7 +166,10 @@ int main() {
 	keyCallback = keyCb;
 
 	// load scene
-	mainScene.importScene("scenes/test.json");
+	mainScene.importScene("scenes/csg.json");
+	mainScene.generateUniforms();
+
+//	std::cout << uniforms.toString() << std::endl;
 
 //	initFps();
 

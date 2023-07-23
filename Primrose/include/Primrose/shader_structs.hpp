@@ -74,7 +74,7 @@ namespace Primrose {
 		alignas(4) uint j = 0; // index of second operand
 		alignas(4) OP_FLAG flags;
 
-		static Operation Identity(uint i, OP_FLAG flags = OP_FLAG::NONE) { return {OP::IDENTITY, i, 0, flags}; };
+		static Operation Identity(uint i, uint j, OP_FLAG flags = OP_FLAG::NONE) { return {OP::IDENTITY, i, j, flags}; };
 		static Operation Render(uint i, OP_FLAG flags = OP_FLAG::NONE) { return {OP::RENDER, i, 0, flags}; };
 		static Operation Transform(uint i, OP_FLAG flags = OP_FLAG::NONE) { return {OP::TRANSFORM, i, 0, flags}; };
 		static Operation Union(uint i, uint j, OP_FLAG flags = OP_FLAG::NONE) { return {OP::UNION, i, j, flags}; };

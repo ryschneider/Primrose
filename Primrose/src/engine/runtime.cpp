@@ -65,8 +65,8 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		VkViewport viewport{};
 		viewport.x = 0.f;
 		viewport.y = 0.f;
-		viewport.width = (float)swapchainExtent.width;
-		viewport.height = (float)swapchainExtent.height;
+		viewport.width = static_cast<float>(swapchainExtent.width);
+		viewport.height = static_cast<float>(swapchainExtent.height);
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport); // cmd: set viewport size
@@ -141,7 +141,7 @@ void Primrose::drawFrame() { // returns whether the frame was drawn
 	static int flightIndex = 0;
 	auto& currentFlight = framesInFlight[flightIndex];
 
-	// don't reset the command buffer until the last frame is finished
+	// don't clear the command buffer until the last frame is finished
 	vkWaitForFences(device, 1, &currentFlight.inFlightFence, VK_TRUE, UINT64_MAX);
 
 	uint32_t imageIndex;
@@ -178,7 +178,7 @@ void Primrose::drawFrame() { // returns whether the frame was drawn
 	submitInfo.pSignalSemaphores = &currentFlight.renderFinishedSemaphore;
 
 	// submits command to the graphics queue
-	vkResetFences(device, 1, &currentFlight.inFlightFence); // reset fence for use below
+	vkResetFences(device, 1, &currentFlight.inFlightFence); // clear fence for use below
 	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, currentFlight.inFlightFence) != VK_SUCCESS) {
 		throw std::runtime_error("failed to submit draw command buffer");
 	}

@@ -35,6 +35,11 @@ namespace Primrose {
 
 	extern VkDescriptorPool descriptorPool;
 
+	extern VkImage marchTexture;
+	extern VkDeviceMemory marchTextureMemory;
+	extern VkImageView marchImageView;
+	extern VkSampler marchSampler;
+
 	struct FrameInFlight {
 		VkCommandBuffer commandBuffer;
 
@@ -59,7 +64,7 @@ namespace Primrose {
 	// application functions
 	extern void(*mouseMovementCallback)(float xpos, float ypos, bool refocused);
 	extern void(*mouseButtonCallback)(int button, int action);
-	extern void(*keyCallback)(int key, int mods, bool pressed);
+	extern void(*keyCallback)(int key, int action, int mods);
 	extern void(*endCallback)();
 	extern void(*renderPassCallback)(VkCommandBuffer& cmd);
 	extern void(*scrollCallback)(float scroll);
@@ -95,6 +100,8 @@ namespace Primrose {
 	void createMarchPipeline();
 	void createUIPipeline();
 
+	void createMarchTexture();
+
 	void createCommandPool();
 	void createDescriptorPool();
 	void createFramesInFlight();
@@ -114,6 +121,8 @@ namespace Primrose {
 
 	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 	void importTexture(const char* path, VkImage* image, VkDeviceMemory* imageMemory, float* aspect = nullptr);
+
+	void imageFromData(void* data, uint32_t width, uint32_t height, VkImage* image, VkDeviceMemory* imageMemory);
 
 	VkImageView createImageView(VkImage image, VkFormat format);
 

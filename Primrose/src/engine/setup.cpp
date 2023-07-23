@@ -46,6 +46,11 @@ namespace Primrose {
 
 	VkDescriptorPool descriptorPool;
 
+	VkImage marchTexture;
+	VkDeviceMemory marchTextureMemory;
+	VkImageView marchImageView;
+	VkSampler marchSampler;
+
 	std::vector<FrameInFlight> framesInFlight;
 
 	VkCommandPool commandPool;
@@ -56,7 +61,7 @@ namespace Primrose {
 
 	void(*mouseMovementCallback)(float xpos, float ypos, bool refocused) = nullptr;
 	void(*mouseButtonCallback)(int button, int action) = nullptr;
-	void(*keyCallback)(int key, int mods, bool pressed) = nullptr;
+	void(*keyCallback)(int key, int action, int mods) = nullptr;
 	void(*endCallback)() = nullptr;
 	void(*renderPassCallback)(VkCommandBuffer& cmd) = nullptr;
 	void(*scrollCallback)(float scroll) = nullptr;
@@ -81,7 +86,7 @@ namespace Primrose {
 				glfwSetWindowShouldClose(window, GL_TRUE);
 			}
 			if (keyCallback != nullptr && action != GLFW_REPEAT) {
-				keyCallback(key, mods, action == GLFW_PRESS);
+				keyCallback(key, action, mods);
 			}
 		}
 		void mouseButtonGlfwCallback(GLFWwindow*, int button, int action, int mods) {
@@ -406,9 +411,18 @@ void Primrose::importTexture(const char* path, VkImage* image, VkDeviceMemory* i
 	if (stbi_failure_reason()) {
 		throw std::runtime_error(std::string("stbi_uc error: ").append(stbi_failure_reason()));
 	}
-	VkDeviceSize dataSize = width * height * 4;
 
-	*aspect = (float)width / (float)height;
+	*aspect = static_cast<float>(width) / static_cast<float>(height);
+
+	imageFromData(data, width, height, image, imageMemory);
+
+	// free image data
+	stbi_image_free(data);
+}
+
+void Primrose::imageFromData(void* data, uint32_t width, uint32_t height, VkImage* image, VkDeviceMemory* imageMemory) {
+
+	VkDeviceSize dataSize = width * height * 4;
 
 	// create and write to staging buffer
 	VkBuffer stagingBuffer;
@@ -418,14 +432,11 @@ void Primrose::importTexture(const char* path, VkImage* image, VkDeviceMemory* i
 		&stagingBuffer, &stagingBufferMemory);
 	writeToDevice(stagingBufferMemory, data, dataSize);
 
-	// free image data
-	stbi_image_free(data);
-
 	// create image handler
 	VkImageCreateInfo imageInfo{};
 	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.extent = {(uint32_t)width, (uint32_t)height, 1}; // depth=1 for 2d image
+	imageInfo.extent = {width, height, 1}; // depth=1 for 2d image
 	imageInfo.mipLevels = 1; // no mipmapping
 	imageInfo.arrayLayers = 1; // not a layered image
 	imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
@@ -437,7 +448,7 @@ void Primrose::importTexture(const char* path, VkImage* image, VkDeviceMemory* i
 	imageInfo.flags = 0;
 
 	if (vkCreateImage(device, &imageInfo, nullptr, image) != VK_SUCCESS) {
-		throw std::runtime_error(std::string("failed to create image ").append(path));
+		throw std::runtime_error(std::string("failed to create image"));
 	}
 
 	// create & bind image memory
@@ -461,7 +472,7 @@ void Primrose::importTexture(const char* path, VkImage* image, VkDeviceMemory* i
 	region.imageSubresource.baseArrayLayer = 0;
 	region.imageSubresource.layerCount = 1;
 	region.imageOffset = {0, 0, 0};
-	region.imageExtent = {(uint32_t)width, (uint32_t)height, 1};
+	region.imageExtent = {width, height, 1};
 	vkCmdCopyBufferToImage(cmdBuffer,
 		stagingBuffer, *image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1, &region);
@@ -588,14 +599,17 @@ void Primrose::initVulkan() {
 	createPipelineLayout();
 
 	createMarchPipeline();
-
 	createUIPipeline();
 
 	createCommandPool();
-
 	createDescriptorPool();
+
+	createMarchTexture();
+
 	createFramesInFlight();
 }
+
+
 
 void Primrose::setupDebugMessenger() {
 	if (!Settings::validationEnabled) return;
@@ -696,6 +710,8 @@ void Primrose::createSurface() {
 		throw std::runtime_error("failed to create window surface");
 	}
 }
+
+
 
 void Primrose::pickPhysicalDevice() {
 	uint32_t deviceCount = 0;
@@ -961,6 +977,8 @@ void Primrose::createSwapchainFrames() {
 	}
 }
 
+
+
 void Primrose::createDescriptorSetLayout() {
 	// uniform binding
 	VkDescriptorSetLayoutBinding uniformBinding{};
@@ -1182,6 +1200,49 @@ void Primrose::createUIPipeline() {
 	vkDestroyShaderModule(device, fragModule, nullptr);
 }
 
+void Primrose::createMarchTexture() {
+	int texWidth = windowWidth*2;
+	int texHeight = windowHeight*2;
+	size_t dataSize = texWidth * texHeight * 4;
+
+	srand(time(nullptr));
+
+	void* randData = malloc(dataSize);
+	for (int i = 0; i < dataSize; ++i) {
+		*(static_cast<uint8_t*>(randData) + i) = rand() % 256;
+	}
+
+	imageFromData(randData, texWidth, texHeight, &marchTexture, &marchTextureMemory);
+
+	free(randData);
+
+	marchImageView = createImageView(marchTexture, VK_FORMAT_R8G8B8A8_SRGB);
+
+	VkPhysicalDeviceProperties deviceProperties{};
+	vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+
+	VkSamplerCreateInfo samplerInfo{};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.magFilter = VK_FILTER_NEAREST; // when magnified, ie one fragment corresponds to multiple image pixels
+	samplerInfo.minFilter = VK_FILTER_LINEAR; // when minified, ie one fragment is between image pixels
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	samplerInfo.anisotropyEnable = VK_FALSE;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE; // true to sample using width/height coords instead of 0-1 range
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	samplerInfo.mipLodBias = 0;
+	samplerInfo.minLod = 0;
+	samplerInfo.maxLod = 0;
+
+	if (vkCreateSampler(device, &samplerInfo, nullptr, &marchSampler) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create march texture sampler");
+	}
+}
+
+
+
 void Primrose::createCommandPool() {
 	QueueFamilyIndices indices = getQueueFamilies(physicalDevice);
 
@@ -1265,16 +1326,25 @@ void Primrose::createFramesInFlight() {
 		descriptorWrite.dstSet = frame.descriptorSet; // which set to update
 		descriptorWrite.dstArrayElement = 0; // not using an array, 0
 		descriptorWrite.descriptorCount = 1;
+		VkWriteDescriptorSet writes[2] = {descriptorWrite, descriptorWrite};
 
 		VkDescriptorBufferInfo uniformBufferInfo{};
 		uniformBufferInfo.buffer = frame.uniformBuffer;
 		uniformBufferInfo.offset = 0;
 		uniformBufferInfo.range = sizeof(MarchUniforms);
-		descriptorWrite.dstBinding = 0; // which binding index
-		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrite.pBufferInfo = &uniformBufferInfo;
+		writes[0].dstBinding = 0; // which binding index
+		writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		writes[0].pBufferInfo = &uniformBufferInfo;
 
-		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr); // apply write
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = marchImageView;
+		imageInfo.sampler = marchSampler;
+		writes[1].dstBinding = 1; // which binding index
+		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writes[1].pImageInfo = &imageInfo;
+
+		vkUpdateDescriptorSets(device, 2, writes, 0, nullptr); // apply write
 	}
 
 	std::cout << std::endl; // newline
@@ -1294,6 +1364,11 @@ void Primrose::cleanup() {
 	}
 
 	uiScene.clear();
+
+	vkDestroyImage(device, marchTexture, nullptr);
+	vkFreeMemory(device, marchTextureMemory, nullptr);
+	vkDestroyImageView(device, marchImageView, nullptr);
+	vkDestroySampler(device, marchSampler, nullptr);
 
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);

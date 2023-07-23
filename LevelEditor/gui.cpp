@@ -1,7 +1,9 @@
 #include "gui.hpp"
 
 #include <Primrose/engine/setup.hpp>
-#include <Primrose/scene.hpp>
+#include <Primrose/scene/scene.hpp>
+#include <Primrose/scene/primitive_node.hpp>
+#include <Primrose/scene/node_visitor.hpp>
 #include <stdexcept>
 #include <iostream>
 #include <map>
@@ -23,8 +25,13 @@ static bool newScene = false;
 static bool openScene = false;
 static bool saveScene = false;
 
-void guiKeyCb(int key, int mods, bool pressed) {
-	if (pressed) {
+Node* clickedNode = nullptr;
+Node* doubleClickedNode = nullptr;
+Node* dragSrc = nullptr;
+Node* dragDst = nullptr;
+
+void guiKeyCb(int key, int action, int mods) {
+	if (action == GLFW_PRESS) {
 		if (mods & GLFW_MOD_CONTROL) {
 			if (key == GLFW_KEY_N) newScene = true;
 			if (key == GLFW_KEY_O) openScene = true;
@@ -37,6 +44,54 @@ void guiKeyCb(int key, int mods, bool pressed) {
 		}
 
 		if (key == GLFW_KEY_DELETE) deleteObject = true;
+	}
+
+	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+		if (key == GLFW_KEY_UP && clickedNode != nullptr) {
+			if (clickedNode == clickedNode->getParent()->getChildren()[0].get()) {
+				clickedNode = clickedNode->getParent();
+			} else {
+				clickedNode = (clickedNode->locationInParent() - 1)->get();
+				while (clickedNode->getChildren().size() > 0) {
+					clickedNode = clickedNode->getChildren().back().get();
+				}
+			}
+
+			if (clickedNode->getParent() == nullptr) {
+				clickedNode = nullptr; // root node
+			}
+		}
+
+		if (key == GLFW_KEY_DOWN && clickedNode != nullptr) {
+			if (clickedNode->getChildren().size() > 0) {
+				clickedNode = clickedNode->getChildren()[0].get();
+			} else {
+				while (clickedNode == clickedNode->getParent()->getChildren().back().get()) {
+					// while parent is the last sibling, move up parents
+
+					if (clickedNode->getParent() == nullptr) {
+						return; // already at last node in root
+					}
+
+					clickedNode = clickedNode->getParent();
+				}
+
+				// get next sibling
+				clickedNode = (clickedNode->locationInParent() + 1)->get();
+			}
+		}
+
+		if (key == GLFW_KEY_LEFT && clickedNode != nullptr) {
+			if (clickedNode->getParent()->getParent() != nullptr) { // don't switch to root node
+				clickedNode = clickedNode->getParent();
+			}
+		}
+
+		if (key == GLFW_KEY_RIGHT && clickedNode != nullptr) {
+			if (clickedNode->getChildren().size() > 0) {
+				clickedNode = clickedNode->getChildren()[0].get();
+			}
+		}
 	}
 }
 
@@ -127,34 +182,40 @@ void setupGui() {
 	io.ConfigDragClickToInputText = true;
 }
 
-SceneNode* clickedNode = nullptr;
-SceneNode* doubleClickedNode = nullptr;
-std::unique_ptr<SceneNode>* dragSrc = nullptr;
-std::unique_ptr<SceneNode>* dragDst = nullptr;
-static void addTreeNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
+void renderGui(VkCommandBuffer& cmd) {
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+}
+
+void cleanupGui() {
+	vkDestroyDescriptorPool(device, imguiDescriptorPool, nullptr);
+	ImGui_ImplGlfw_Shutdown();
+	ImGui_ImplVulkan_Shutdown();
+}
+
+
+
+static void addTreeNode(Scene& scene, Node* node) {
 	// https://www.avoyd.com/
 	// ^ code for icons
-
-	SceneNode* node = nodePtr->get();
 
 	int treeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow;
 
 	if (node == clickedNode) treeFlags |= ImGuiTreeNodeFlags_Selected;
-	if (node->children.size() == 0) treeFlags |= ImGuiTreeNodeFlags_Leaf;
+	if (node->getChildren().size() == 0) treeFlags |= ImGuiTreeNodeFlags_Leaf;
 
 	bool treeOpened = ImGui::TreeNodeEx(node, treeFlags, node->name.c_str());
 
 	if (ImGui::BeginDragDropTarget()) {
 		if (ImGui::AcceptDragDropPayload("uniqueptr")) {
-			dragSrc = *((std::unique_ptr<SceneNode>**)ImGui::GetDragDropPayload()->Data);
-			dragDst = nodePtr;
+			dragSrc = *((Node**)ImGui::GetDragDropPayload()->Data);
+			dragDst = node;
 		}
 
 		ImGui::EndDragDropTarget();
 	}
 
 	if (ImGui::BeginDragDropSource()) {
-		ImGui::SetDragDropPayload("uniqueptr", &nodePtr, sizeof(nodePtr));
+		ImGui::SetDragDropPayload("uniqueptr", &node, sizeof(node));
 		ImGui::EndDragDropSource();
 	}
 
@@ -162,13 +223,15 @@ static void addTreeNode(Scene& scene, std::unique_ptr<SceneNode>* nodePtr) {
 		if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) clickedNode = node;
 		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) doubleClickedNode = node;
 
-		for (auto& child : node->children) {
-			addTreeNode(scene, &child);
+		for (auto& child : node->getChildren()) {
+			addTreeNode(scene, child.get());
 		}
 
 		ImGui::TreePop();
 	}
 }
+
+
 
 static float getInc(float val) {
 	// increment position by 1% of the power of 10 used in val
@@ -239,11 +302,13 @@ bool addVec3(const char* label, glm::vec3& vec, bool* isScalar = nullptr) {
 	return value_changed;
 }
 
-bool addFloat(const char* label, float& val) {
-	return ImGui::DragFloat(label, &val, getInc(val), 0, 0, "%.2f");
+bool addFloat(const char* label, float& val, float min = 0, float max = 0) {
+	return ImGui::DragFloat(label, &val, getInc(val), min, max, "%.2f");
 }
 
-bool Splitter(bool split_vertically, float thickness, float* size1, float* size2, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f) {
+bool Splitter(bool split_vertically, float thickness, float* size1, float* size2,
+	float min_size1, float min_size2, float splitter_long_axis_size = -1.0f) {
+
 	// https://github.com/ocornut/imgui/issues/319#issuecomment-345795629
 	using namespace ImGui;
 	ImGuiContext& g = *GImGui;
@@ -260,7 +325,70 @@ bool Splitter(bool split_vertically, float thickness, float* size1, float* size2
 	return SplitterBehavior(bb, id, split_vertically ? ImGuiAxis_X : ImGuiAxis_Y, size1, size2, min_size1, min_size2, 0.0f);
 }
 
-void updateGui(Primrose::Scene& scene) {
+class DisplayNodeProperties : public NodeVisitor {
+public:
+	DisplayNodeProperties(bool* modified, bool switchedNode, bool* sizeIsScalar)
+		: modified(modified), switchedNode(switchedNode), sizeIsScalar(sizeIsScalar) {}
+	bool* modified;
+	bool switchedNode;
+	bool* sizeIsScalar;
+
+	void visit(SphereNode* node) override {
+		ImGui::SeparatorText("SphereNode");
+		*modified |= addFloat("Radius", node->radius);
+	}
+	void visit(BoxNode* node) override {
+		if (switchedNode) {
+			*sizeIsScalar = node->size[0] == node->size[1] && node->size[1] == node->size[2];
+		}
+
+		ImGui::SeparatorText("BoxNode");
+		*modified |= addVec3("Size", node->size, sizeIsScalar);
+	}
+	void visit(TorusNode* node) override {
+		ImGui::SeparatorText("TorusNode");
+		*modified |= addFloat("Ring Radius", node->ringRadius);
+		*modified |= addFloat("Major Radius", node->majorRadius);
+	}
+	void visit(LineNode* node) override {
+		ImGui::SeparatorText("LineNode");
+		*modified |= addFloat("Height", node->height);
+		*modified |= addFloat("Radius", node->radius);
+	}
+	void visit(CylinderNode* node) override {
+		ImGui::SeparatorText("CylinderNode");
+		*modified |= addFloat("Radius", node->radius);
+	}
+	void visit(UnionNode* node) override {
+		ImGui::SeparatorText("UnionNode");
+	}
+	void visit(IntersectionNode* node) override {
+		ImGui::SeparatorText("IntersectionNode");
+	}
+	void visit(DifferenceNode* node) override {
+		ImGui::SeparatorText("DifferenceNode");
+		if (node->getChildren().size() > 0) {
+			ImGui::Text("Mark as subtract:");
+		}
+		for (const auto& child: clickedNode->getChildren()) {
+			bool isSubtract = node->subtractNodes.contains(child.get());
+			ImGui::PushID(child.get());
+			if (ImGui::Checkbox(child->name.c_str(), &isSubtract)) {
+				*modified = true;
+				if (isSubtract) {
+					node->subtractNodes.insert(child.get());
+				} else {
+					node->subtractNodes.erase(child.get());
+				}
+			}
+			ImGui::PopID();
+		}
+	}
+};
+
+bool updateGui(Primrose::Scene& scene) {
+	bool modifiedScene = false;
+
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
@@ -289,41 +417,28 @@ void updateGui(Primrose::Scene& scene) {
 	Splitter(false, 8, &hierarchySize, &propertiesSize, 8, 8, ImGui::GetContentRegionAvail().x);
 
 	ImGui::BeginChild("Scene", ImVec2(ImGui::GetContentRegionAvail().x, hierarchySize));
-	for (auto& node : scene.root) {
-		addTreeNode(scene, &node);
+	for (auto& node : scene.root.getChildren()) {
+		addTreeNode(scene, node.get());
 	}
 	ImGui::EndChild();
-
 
 	ImGui::BeginChild("Properties", ImVec2(ImGui::GetContentRegionAvail().x, propertiesSize));
 
 	// if nodes were dragged during addTreeNode
 	if (dragSrc != nullptr && dragDst != nullptr) {
-		SceneNode* srcNode = dragSrc->get();
-		SceneNode* dstNode = dragDst->get();
-		std::cout << dstNode->name << " received payload " << srcNode->name << std::endl;
-
-//		if ()
-
-		std::vector<std::unique_ptr<SceneNode>>* srcVector;
-		if (srcNode->parent != nullptr) {
-			srcVector = &srcNode->parent->children;
+		if (dragDst == dragSrc->getParent()) {
+//			dragSrc->swap(dragDst);
+			dragSrc->reparent(dragDst->getParent());
 		} else {
-			srcVector = &scene.root;
+			dragSrc->reparent(dragDst);
 		}
-		const auto it = std::find(srcVector->begin(), srcVector->end(), *dragSrc);
-
-		dstNode->children.push_back(std::move(*it));
-		srcNode->parent = dstNode;
-
-		srcVector->erase(it);
 
 		dragSrc = nullptr;
 		dragDst = nullptr;
 	}
 
 	if (clickedNode != nullptr) {
-		static SceneNode* oldNode = nullptr;
+		static Node* oldNode = nullptr;
 		bool switchedNode;
 		if (clickedNode != oldNode) {
 			oldNode = clickedNode;
@@ -334,18 +449,18 @@ void updateGui(Primrose::Scene& scene) {
 
 		ImGui::SeparatorText("SceneNode");
 
-		ImGui::Text("%p", clickedNode);
+//		ImGui::Text("0x%p", clickedNode);
 
-		ImGui::InputText("Name", &clickedNode->name);
+		modifiedScene |= ImGui::InputText("Name", &clickedNode->name);
 
-		addVec3("Position", clickedNode->translate);
+		modifiedScene |= addVec3("Position", clickedNode->translate);
 
 		static bool scaleIsScalar;
 		if (switchedNode) {
 			scaleIsScalar = clickedNode->scale[0] == clickedNode->scale[1]
 				&& clickedNode->scale[1] == clickedNode->scale[2];
 		}
-		addVec3("Scale", clickedNode->scale, &scaleIsScalar);
+		modifiedScene |= addVec3("Scale", clickedNode->scale, &scaleIsScalar);
 
 		bool rotationChanged = false;
 		{ // from DragScalarN, changed to add θ,x,y,z labels
@@ -356,7 +471,7 @@ void updateGui(Primrose::Scene& scene) {
 
 			const float angleMin = 0;
 			const float angleMax = 360;
-			const float axisMin = 0;
+			const float axisMin = -1;
 			const float axisMax = 1;
 
 			auto style = ImGui::GetStyle();
@@ -389,64 +504,16 @@ void updateGui(Primrose::Scene& scene) {
 
 			ImGui::EndGroup();
 		}
-		if (rotationChanged) clickedNode->axis = glm::normalize(clickedNode->axis);
+		if (rotationChanged) {
+			modifiedScene = true;
+			clickedNode->axis = glm::normalize(clickedNode->axis);
+		}
+
+		modifiedScene |= ImGui::Checkbox("Hide", &clickedNode->hide);
 
 		static bool sizeIsScalar;
-		if (switchedNode && clickedNode->type() == NODE_BOX) {
-			sizeIsScalar = ((BoxNode*)clickedNode)->size[0] == ((BoxNode*)clickedNode)->size[1]
-				&& ((BoxNode*)clickedNode)->size[1] == ((BoxNode*)clickedNode)->size[2];
-		}
-
-		ImGui::Checkbox("Hide", &clickedNode->hide);
-
-		switch (clickedNode->type()) {
-			case NODE_SPHERE:
-				ImGui::SeparatorText("SphereNode");
-				addFloat("Radius", ((SphereNode*)clickedNode)->radius);
-				break;
-			case NODE_BOX:
-				ImGui::SeparatorText("BoxNode");
-				addVec3("Size", ((BoxNode*)clickedNode)->size, &sizeIsScalar);
-				break;
-			case NODE_TORUS:
-				ImGui::SeparatorText("TorusNode");
-				addFloat("Ring Radius", ((TorusNode*)clickedNode)->ringRadius);
-				addFloat("Major Radius", ((TorusNode*)clickedNode)->majorRadius);
-				break;
-			case NODE_LINE:
-				ImGui::SeparatorText("LineNode");
-				addFloat("Height", ((LineNode*)clickedNode)->height);
-				addFloat("Radius", ((LineNode*)clickedNode)->radius);
-				break;
-			case NODE_CYLINDER:
-				ImGui::SeparatorText("CylinderNode");
-				addFloat("Radius", ((CylinderNode*)clickedNode)->radius);
-				break;
-			case NODE_UNION:
-				ImGui::SeparatorText("UnionNode");
-				break;
-			case NODE_INTERSECTION:
-				ImGui::SeparatorText("IntersectionNode");
-				break;
-			case NODE_DIFFERENCE:
-				ImGui::SeparatorText("DifferenceNode");
-				if (clickedNode->children.size() > 0) {
-					ImGui::Text("Mark as subtract:");
-				}
-				for (const auto& child : clickedNode->children) {
-					bool isSubtract = ((DifferenceNode*)clickedNode)->subtractNodes.contains(child.get());
-					ImGui::PushID(child.get());
-					if (ImGui::Checkbox(child->name.c_str(), &isSubtract)) {
-						if (isSubtract) {
-							((DifferenceNode*)clickedNode)->subtractNodes.insert(child.get());
-						} else {
-							((DifferenceNode*)clickedNode)->subtractNodes.erase(child.get());
-						}
-					}
-					ImGui::PopID();
-				}
-				break;
-		}
+		DisplayNodeProperties visitor(&modifiedScene, switchedNode, &sizeIsScalar);
+		clickedNode->accept(&visitor);
 	}
 
 	ImGui::EndChild();
@@ -465,42 +532,41 @@ void updateGui(Primrose::Scene& scene) {
 
 		ImGui::Separator();
 
+		Node* parent = clickedNode;
+		if (parent == nullptr) parent = reinterpret_cast<Node*>(&scene.root);
+
 		if (ImGui::Selectable("Sphere")) {
-			scene.root.emplace_back(new SphereNode(1));
+			new SphereNode(parent, 1);
 		} else if (ImGui::Selectable("Box")) {
-			scene.root.emplace_back(new BoxNode(glm::vec3(1)));
+			new BoxNode(parent, glm::vec3(1));
 		} else if (ImGui::Selectable("Torus")) {
-			scene.root.emplace_back(new TorusNode(0.1, 1));
+			new TorusNode(parent, 0.1, 1);
 		} else if (ImGui::Selectable("Line")) {
-			scene.root.emplace_back(new LineNode(1, 0.1));
+			new LineNode(parent, 1, 0.1);
 		} else if (ImGui::Selectable("Cylinder")) {
-			scene.root.emplace_back(new CylinderNode(1));
+			new CylinderNode(parent, 1);
 		} else if (ImGui::Selectable("Union")) {
-			scene.root.emplace_back(new UnionNode());
+			new UnionNode(parent);
 		} else if (ImGui::Selectable("Intersection")) {
-			scene.root.emplace_back(new IntersectionNode());
+			new IntersectionNode(parent);
 		} else if (ImGui::Selectable("Difference")) {
-			scene.root.emplace_back(new DifferenceNode());
+			new DifferenceNode(parent);
 		}
 
 		ImGui::EndPopup();
 	}
 
 	if (duplicateObject) {
+		modifiedScene = true;
 		duplicateObject = false;
 
 		if (clickedNode != nullptr) {
-			SceneNode* duplicateNode = clickedNode->copy();
-
-			if (clickedNode->parent != nullptr) {
-				clickedNode->parent->children.emplace_back(duplicateNode);
-			} else {
-				scene.root.emplace_back(duplicateNode);
-			}
+//			clickedNode->duplicate();
 		}
 	}
 
 	if (openScene) {
+		modifiedScene = true;
 		openScene = false;
 
 		const char* patterns = "*.json";
@@ -530,33 +596,17 @@ void updateGui(Primrose::Scene& scene) {
 	}
 
 	if (deleteObject) {
+		modifiedScene = true;
 		deleteObject = false;
 
 		if (clickedNode != nullptr) {
-			std::vector<std::unique_ptr<SceneNode>>* originVector;
-			if (clickedNode->parent != nullptr) {
-				originVector = &clickedNode->parent->children;
-			} else {
-				originVector = &scene.root;
-			}
-
-			bool deleted = false;
-			for (auto it = originVector->begin(); it != originVector->end(); ++it) {
-				if (it->get() == clickedNode) {
-					originVector->erase(it);
-					clickedNode = nullptr;
-					deleted = true;
-					break;
-				}
-			}
-
-			if (!deleted) {
-				std::cout << "could not find node to delete, parent structure might be broken" << std::endl;
-			}
+			delete clickedNode;
+			clickedNode = nullptr;
 		}
 	}
 
 	if (newScene) {
+		modifiedScene = true;
 		newScene = false;
 
 		int warning = tinyfd_messageBox("Level Editor", "Create a new scene?",
@@ -568,14 +618,8 @@ void updateGui(Primrose::Scene& scene) {
 	}
 
 	ImGui::Render();
+
+	return modifiedScene;
 }
 
-void renderGui(VkCommandBuffer& cmd) {
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-}
 
-void cleanupGui() {
-	vkDestroyDescriptorPool(device, imguiDescriptorPool, nullptr);
-	ImGui_ImplGlfw_Shutdown();
-	ImGui_ImplVulkan_Shutdown();
-}
