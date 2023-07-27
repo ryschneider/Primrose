@@ -13,12 +13,16 @@ namespace Primrose {
 	bool windowMinimized = false;
 	bool windowFocused = false;
 
+	bool rayAcceleration = true;
+
 	MarchUniforms uniforms = {};
 
 	std::vector<std::unique_ptr<UIElement>> uiScene{};
 
 	const std::vector<const char*> VALIDATION_LAYERS = { "VK_LAYER_KHRONOS_validation" };
-	const std::vector<const char*> REQUIRED_EXTENSIONS = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+	const std::vector<const char*> REQUIRED_EXTENSIONS = {
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	};
 
 	const VkSurfaceFormatKHR IDEAL_SURFACE_FORMAT = { VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 	//const VkPresentModeKHR IDEAL_PRESENT_MODE = VK_PRESENT_MODE_MAILBOX_KHR;

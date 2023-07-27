@@ -24,6 +24,8 @@ namespace Primrose {
 	extern bool windowMinimized;
 	extern bool windowFocused;
 
+	extern bool rayAcceleration;
+
 	extern MarchUniforms uniforms;
 
 	extern std::vector<std::unique_ptr<UIElement>> uiScene;

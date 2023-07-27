@@ -221,22 +221,14 @@ namespace Primrose {
 			std::vector<VkExtensionProperties> availableExtensions(extensionCount);
 			vkEnumerateDeviceExtensionProperties(phyDevice, nullptr, &extensionCount, availableExtensions.data());
 
-			bool extensionsSupported = true;
 			for (const auto& required : REQUIRED_EXTENSIONS) {
-				bool found = false;
-				for (const auto& available : availableExtensions) {
-					if (strcmp(required, available.extensionName) == 0) {
-						found = true;
-						break;
-					}
-				}
-
-				if (!found) {
-					extensionsSupported = false;
-					break;
+				if (std::find_if(availableExtensions.begin(), availableExtensions.end(),
+					[required](VkExtensionProperties& available) {
+					return strcmp(required, available.extensionName) == 0;
+				}) == availableExtensions.end()) {
+					return false; // required extension not supported
 				}
 			}
-			if (!extensionsSupported) return false;
 
 			// make sure swapchain is adequate
 			SwapchainDetails swapchainDetails = getSwapchainDetails(phyDevice);
@@ -785,9 +777,9 @@ void Primrose::createLogicalDevice() {
 
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.queueCreateInfoCount = (uint32_t)queueInfos.size(); // create queues
+	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size()); // create queues
 	createInfo.pQueueCreateInfos = queueInfos.data();
-	createInfo.enabledExtensionCount = (uint32_t)REQUIRED_EXTENSIONS.size(); // enable extensions
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(REQUIRED_EXTENSIONS.size()); // enable extensions
 	createInfo.ppEnabledExtensionNames = REQUIRED_EXTENSIONS.data();
 	createInfo.pEnabledFeatures = &features;
 
