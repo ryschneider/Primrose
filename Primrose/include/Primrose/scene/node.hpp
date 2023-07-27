@@ -31,6 +31,7 @@ namespace Primrose {
 
 		virtual std::string toString(std::string prefix = "");
 		virtual glm::mat4 modelMatrix();
+		bool shouldHide();
 
 		virtual void accept(NodeVisitor* visitor) = 0;
 
@@ -38,7 +39,7 @@ namespace Primrose {
 
 		virtual std::vector<Primitive> extractPrims();
 		virtual std::vector<Transformation> extractTransforms();
-		virtual void createOperations(const std::vector<Primitive>& prims,
+		virtual bool createOperations(const std::vector<Primitive>& prims,
 			const std::vector<Transformation>& transforms, std::vector<Operation>& ops) = 0;
 
 		std::string name = "Node";
@@ -67,15 +68,13 @@ namespace Primrose {
 
 		using Node::extractPrims;
 		using Node::extractTransforms;
-		using Node::createOperations;
+		bool createOperations(const std::vector<Primitive>& prims, const std::vector<Transformation>& transforms,
+			std::vector<Operation>& ops) override;
 		glm::mat4 modelMatrix() override;
 
 		bool isDescendantOf(Primrose::Node *ancestor) override;
 
 		void accept(Primrose::NodeVisitor *visitor) override;
-
-		void createOperations(const std::vector<Primitive>& prims, const std::vector<Transformation>& transforms,
-			std::vector<Operation>& ops) override;
 	};
 }
 

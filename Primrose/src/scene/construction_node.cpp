@@ -4,20 +4,22 @@
 
 using namespace Primrose;
 
-void ConstructionNode::createOperations(const std::vector<Primitive>& prims,
+bool ConstructionNode::createOperations(const std::vector<Primitive>& prims,
 	const std::vector<Transformation>& transforms, std::vector<Operation>& ops) {
 
-	if (hide) return;
+	if (shouldHide()) return false;
 
 	uint lastChildIndex = -1;
 	for (const auto& child : getChildren()) {
-		child->createOperations(prims, transforms, ops);
-
-		if (lastChildIndex != -1) {
-			ops.push_back(foldOperations(lastChildIndex, ops.size() - 1));
+		if (child->createOperations(prims, transforms, ops)) {
+			if (lastChildIndex != -1) {
+				ops.push_back(foldOperations(lastChildIndex, ops.size() - 1));
+			}
+			lastChildIndex = ops.size() - 1;
 		}
-		lastChildIndex = ops.size() - 1;
 	}
+
+	return lastChildIndex != -1;
 }
 
 UnionNode::UnionNode(Primrose::Node* parent) : ConstructionNode(parent) { name = "Union"; }
@@ -47,40 +49,41 @@ void IntersectionNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper>& w
 }
 
 DifferenceNode::DifferenceNode(Primrose::Node* parent) : Node(parent) { name = "Difference"; }
-void DifferenceNode::createOperations(const std::vector<Primitive>& prims,
+bool DifferenceNode::createOperations(const std::vector<Primitive>& prims,
 	const std::vector<Transformation>& transforms, std::vector<Operation>& ops) {
 
-	if (hide) return;
+	if (shouldHide()) return false;
 
 	std::vector<Operation> opsCopy = ops;
 
 	uint lastBaseIndex = -1;
 	uint lastSubtractIndex = -1;
 	for (const auto& child : getChildren()) {
-		child->createOperations(prims, transforms, ops);
+		if (child->createOperations(prims, transforms, ops)) {
+			if (!subtractNodes.contains(child.get())) {
+				if (lastBaseIndex != -1) {
+					ops.push_back(Operation::Union(lastBaseIndex, ops.size() - 1));
+				}
 
-		if (!subtractNodes.contains(child.get())) {
-			if (lastBaseIndex != -1) {
-				ops.push_back(Operation::Union(lastBaseIndex, ops.size() - 1));
+				lastBaseIndex = ops.size() - 1;
+			} else {
+				if (lastSubtractIndex != -1) {
+					ops.push_back(Operation::Union(lastSubtractIndex, ops.size() - 1));
+				}
+
+				lastSubtractIndex = ops.size() - 1;
 			}
-
-			lastBaseIndex = ops.size() - 1;
-		} else {
-			if (lastSubtractIndex != -1) {
-				ops.push_back(Operation::Union(lastSubtractIndex, ops.size() - 1));
-			}
-
-			lastSubtractIndex = ops.size() - 1;
 		}
 	}
 
 	if (lastBaseIndex == -1) {
 		ops = opsCopy; // get rid of any subtract nodes that were added to operations
-		return;
+		return false;
 	};
-	if (lastSubtractIndex == -1) return;
+	if (lastSubtractIndex == -1) return true;
 
 	ops.push_back(Operation::Difference(lastBaseIndex, lastSubtractIndex));
+	return true;
 }
 void DifferenceNode::accept(NodeVisitor* visitor) {
 	visitor->visit(this);

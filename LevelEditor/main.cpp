@@ -21,24 +21,7 @@ bool shiftHeld = false;
 static float orbitDist = 10;
 static glm::vec3 pivot = glm::vec3(0);
 
-
-void makeTmpSave() {
-	const std::vector<std::filesystem::path> tmpSaves = {
-		"C:\\temp\\temp_scene_1.json",
-		"C:\\temp\\temp_scene_2.json",
-		"C:\\temp\\temp_scene_3.json",
-		"C:\\temp\\temp_scene_4.json",
-		"C:\\temp\\temp_scene_5.json"
-	};
-	static int currentTmp = 0;
-
-	mainScene.saveScene(tmpSaves[currentTmp++]);
-	if (currentTmp >= tmpSaves.size()) currentTmp = 0;
-}
-
 void update(float dt) {
-//	updateFps();
-
 	if (doubleClickedNode != nullptr) {
 		glm::mat4 transform = doubleClickedNode->modelMatrix();
 
@@ -48,10 +31,9 @@ void update(float dt) {
 		doubleClickedNode = nullptr;
 	}
 
-	bool updatedScene = updateGui(mainScene);
+	bool updatedScene = updateGui(mainScene, dt);
 	if (updatedScene) {
 		mainScene.generateUniforms();
-		makeTmpSave();
 	}
 }
 
@@ -166,7 +148,7 @@ int main() {
 	keyCallback = keyCb;
 
 	// load scene
-	mainScene.importScene("scenes/csg.json");
+	mainScene.importScene("scenes/perftest.json");
 	mainScene.generateUniforms();
 
 //	std::cout << uniforms.toString() << std::endl;

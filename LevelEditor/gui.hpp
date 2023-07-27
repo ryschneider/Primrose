@@ -12,7 +12,7 @@ extern std::filesystem::path lastLoadedScene;
 void guiKeyCb(int key, int action, int mods);
 
 void setupGui();
-bool updateGui(Primrose::Scene& scene);
+bool updateGui(Primrose::Scene& scene, float dt);
 void renderGui(VkCommandBuffer& cmd);
 void cleanupGui();
 

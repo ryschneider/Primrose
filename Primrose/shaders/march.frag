@@ -34,14 +34,14 @@ const uint OP_RENDER = 906; // draw i(op) to screen
 
 // constants
 const vec3 BG_COLOR = vec3(0.01f, 0.01f, 0.01f);
+const float MIN_DIST = 0.1f;
 const float MAX_DIST = 10000.f;
 const float HIT_MARGIN = 0.001f;
 const float NORMAL_EPS = 0.0001f; // small epsilon for normal calculations
 const uint NO_MAT = -1;
 
 const int MAX_MARCHES = 100;
-const int MAX_BOUNCES = 2;
-const float REFL = 0.3f;
+const uint MAX_BOUNCES = 5;
 
 const float PI = 3.14159265358979323846264f;
 
@@ -109,10 +109,10 @@ PointLight pointLights[] = {
 };
 const uint numPointLights = 1;
 Material materials[] = {
-	//       base color,       emission, rough, spec, metal, ior, transmission
-	Material(vec3(0.72, 0.45, 0.20), 0.05, 0.70, 0.08, 0.9, 1.70, 0.00), // copper
-	Material(vec3(0.96, 0.99, 1.00), 0.05, 0.01, 0.42, 0.2, 1.45, 1.00), // glass
-	Material(vec3(0.73, 0.95, 1.00), 0.05, 0.05, 2.15, 0.8, 2.40, 0.85), // diamond
+	//              base color, emission, rough, spec, metal, ior, transmission
+	Material(vec3(0.72, 0.45, 0.20), 0.05, 0.70, 0.08, 0.90, 1.70, 0.00), // copper
+	Material(vec3(0.96, 0.99, 1.00), 0.05, 0.01, 0.42, 0.10, 1.45, 0.95), // glass
+	Material(vec3(0.73, 0.95, 1.00), 0.05, 0.05, 2.15, 0.30, 2.40, 0.85), // diamond
 };
 
 layout(binding = 1) uniform sampler2D texSampler;
@@ -323,45 +323,52 @@ Hit march(Ray ray) {
 	float d;
 	float t = 0.f;
 	vec3 pos = ray.pos;
+	uint mat = NO_MAT;
 
 	for (int m = 0; m < MAX_MARCHES; ++m) {
-		d = map(pos);
+		d = abs(mapMat(pos, mat));
 		
-		if (d <= HIT_MARGIN || t > MAX_DIST) break;
+		if (d <= HIT_MARGIN && t >= MIN_DIST) break;
+		if (t >= MAX_DIST) {
+			mat = NO_MAT;
+			break;
+		}
 
 		t += d;
 		pos += ray.dir * d;
 	}
 
-	uint mat;
-	mapMat(pos, mat);
-
 	return Hit(pos, t, d, mat);
 }
 
-void dither(inout Hit hit, Ray ray) {
+Hit dither(Hit hit, Ray ray) {
 //	float b = rand(screenXY) * HIT_MARGIN + hit.d; // b in range (d - HIT_MARGIN, d)
 	float b = rand.r * HIT_MARGIN + hit.d; // b in range (d - HIT_MARGIN, d)
 	hit.pos += ray.dir * b;
 	hit.d = map(hit.pos);
-//	return hit;
+	return hit;
 }
 
 
 
 // material rendering
-Ray bounces[MAX_BOUNCES];
+struct Bounce {
+	Ray ray;
+	uint insideMat;
+	float strength;
+};
+Bounce bounces[MAX_BOUNCES+1];
 uint numBounces = 0;
-float refr = 1;
-float refl = 1;
-float bounceCo = refl;
 
-void renderMaterial(Hit hit, Ray ray, inout vec3 color) {
+void renderMaterial(Hit hit, Bounce bounce, inout vec3 color) {
 	Material m = materials[hit.mat];
 
 	vec3 newColor = vec3(0);
-	vec3 normal = mapNormal(hit);
-	vec3 reflDir = reflect(ray.dir, normal);
+
+	// reverse normal if inside material
+	vec3 normal = bounce.insideMat == NO_MAT ? mapNormal(hit) : -mapNormal(hit);
+
+	vec3 reflDir = reflect(bounce.ray.dir, normal);
 
 	for (int i = 0; i < numPointLights; ++i) {
 		PointLight light = pointLights[i];
@@ -374,16 +381,42 @@ void renderMaterial(Hit hit, Ray ray, inout vec3 color) {
 		newColor += m.baseColor * (diff*m.roughness + spec*m.specular + m.emission) * light.intensity;
 	}
 
-	color = mix(color, newColor, bounceCo);
+	color = mix(color, newColor, bounce.strength);
 
-//	if (numBounces < MAX_BOUNCES) {
-//		if (m.metallic > 0) {
-//			// new reflection
-//			bounces[numBounces++] = Ray(hit.pos + ray.dir*HIT_MARGIN, reflDir);
-//			refl *= m.metallic;
-//			bounceCo = refl;
-//		}
-//	}
+	if (numBounces < MAX_BOUNCES) {
+		float refl = m.metallic;
+		if (m.transmission > 0) {
+//			float ior;
+//			if (bounce.insideMat == NO_MAT) ior = m.ior; // entering material
+////			else if (bounce.insideMat != hit.mat) m.ior / materials[bounce.insideMat].ior; // switching material
+//			else ior = 1.0 / materials[bounce.insideMat].ior; // exiting material
+
+			float lastIor = bounce.insideMat == NO_MAT ? 1.0 : materials[bounce.insideMat].ior;
+			float nextIor = bounce.insideMat == NO_MAT ? m.ior : 1.0;
+//			float ior = nextIor / lastIor;
+			float ior = lastIor / nextIor;
+
+			vec3 refrDir = refract(bounce.ray.dir, normal, ior);
+
+			if (length(refrDir) != 0) {
+				bounces[numBounces].ray = Ray(hit.pos + refrDir*HIT_MARGIN, refrDir);
+				bounces[numBounces].strength = bounce.strength * m.transmission;
+//				bounces[numBounces].insideMat = bounce.insideMat != hit.mat ? hit.mat : NO_MAT;
+				bounces[numBounces].insideMat = bounce.insideMat == NO_MAT ? hit.mat : NO_MAT;
+				numBounces = min(numBounces+1, MAX_BOUNCES);
+			} else {
+				// internal reflection
+				refl += m.transmission;
+			}
+		}
+
+		if (refl > 0) {
+			bounces[numBounces].ray = Ray(hit.pos + reflDir*HIT_MARGIN, reflDir);
+			bounces[numBounces].strength = bounce.strength * m.metallic;
+			bounces[numBounces].insideMat = bounce.insideMat;
+			numBounces = min(numBounces+1, MAX_BOUNCES);
+		}
+	}
 }
 
 
@@ -432,20 +465,24 @@ void main() {
 //		}
 //	}
 
+	Bounce bounce = Bounce(ray, NO_MAT, 1);
 	for (int i = 0; i < numBounces+1; ++i) {
-		Hit hit = march(ray);
+		Hit hit = march(bounce.ray);
 
-		if (hit.t > MAX_DIST) {
-			ray = bounces[i];
-			continue;
-		} else {
-			dither(hit, ray);
-			renderMaterial(hit, ray, color);
+		if (hit.mat != NO_MAT) {
+			hit = dither(hit, bounce.ray);
+			renderMaterial(hit, bounce, color);
 		}
 
-		ray = bounces[i];
+		bounce = bounces[i];
 	}
 
 	fragColor = vec4(color, 1.f);
-//	fragColor = vec4(.2f);
+
+//	fragColor = vec4(vec3(march(ray).t), 1.f);
+//	if (march(ray).mat != NO_MAT) {
+//		fragColor = vec4(-ray.dir, 1.f);
+//	} else {
+//		fragColor = vec4(color, 1.f);
+//	}
 }

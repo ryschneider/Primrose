@@ -140,6 +140,10 @@ glm::mat4 Node::modelMatrix() {
 	return matrix;
 }
 
+bool Node::shouldHide() {
+	return hide || glm::determinant(modelMatrix()) == 0;
+}
+
 glm::mat4 RootNode::modelMatrix() {
 	return glm::mat4(1);
 }
@@ -219,11 +223,6 @@ std::vector<Primitive> Node::extractPrims() {
 std::vector<Transformation> Node::extractTransforms() {
 	std::vector<Transformation> transforms;
 
-	glm::mat4 matrix = modelMatrix();
-	if (std::find(transforms.begin(), transforms.end(), matrix) == transforms.end()) {
-		transforms.push_back(Transformation(matrix));
-	}
-
 	for (const auto& child : getChildren()) {
 		for (const auto& t : child->extractTransforms()) {
 			if (std::find(transforms.begin(), transforms.end(), t) == transforms.end()) {
@@ -235,11 +234,17 @@ std::vector<Transformation> Node::extractTransforms() {
 	return transforms;
 }
 
-void RootNode::createOperations(const std::vector<Primitive>& prims,
+bool RootNode::createOperations(const std::vector<Primitive>& prims,
 	const std::vector<Transformation>& transforms, std::vector<Operation>& ops) {
 
+	bool shouldRender = false;
+
 	for (const auto& child : getChildren()) {
-		child->createOperations(prims, transforms, ops);
-		ops.push_back(Operation::Render(ops.size() - 1));
+		if (child->createOperations(prims, transforms, ops)) {
+			ops.push_back(Operation::Render(ops.size() - 1));
+			shouldRender = true;
+		}
 	}
+
+	return shouldRender;
 }

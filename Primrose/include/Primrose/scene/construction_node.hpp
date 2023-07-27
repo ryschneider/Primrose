@@ -13,7 +13,7 @@ namespace Primrose {
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override = 0;
 
 		virtual Operation foldOperations(uint i, uint j) = 0;
-		void createOperations(const std::vector<Primitive>& prims, const std::vector<Transformation>& transforms,
+		bool createOperations(const std::vector<Primitive>& prims, const std::vector<Transformation>& transforms,
 			std::vector<Operation>& ops) override;
 	};
 
@@ -46,7 +46,7 @@ namespace Primrose {
 		std::set<Node*> subtractNodes;
 
 	private:
-		void createOperations(const std::vector<Primitive>& prims, const std::vector<Transformation>& transforms,
+		bool createOperations(const std::vector<Primitive>& prims, const std::vector<Transformation>& transforms,
 			std::vector<Operation>& ops) override;
 	};
 }

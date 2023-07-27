@@ -25,6 +25,9 @@ static bool newScene = false;
 static bool openScene = false;
 static bool saveScene = false;
 
+static bool undoEdit = false;
+static bool redoEdit = false;
+
 Node* clickedNode = nullptr;
 Node* doubleClickedNode = nullptr;
 Node* dragSrc = nullptr;
@@ -91,6 +94,11 @@ void guiKeyCb(int key, int action, int mods) {
 			if (clickedNode->getChildren().size() > 0) {
 				clickedNode = clickedNode->getChildren()[0].get();
 			}
+		}
+
+		if (mods & GLFW_MOD_CONTROL) {
+			if (key == GLFW_KEY_Z) undoEdit = true;
+			if (key == GLFW_KEY_Y) redoEdit = true;
 		}
 	}
 }
@@ -386,12 +394,50 @@ public:
 	}
 };
 
-bool updateGui(Primrose::Scene& scene) {
+const static int numTempSaves = 50;
+static int currentTempSave = 0;
+static int numUndos = 0;
+void makeTempSave(Scene& scene) {
+	scene.saveScene(fmt::format("C:\\temp\\temp_scene_{}.json", currentTempSave++));
+	currentTempSave %= numTempSaves;
+	numUndos = 0;
+}
+void undoTempSave(Scene& scene) {
+	if (numUndos == 0) scene.saveScene(fmt::format("C:\\temp\\temp_scene_{}.json", currentTempSave));
+//	if (numUndos >= numTempSaves-1) return;
+
+	numUndos += 1;
+	currentTempSave -= 1;
+	currentTempSave = (currentTempSave + numTempSaves) % numTempSaves;
+
+	scene.root.clear();
+	clickedNode = nullptr;
+	scene.importScene(fmt::format("C:\\temp\\temp_scene_{}.json", currentTempSave));
+}
+void redoTempSave(Scene& scene) {
+//	if (numUndos == 0) return;
+
+	numUndos -= 1;
+	currentTempSave += 1;
+	currentTempSave %= numTempSaves;
+
+	scene.root.clear();
+	clickedNode = nullptr;
+	scene.importScene(fmt::format("C:\\temp\\temp_scene_{}.json", currentTempSave));
+}
+
+bool updateGui(Primrose::Scene& scene, float dt) {
 	bool modifiedScene = false;
 
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
+
+	ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
+	ImGui::Begin("FPS", nullptr,
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration);
+	ImGui::Text("FPS: %.2f", 1.f / dt);
+	ImGui::End();
 
 	ImGui::ShowDemoWindow();
 
@@ -407,6 +453,11 @@ bool updateGui(Primrose::Scene& scene) {
 			if (ImGui::MenuItem("Add", "Shift+A")) addObject = true;
 			if (ImGui::MenuItem("Duplicate", "Shift+D")) duplicateObject = true;
 			if (ImGui::MenuItem("Delete", "Del")) deleteObject = true;
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Edit")) {
+			if (ImGui::MenuItem("Undo", "Ctrl+Z")) undoEdit = true;
+			if (ImGui::MenuItem("Redo", "Ctrl+Y")) redoEdit = true;
 			ImGui::EndMenu();
 		}
 		ImGui::EndMenuBar();
@@ -426,6 +477,8 @@ bool updateGui(Primrose::Scene& scene) {
 
 	// if nodes were dragged during addTreeNode
 	if (dragSrc != nullptr && dragDst != nullptr) {
+		modifiedScene = true;
+
 		if (dragDst == dragSrc->getParent()) {
 //			dragSrc->swap(dragDst);
 			dragSrc->reparent(dragDst->getParent());
@@ -532,9 +585,14 @@ bool updateGui(Primrose::Scene& scene) {
 
 		ImGui::Separator();
 
-		Node* parent = clickedNode;
-		if (parent == nullptr) parent = reinterpret_cast<Node*>(&scene.root);
+		Node* parent;
+		if (clickedNode != nullptr) {
+			parent = clickedNode->getParent();
+		} else {
+			parent = reinterpret_cast<Node*>(&scene.root);
+		}
 
+		modifiedScene = true;
 		if (ImGui::Selectable("Sphere")) {
 			new SphereNode(parent, 1);
 		} else if (ImGui::Selectable("Box")) {
@@ -551,6 +609,8 @@ bool updateGui(Primrose::Scene& scene) {
 			new IntersectionNode(parent);
 		} else if (ImGui::Selectable("Difference")) {
 			new DifferenceNode(parent);
+		} else {
+			modifiedScene = false;
 		}
 
 		ImGui::EndPopup();
@@ -618,6 +678,18 @@ bool updateGui(Primrose::Scene& scene) {
 	}
 
 	ImGui::Render();
+
+	if (modifiedScene) {
+		makeTempSave(scene);
+	} else if (undoEdit) {
+		modifiedScene = true;
+		undoEdit = false;
+		undoTempSave(scene);
+	} else if (redoEdit) {
+		modifiedScene = true;
+		redoEdit = false;
+		redoTempSave(scene);
+	}
 
 	return modifiedScene;
 }

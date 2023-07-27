@@ -15,7 +15,8 @@ namespace Primrose {
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override = 0;
 
 		std::vector<Primitive> extractPrims() override;
-		void createOperations(
+		std::vector<Transformation> extractTransforms() override;
+		bool createOperations(
 			const std::vector<Primitive>& prims, const std::vector<Transformation>& transforms,
 			std::vector<Operation>& ops) override;
 

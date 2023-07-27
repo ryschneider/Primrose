@@ -1,3 +1,5 @@
+#include <iostream>
+#include <glm/gtx/string_cast.hpp>
 #include "scene/primitive_node.hpp"
 #include "scene/node_visitor.hpp"
 
@@ -14,15 +16,26 @@ std::vector<Primitive> PrimitiveNode::extractPrims() {
 	return prims;
 }
 
-void PrimitiveNode::createOperations(const std::vector<Primitive>& prims,
+std::vector<Transformation> PrimitiveNode::extractTransforms() {
+	std::vector<Transformation> transforms = Node::extractTransforms();
+
+	if (shouldHide()) return transforms;
+
+	glm::mat4 matrix = modelMatrix();
+	if (std::find(transforms.begin(), transforms.end(), matrix) == transforms.end()) {
+		transforms.push_back(Transformation(matrix));
+	}
+
+	return transforms;
+}
+
+bool PrimitiveNode::createOperations(const std::vector<Primitive>& prims,
 	const std::vector<Transformation>& transforms, std::vector<Operation>& ops) {
 
-	if (hide) return;
+	if (shouldHide()) return false;
 
-	uint numOps = ops.size();
-	UnionNode::createOperations(prims, transforms, ops);
 	uint unionWith = -1;
-	if (ops.size() > numOps) unionWith = ops.size() - 1;
+	if (UnionNode::createOperations(prims, transforms, ops)) unionWith = ops.size() - 1;
 
 	auto primIt = std::find(prims.begin(), prims.end(), toPrimitive());
 	auto transformIt = std::find(transforms.begin(), transforms.end(), Transformation(modelMatrix()));
@@ -33,12 +46,14 @@ void PrimitiveNode::createOperations(const std::vector<Primitive>& prims,
 
 	// TODO :: combine OP_IDENTITY and OP_TRANSFORM
 	ops.push_back(Operation::Transform(transformIt - transforms.begin()));
-//	ops.push_back(Operation::Identity(primIt - prims.begin(), (primIt - prims.begin()) % 3));
-	ops.push_back(Operation::Identity(primIt - prims.begin(), 0));
+	ops.push_back(Operation::Identity(primIt - prims.begin(), static_cast<uint>(floor(scale.x)) % 3));
+//	ops.push_back(Operation::Identity(primIt - prims.begin(), 0));
 
 	if (unionWith != -1) {
 		ops.push_back(Operation::Union(unionWith, ops.size() - 1));
 	}
+
+	return true;
 }
 
 
@@ -51,9 +66,10 @@ std::string SphereNode::toString(std::string prefix) {
 }
 glm::mat4 SphereNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
+	matrix = glm::translate(matrix, translate);
 	matrix = glm::scale(matrix, scale * radius);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	return glm::translate(matrix, translate);
+	return matrix;
 }
 void SphereNode::accept(NodeVisitor* visitor) {
 	visitor->visit(this);
@@ -79,9 +95,10 @@ std::string BoxNode::toString(std::string prefix) {
 }
 glm::mat4 BoxNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
+	matrix = glm::translate(matrix, translate);
 	matrix = glm::scale(matrix, scale * size);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	return glm::translate(matrix, translate);
+	return matrix;
 }
 void BoxNode::accept(NodeVisitor* visitor) {
 	visitor->visit(this);
@@ -112,9 +129,10 @@ std::string TorusNode::toString(std::string prefix) {
 }
 glm::mat4 TorusNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
-	matrix = glm::scale(matrix, scale * (ringRadius / majorRadius));
+	matrix = glm::translate(matrix, translate);
+	matrix = glm::scale(matrix, scale * majorRadius);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	return glm::translate(matrix, translate);
+	return matrix;
 }
 void TorusNode::accept(NodeVisitor* visitor) {
 	visitor->visit(this);
@@ -143,9 +161,10 @@ std::string LineNode::toString(std::string prefix) {
 }
 glm::mat4 LineNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
+	matrix = glm::translate(matrix, translate);
 	matrix = glm::scale(matrix, scale * radius);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	return glm::translate(matrix, translate);
+	return matrix;
 }
 void LineNode::accept(NodeVisitor* visitor) {
 	visitor->visit(this);
@@ -173,9 +192,10 @@ std::string CylinderNode::toString(std::string prefix) {
 }
 glm::mat4 CylinderNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
+	matrix = glm::translate(matrix, translate);
 	matrix = glm::scale(matrix, scale * radius);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	return glm::translate(matrix, translate);
+	return matrix;
 }
 void CylinderNode::accept(NodeVisitor* visitor) {
 	visitor->visit(this);

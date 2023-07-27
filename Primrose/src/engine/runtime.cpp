@@ -131,7 +131,7 @@ void Primrose::updateUniforms(FrameInFlight& frame) {
 	writeToDevice(frame.uniformBufferMemory, &uniforms, sizeof(uniforms));
 }
 
-void Primrose::drawFrame() { // returns whether the frame was drawn
+void Primrose::drawFrame() {
 	if (windowMinimized) {
 		// don't bother rendering if window minimized
 		windowMinimized = isWindowMinimized();
