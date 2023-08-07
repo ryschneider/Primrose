@@ -1,14 +1,14 @@
 #include "engine/setup.hpp"
 #include "state.hpp"
 #include "engine/runtime.hpp"
-#include "embed/flat_vert_spv.h"
-#include "embed/march_frag_spv.h"
+#include "engine/pipeline_accelerated.hpp"
+#include "engine/pipeline_raster.hpp"
 #include "embed/ui_vert_spv.h"
 #include "embed/ui_frag_spv.h"
 
-#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <vulkan/vulkan.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
@@ -28,10 +28,15 @@ namespace Primrose {
 
 	VkRenderPass renderPass; // render pass with commands used to render a frame
 	VkDescriptorSetLayout descriptorSetLayout; // layout for shader uniforms
-	VkPipelineLayout pipelineLayout; // graphics pipeline layout
 
-	VkPipeline marchPipeline; // graphics pipeline
-	VkPipeline uiPipeline; // graphics pipeline
+	bool rayAcceleration; // set by pickPhysicalDevice
+	VkPipelineLayout acceleratedPipelineLayout;
+	VkPipeline acceleratedPipeline;
+	VkPipelineLayout rasterPipelineLayout;
+	VkPipeline rasterPipeline;
+
+	VkPipelineLayout uiPipelineLayout;
+	VkPipeline uiPipeline;
 
 	GLFWwindow* window;
 	VkSurfaceKHR surface;
@@ -141,7 +146,7 @@ namespace Primrose {
 				const auto& heap = memoryProperties.memoryHeaps + i;
 
 				if (heap->flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) { // if memory is local to gpu
-					vram += (int)(heap->size / (1024 * 1024));
+					vram += static_cast<int>(heap->size) / (1024 * 1024);
 				}
 			}
 			return vram;
@@ -210,7 +215,7 @@ namespace Primrose {
 			return details;
 		}
 
-		bool isPhysicalDeviceSuitable(VkPhysicalDevice phyDevice) {
+		bool isPhysicalDeviceSuitable(VkPhysicalDevice phyDevice, bool* supportsRayAcc) {
 			// check for correct queue families
 			QueueFamilyIndices indices = getQueueFamilies(phyDevice);
 			if (!indices.graphicsFamily.has_value() || !indices.presentFamily.has_value()) return false;
@@ -226,7 +231,20 @@ namespace Primrose {
 					[required](VkExtensionProperties& available) {
 					return strcmp(required, available.extensionName) == 0;
 				}) == availableExtensions.end()) {
+
 					return false; // required extension not supported
+				}
+			}
+
+			*supportsRayAcc = true;
+			for (const auto& rayExt : RAY_EXTENSIONS) {
+				if (std::find_if(availableExtensions.begin(), availableExtensions.end(),
+					[rayExt](VkExtensionProperties& available) {
+						return strcmp(rayExt, available.extensionName) == 0;
+					}) == availableExtensions.end()) {
+
+					*supportsRayAcc = false; // doesn't support some ray extension
+					break;
 				}
 			}
 
@@ -524,7 +542,7 @@ void Primrose::setup(const char* applicationName, unsigned int applicationVersio
 	// TODO put screenHeight definition in swapchainExtent setter
 	setFov(Settings::fov); // initial set fov
 	setZoom(1.f); // initial set zoom
-	uniforms.screenHeight = (float)swapchainExtent.height / (float)swapchainExtent.width;
+	uniforms.screenHeight = static_cast<float>(swapchainExtent.height) / static_cast<float>(swapchainExtent.width);
 	//Runtime::uniforms.primitives = Scene::primitives.data();
 }
 
@@ -588,15 +606,23 @@ void Primrose::initVulkan() {
 	createRenderPass();
 	createSwapchainFrames();
 	createDescriptorSetLayout();
-	createPipelineLayout();
 
-	createMarchPipeline();
+	if (rayAcceleration) {
+		createAcceleratedPipeline();
+	} else {
+		createRasterPipeline();
+	}
+	// testing
+	createAcceleratedPipeline();
+	vkDestroyPipeline(device, acceleratedPipeline, nullptr);
+	vkDestroyPipelineLayout(device, acceleratedPipelineLayout, nullptr);
+	// testing
 	createUIPipeline();
 
 	createCommandPool();
 	createDescriptorPool();
 
-	createMarchTexture();
+	createDitherTexture();
 
 	createFramesInFlight();
 }
@@ -612,7 +638,8 @@ void Primrose::setupDebugMessenger() {
 	info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 	info.pfnUserCallback = debugCallback;
 
-	auto vkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+	auto vkCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+		vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
 	if (vkCreateDebugUtilsMessengerEXT == nullptr) {
 		throw std::runtime_error("could not find vkCreateDebugUtilsMessengerEXT");
 	}
@@ -660,7 +687,7 @@ void Primrose::createInstance() {
 	appInfo.applicationVersion = appVersion;
 	appInfo.pEngineName = ENGINE_NAME;
 	appInfo.engineVersion = ENGINE_VERSION;
-	appInfo.apiVersion = VK_API_VERSION_1_2;
+	appInfo.apiVersion = VK_API_VERSION_1_3;
 
 	VkInstanceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -668,24 +695,28 @@ void Primrose::createInstance() {
 
 	// vk extensions required for glfw
 	std::vector<const char*> extensions = getRequiredExtensions();
-	createInfo.enabledExtensionCount = (uint32_t)extensions.size();
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 	createInfo.ppEnabledExtensionNames = extensions.data();
 
 	// enable validation layers in instance
 	VkDebugUtilsMessengerCreateInfoEXT debugInfo{};
 	if (Settings::validationEnabled) {
-		createInfo.enabledLayerCount = (uint32_t)VALIDATION_LAYERS.size();
+		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 
 		// enables debugger during instance creation and destruction
 		debugInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-		debugInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-		debugInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+		debugInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+		debugInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 		debugInfo.pfnUserCallback = debugCallback;
 
 		createInfo.pNext = &debugInfo;
-	}
-	else {
+	} else {
 		createInfo.enabledLayerCount = 0;
 
 		createInfo.pNext = nullptr;
@@ -718,9 +749,10 @@ void Primrose::pickPhysicalDevice() {
 
 	int bestScore = -1;
 	VkPhysicalDevice bestDevice = VK_NULL_HANDLE;
+	bool bestSupportsRay = false;
 	for (const auto& phyDevice : devices) {
-
-		if (!isPhysicalDeviceSuitable(phyDevice)) {
+		bool supportsRay = false;
+		if (!isPhysicalDeviceSuitable(phyDevice, &supportsRay)) {
 			continue;
 		}
 
@@ -732,9 +764,12 @@ void Primrose::pickPhysicalDevice() {
 		vkGetPhysicalDeviceProperties(phyDevice, &properties);
 		if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
 			score += 1 << 30; // 2^30
-		}
-		else if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU) {
+		} else if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU) {
 			score += 1 << 29; // 2^29
+		}
+
+		if (supportsRay) {
+			score += 1 << 28; // discrete gpus with raytracing support higher priority
 		}
 
 		// score multiple graphics cards of same nodeType by vram
@@ -743,6 +778,7 @@ void Primrose::pickPhysicalDevice() {
 		if (score > bestScore) {
 			bestScore = score;
 			bestDevice = phyDevice;
+			bestSupportsRay = supportsRay;
 		}
 	}
 
@@ -751,6 +787,7 @@ void Primrose::pickPhysicalDevice() {
 	}
 
 	physicalDevice = bestDevice;
+	rayAcceleration = bestSupportsRay && false;
 	std::cout << "Choosing graphics device with " << getPhysicalDeviceVramMb(physicalDevice) << " mb VRAM" << std::endl;
 
 	std::cout << std::endl; // newline to seperate prints
@@ -775,12 +812,19 @@ void Primrose::createLogicalDevice() {
 	VkPhysicalDeviceFeatures features{};
 	features.samplerAnisotropy = VK_TRUE;
 
+	std::vector<const char*> extensions;
+	extensions.insert(extensions.end(), REQUIRED_EXTENSIONS.begin(), REQUIRED_EXTENSIONS.end());
+	if (rayAcceleration || true) extensions.insert(extensions.end(), RAY_EXTENSIONS.begin(), RAY_EXTENSIONS.end()); // TODO remove ||true
+
+	vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rtFeatures(VK_TRUE);
+
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	if (rayAcceleration || true) createInfo.pNext = &rtFeatures;
 	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size()); // create queues
 	createInfo.pQueueCreateInfos = queueInfos.data();
-	createInfo.enabledExtensionCount = static_cast<uint32_t>(REQUIRED_EXTENSIONS.size()); // enable extensions
-	createInfo.ppEnabledExtensionNames = REQUIRED_EXTENSIONS.data();
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size()); // enable extensions
+	createInfo.ppEnabledExtensionNames = extensions.data();
 	createInfo.pEnabledFeatures = &features;
 
 	if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
@@ -827,9 +871,9 @@ void Primrose::createSwapchain() {
 		// if currentExtent.width is max value, use the size of the window as extent
 
 		// keep within min and max image extent allowed by swapchain
-		swapchainExtent.width = std::clamp((uint32_t)windowWidth,
+		swapchainExtent.width = std::clamp(static_cast<uint32_t>(windowWidth),
 			swapDetails.capabilities.minImageExtent.width, swapDetails.capabilities.maxImageExtent.width);
-		swapchainExtent.height = std::clamp((uint32_t)windowHeight,
+		swapchainExtent.height = std::clamp(static_cast<uint32_t>(windowHeight),
 			swapDetails.capabilities.minImageExtent.height, swapDetails.capabilities.maxImageExtent.height);
 	} else {
 		swapchainExtent = swapDetails.capabilities.currentExtent; // use extent given
@@ -1007,164 +1051,12 @@ void Primrose::createDescriptorSetLayout() {
 	}
 }
 
-void Primrose::createPipelineLayout() {
-	VkPushConstantRange pushConstant{};
-	pushConstant.offset = 0;
-	pushConstant.size = 128; // min required size
-	pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	VkPipelineLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	layoutInfo.setLayoutCount = 1;
-	layoutInfo.pSetLayouts = &descriptorSetLayout;
-	layoutInfo.pPushConstantRanges = &pushConstant;
-	layoutInfo.pushConstantRangeCount = 1;
-
-	if (vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create pipeline layout");
-	}
-}
-
-VkPipeline Primrose::createPipeline(
-	VkShaderModule vertModule, VkShaderModule fragModule,
-	VkPipelineVertexInputStateCreateInfo vertInputInfo,
-	VkPipelineInputAssemblyStateCreateInfo assemblyInfo) {
-
-	VkPipelineShaderStageCreateInfo vertStageInfo{};
-	vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertStageInfo.pName = "main"; // shader entrypoint
-	vertStageInfo.module = vertModule;
-	vertStageInfo.pSpecializationInfo = nullptr; // used to set constants for optimization
-
-	VkPipelineShaderStageCreateInfo fragStageInfo{};
-	fragStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragStageInfo.pName = "main";
-	fragStageInfo.module = fragModule;
-	fragStageInfo.pSpecializationInfo = nullptr;
-
-	VkPipelineShaderStageCreateInfo shaderStagesInfo[] = {vertStageInfo, fragStageInfo};
-
-	// dynamic states
-	// makes viewport size and cull area dynamic at render time, so we dont need to recreate pipeline with every resize
-	std::vector<VkDynamicState> dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-	VkPipelineDynamicStateCreateInfo dynamicStateInfo{};
-	dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamicStateInfo.dynamicStateCount = (uint32_t)dynamicStates.size();
-	dynamicStateInfo.pDynamicStates = dynamicStates.data();
-
-	// static viewport/scissor creation
-	VkViewport viewport{};
-	viewport.x = 0;
-	viewport.y = 0;
-	viewport.width = (float)swapchainExtent.width;
-	viewport.height = (float)swapchainExtent.height;
-	viewport.minDepth = 0;
-	viewport.maxDepth = 1;
-
-	VkRect2D scissor{};
-	scissor.offset = { 0, 0 };
-	scissor.extent = swapchainExtent;
-
-	VkPipelineViewportStateCreateInfo viewportInfo{};
-	viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-	viewportInfo.viewportCount = 1;
-	viewportInfo.pViewports = &viewport;
-	viewportInfo.scissorCount = 1;
-	viewportInfo.pScissors = &scissor;
-
-	// rasterizer
-	VkPipelineRasterizationStateCreateInfo rasterizerInfo{};
-	rasterizerInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterizerInfo.depthClampEnable = VK_FALSE; // clamps pixels outside range instead of discarding
-	rasterizerInfo.rasterizerDiscardEnable = VK_FALSE; // disables rasterization
-	rasterizerInfo.polygonMode = VK_POLYGON_MODE_FILL;
-	rasterizerInfo.lineWidth = 1;
-	rasterizerInfo.cullMode = VK_CULL_MODE_NONE; // dont cull backwards faces
-	rasterizerInfo.depthBiasEnable = VK_FALSE; // whether to alter depth values
-
-	// multisampling
-	VkPipelineMultisampleStateCreateInfo multisamplingInfo{};
-	multisamplingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisamplingInfo.sampleShadingEnable = VK_FALSE; // no multisampling
-	multisamplingInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-	// colour blending
-	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
-										  | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachment.blendEnable = VK_TRUE;
-	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-	VkPipelineColorBlendStateCreateInfo colorBlendInfo{};
-	colorBlendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	colorBlendInfo.logicOpEnable = VK_FALSE;
-	colorBlendInfo.attachmentCount = 1;
-	colorBlendInfo.pAttachments = &colorBlendAttachment;
-
-	// pipeline
-	VkGraphicsPipelineCreateInfo pipelineInfo{};
-	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.pVertexInputState = &vertInputInfo;
-	pipelineInfo.pInputAssemblyState = &assemblyInfo;
-	pipelineInfo.pViewportState = &viewportInfo;
-	pipelineInfo.pRasterizationState = &rasterizerInfo;
-	pipelineInfo.pMultisampleState = &multisamplingInfo;
-	pipelineInfo.pDepthStencilState = nullptr;
-	pipelineInfo.pColorBlendState = &colorBlendInfo;
-	if (DYNAMIC_VIEWPORT) {
-		pipelineInfo.pDynamicState = &dynamicStateInfo;
-	}
-	pipelineInfo.layout = pipelineLayout;
-	pipelineInfo.renderPass = renderPass;
-	pipelineInfo.stageCount = 2;
-	pipelineInfo.pStages = shaderStagesInfo;
-	pipelineInfo.subpass = 0;
-
-	VkPipeline pipeline;
-	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create graphics pipeline");
-	}
-
-	return pipeline;
-}
-
-void Primrose::createMarchPipeline() {
-	// shader modules
-	VkShaderModule vertModule = createShaderModule((uint32_t*)flatVertSpvData, flatVertSpvSize);
-	VkShaderModule fragModule = createShaderModule((uint32_t*)marchFragSpvData, marchFragSpvSize);
-
-	// vertex input
-	VkPipelineVertexInputStateCreateInfo vertInputInfo{};
-	vertInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertInputInfo.vertexBindingDescriptionCount = 0; // no inputs
-	vertInputInfo.vertexAttributeDescriptionCount = 0;
-
-	// input assembly
-	VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
-	assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // one triangle every 3 vertices
-	assemblyInfo.primitiveRestartEnable = VK_FALSE;
-
-	// create pipeline
-	marchPipeline = createPipeline(vertModule, fragModule,
-		vertInputInfo, assemblyInfo);
-
-	// cleanup
-	vkDestroyShaderModule(device, vertModule, nullptr);
-	vkDestroyShaderModule(device, fragModule, nullptr);
-}
 
 void Primrose::createUIPipeline() {
 	// shader modules
-	VkShaderModule vertModule = createShaderModule((uint32_t*)uiVertSpvData, uiVertSpvSize);
-	VkShaderModule fragModule = createShaderModule((uint32_t*)uiFragSpvData, uiFragSpvSize);
+	VkShaderModule vertModule = createShaderModule(reinterpret_cast<uint32_t*>(uiVertSpvData), uiVertSpvSize);
+	VkShaderModule fragModule = createShaderModule(reinterpret_cast<uint32_t*>(uiFragSpvData), uiFragSpvSize);
 
 	// vertex input
 	auto bindingDesc = UIVertex::getBindingDescription();
@@ -1184,15 +1076,14 @@ void Primrose::createUIPipeline() {
 	assemblyInfo.primitiveRestartEnable = VK_FALSE;
 
 	// create pipeline
-	uiPipeline = createPipeline(vertModule, fragModule,
-		vertInputInfo, assemblyInfo);
+	createGraphicsPipeline(vertModule, fragModule, vertInputInfo, assemblyInfo, &uiPipelineLayout, &uiPipeline);
 
 	// cleanup
 	vkDestroyShaderModule(device, vertModule, nullptr);
 	vkDestroyShaderModule(device, fragModule, nullptr);
 }
 
-void Primrose::createMarchTexture() {
+void Primrose::createDitherTexture() {
 	int texWidth = windowWidth*2;
 	int texHeight = windowHeight*2;
 	size_t dataSize = texWidth * texHeight * 4;
@@ -1252,10 +1143,10 @@ void Primrose::createDescriptorPool() {
 	VkDescriptorPoolSize poolSizes[2]{};
 	// uniform
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = (uint32_t)MAX_FRAMES_IN_FLIGHT;
+	poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 	// sampler
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = (uint32_t)MAX_FRAMES_IN_FLIGHT;
+	poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
 	VkDescriptorPoolCreateInfo info{};
 	info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1366,9 +1257,15 @@ void Primrose::cleanup() {
 	vkDestroyCommandPool(device, commandPool, nullptr);
 
 	vkDestroyPipeline(device, uiPipeline, nullptr);
-	vkDestroyPipeline(device, marchPipeline, nullptr);
+	vkDestroyPipelineLayout(device, uiPipelineLayout, nullptr);
+	if (rayAcceleration) {
+		vkDestroyPipeline(device, acceleratedPipeline, nullptr);
+		vkDestroyPipelineLayout(device, acceleratedPipelineLayout, nullptr);
+	} else {
+		vkDestroyPipeline(device, rasterPipeline, nullptr);
+		vkDestroyPipelineLayout(device, rasterPipelineLayout, nullptr);
+	}
 	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
 	cleanupSwapchain();
 	vkDestroyRenderPass(device, renderPass, nullptr);
@@ -1377,7 +1274,8 @@ void Primrose::cleanup() {
 	vkDestroySurfaceKHR(instance, surface, nullptr);
 
 	if (Settings::validationEnabled) {
-		auto vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+		auto vkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+			vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
 		if (vkDestroyDebugUtilsMessengerEXT == nullptr) {
 			//throw std::runtime_error("could not find vkDestroyDebugUtilsMessengerEXT");
 			std::cerr << "could not find vkDestroyDebugUtilsMessengerEXT" << std::endl;

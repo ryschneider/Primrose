@@ -24,8 +24,6 @@ namespace Primrose {
 	extern bool windowMinimized;
 	extern bool windowFocused;
 
-	extern bool rayAcceleration;
-
 	extern MarchUniforms uniforms;
 
 	extern std::vector<std::unique_ptr<UIElement>> uiScene;
@@ -33,6 +31,7 @@ namespace Primrose {
 	// engine constants
 	extern const std::vector<const char*> VALIDATION_LAYERS;
 	extern const std::vector<const char*> REQUIRED_EXTENSIONS;
+	extern const std::vector<const char*> RAY_EXTENSIONS;
 
 	extern const VkSurfaceFormatKHR IDEAL_SURFACE_FORMAT;
 	extern const VkPresentModeKHR IDEAL_PRESENT_MODE;

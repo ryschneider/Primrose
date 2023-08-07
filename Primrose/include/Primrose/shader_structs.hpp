@@ -102,7 +102,8 @@ namespace Primrose {
 			} else if (type == PRIM::TORUS || type == PRIM::LINE) {
 				return type == p.type && a == p.a;
 			} else {
-				throw std::runtime_error(fmt::format("Primitive operator== not defined for type {}", (uint)p.type));
+				throw std::runtime_error(fmt::format(
+					"Primitive operator== not defined for type {}", static_cast<uint>(p.type)));
 			}
 		}
 	};

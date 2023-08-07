@@ -7,7 +7,8 @@ fname=$(basename "$1") # eg. fname=main.vert
 name=${fname%.*} # eg. name=main
 stage=${fname##*.} # eg. stage=vert
 
-glslc -fshader-stage="$stage" "$1" -o "src/embed/${name}_$stage.spv"
+#glslc -fshader-stage="$stage" "$1" -o "src/embed/${name}_$stage.spv"
+glslc --target-env=vulkan1.3 "$1" -o "src/embed/${name}_$stage.spv"
 if [[ $? -ne 0 ]] ; then
   exit 1
 fi

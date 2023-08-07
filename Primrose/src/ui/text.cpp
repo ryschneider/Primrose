@@ -88,7 +88,7 @@ void Primrose::UIText::loadAlphabet(const char* fontPath) {
 		// uv coordinates
 		charTexture.bearingX = face->glyph->bitmap_left;
 		charTexture.bearingY = face->glyph->bitmap_top;
-		charTexture.advance = (float)face->glyph->advance.x / 64.f;
+		charTexture.advance = static_cast<float>(face->glyph->advance.x) / 64.f;
 
 		// skip empty characters like space
 		if (bitmap.width == 0 || bitmap.rows == 0) {
@@ -118,7 +118,7 @@ void Primrose::UIText::loadAlphabet(const char* fontPath) {
 	imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageInfo.extent = { (uint32_t)textureWidth, (uint32_t)textureHeight, 1 };
+	imageInfo.extent = { static_cast<uint32_t>(textureWidth), static_cast<uint32_t>(textureHeight), 1 };
 
 	if (vkCreateImage(device, &imageInfo, nullptr, &texture) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create character bitmap image");
@@ -217,9 +217,9 @@ std::vector<Primrose::UIVertex> Primrose::UIText::genVertices() {
 		float posBottom = posTop + tex.height;
 
 		// uv coords
-		float uvLeft = (float)tex.texX / (float)textureWidth;
-		float uvRight = (float)(tex.texX + tex.width) / (float)textureWidth;
-		float uvBottom = (float)tex.height / (float)textureHeight;
+		float uvLeft = static_cast<float>(tex.texX) / static_cast<float>(textureWidth);
+		float uvRight = static_cast<float>(tex.texX + tex.width) / static_cast<float>(textureWidth);
+		float uvBottom = static_cast<float>(tex.height) / static_cast<float>(textureHeight);
 
 		originX += tex.advance;
 		if (tex.width == 0 || tex.height == 0) continue; // don't render empty characters like space
@@ -242,8 +242,10 @@ std::vector<uint16_t> Primrose::UIText::genIndices() {
 	std::vector<uint16_t> indices;
 	int offset = 0;
 	for (const char& c : text) {
-		indices.insert(indices.end(), { (uint16_t)(offset+0), (uint16_t)(offset+1), (uint16_t)(offset+2) });
-		indices.insert(indices.end(), { (uint16_t)(offset+2), (uint16_t)(offset+1), (uint16_t)(offset+3) });
+		indices.insert(indices.end(), {
+			static_cast<uint16_t>(offset+0), static_cast<uint16_t>(offset+1), static_cast<uint16_t>(offset+2),
+			static_cast<uint16_t>(offset+2), static_cast<uint16_t>(offset+1), static_cast<uint16_t>(offset+3)
+		});
 		offset += 4;
 	}
 

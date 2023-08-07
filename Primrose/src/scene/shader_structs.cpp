@@ -128,10 +128,10 @@ std::string Primrose::MarchUniforms::toString() {
 		// find number of prims/transforms referenced
 		switch (op.type) {
 			case OP::IDENTITY:
-				if ((int)op.i > maxPrim) maxPrim = op.i;
+				if (static_cast<int>(op.i) > maxPrim) maxPrim = op.i;
 				break;
 			case OP::TRANSFORM:
-				if ((int)op.i > maxTransform) maxTransform = op.i;
+				if (static_cast<int>(op.i) > maxTransform) maxTransform = op.i;
 				break;
 			case OP::UNION:
 			case OP::INTERSECTION:

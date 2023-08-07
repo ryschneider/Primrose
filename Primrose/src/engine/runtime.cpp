@@ -58,7 +58,7 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
 	vkCmdBeginRenderPass(commandBuffer, &renderBeginInfo, VK_SUBPASS_CONTENTS_INLINE); // cmd: begin render pass
 
-//	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, marchPipeline); // cmd: bind pipeline
+//	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rasterPipeline); // cmd: bind pipeline
 
 	// set dynamic viewport and scissor
 	if (DYNAMIC_VIEWPORT) {
@@ -77,19 +77,25 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor); // cmd: set scissor
 	}
 
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rasterPipelineLayout,
 		0, 1, &currentFlight.descriptorSet, 0, nullptr); // cmd: bind descriptor sets
 
 	// push constants
 	PushConstants push{};
 	push.time = glfwGetTime();
-	vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+	vkCmdPushConstants(commandBuffer, rasterPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
 		sizeof(PushConstants), &push); // cmd: set push constants
 
-	// draw 3d scene
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, marchPipeline); // cmd: bind pipeline
+	if (rayAcceleration) {
+//		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, acceleratedPipeline);
 
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0); // cmd: draw
+//		vkCmdTraceRaysKHR(commandBuffer, )
+	} else {
+		// draw 3d scene
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rasterPipeline); // cmd: bind pipeline
+
+		vkCmdDraw(commandBuffer, 3, 1, 0, 0); // cmd: draw
+	}
 
 	// draw ui
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, uiPipeline); // cmd: bind pipeline
@@ -98,16 +104,16 @@ void Primrose::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 		if (element->hide) continue;
 		if (element->pPush != nullptr) {
 			// push custom struct
-			vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+			vkCmdPushConstants(commandBuffer, rasterPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
 				element->pushSize, element->pPush);
 		} else {
 			// push ui nodeType
-			vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+			vkCmdPushConstants(commandBuffer, rasterPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
 				sizeof(element->uiType), &element->uiType);
 		}
 
 		if (element->descriptorSet != VK_NULL_HANDLE) {
-			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rasterPipelineLayout,
 				0, 1, &element->descriptorSet, 0, nullptr);
 		}
 

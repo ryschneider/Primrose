@@ -15,15 +15,30 @@ add_compile_options(-Wold-style-cast)
 
 # build shader files
 add_custom_command(OUTPUT
+	${PROJECT_SOURCE_DIR}/Primrose/src/embed/main_rgen_spv.h
+	${PROJECT_SOURCE_DIR}/Primrose/src/embed/main_rint_spv.h
+	${PROJECT_SOURCE_DIR}/Primrose/src/embed/main_rchit_spv.h
+	${PROJECT_SOURCE_DIR}/Primrose/src/embed/main_rmiss_spv.h
 	${PROJECT_SOURCE_DIR}/Primrose/src/embed/flat_vert_spv.h
 	${PROJECT_SOURCE_DIR}/Primrose/src/embed/march_frag_spv.h
 	${PROJECT_SOURCE_DIR}/Primrose/src/embed/ui_vert_spv.h
 	${PROJECT_SOURCE_DIR}/Primrose/src/embed/ui_frag_spv.h
-	COMMAND bash -c "./shaders/buildshader.sh shaders/flat.vert"
-	COMMAND bash -c "./shaders/buildshader.sh shaders/march.frag"
-	COMMAND bash -c "./shaders/buildshader.sh shaders/ui.vert"
-	COMMAND bash -c "./shaders/buildshader.sh shaders/ui.frag"
-	DEPENDS Primrose/shaders/flat.vert Primrose/shaders/march.frag Primrose/shaders/ui.vert Primrose/shaders/ui.frag
+
+	COMMAND bash -c "./shaders/buildshader.sh shaders/accelerated/main.rgen"
+	COMMAND bash -c "./shaders/buildshader.sh shaders/accelerated/main.rint"
+	COMMAND bash -c "./shaders/buildshader.sh shaders/accelerated/main.rchit"
+	COMMAND bash -c "./shaders/buildshader.sh shaders/accelerated/main.rmiss"
+	COMMAND bash -c "./shaders/buildshader.sh shaders/raster/flat.vert"
+	COMMAND bash -c "./shaders/buildshader.sh shaders/raster/march.frag"
+	COMMAND bash -c "./shaders/buildshader.sh shaders/ui/ui.vert"
+	COMMAND bash -c "./shaders/buildshader.sh shaders/ui/ui.frag"
+
+	DEPENDS
+	Primrose/shaders/raster/flat.vert Primrose/shaders/raster/march.frag
+	Primrose/shaders/ui/ui.vert Primrose/shaders/ui/ui.frag
+	Primrose/shaders/accelerated/main.rgen Primrose/shaders/accelerated/main.rint
+	Primrose/shaders/accelerated/main.rchit Primrose/shaders/accelerated/main.rmiss
+
 	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/Primrose
 	COMMENT "Compiling shaders")
 
@@ -41,6 +56,10 @@ set(CMAKE_EXE_LINKER_FLAGS "-static")
 
 # build primrose library
 add_library(Primrose
+	Primrose/src/embed/main_rgen_spv.h
+	Primrose/src/embed/main_rint_spv.h
+	Primrose/src/embed/main_rchit_spv.h
+	Primrose/src/embed/main_rmiss_spv.h
 	Primrose/src/embed/flat_vert_spv.h
 	Primrose/src/embed/march_frag_spv.h
 	Primrose/src/embed/ui_vert_spv.h
@@ -49,18 +68,26 @@ add_library(Primrose
 
 	Primrose/src/engine/runtime.cpp Primrose/include/Primrose/engine/runtime.hpp
 	Primrose/src/engine/setup.cpp Primrose/include/Primrose/engine/setup.hpp
+	Primrose/src/engine/pipeline_accelerated.cpp Primrose/include/Primrose/engine/pipeline_accelerated.hpp
+	Primrose/src/engine/pipeline_raster.cpp Primrose/include/Primrose/engine/pipeline_raster.hpp
+
 	Primrose/src/ui/element.cpp Primrose/include/Primrose/ui/element.hpp
 	Primrose/src/ui/image.cpp Primrose/include/Primrose/ui/image.hpp
 	Primrose/src/ui/panel.cpp Primrose/include/Primrose/ui/panel.hpp
 	Primrose/src/ui/text.cpp Primrose/include/Primrose/ui/text.hpp
+
 	Primrose/src/state.cpp Primrose/include/Primrose/state.hpp
 	Primrose/src/scene/shader_structs.cpp Primrose/include/Primrose/shader_structs.hpp
 
-	Primrose/src/scene/scene.cpp
+	Primrose/src/scene/scene.cpp Primrose/include/Primrose/scene/scene.hpp
+	Primrose/src/scene/node.cpp Primrose/include/Primrose/scene/node.hpp
+	Primrose/src/scene/primitive_node.cpp Primrose/include/Primrose/scene/primitive_node.hpp
+	Primrose/src/scene/construction_node.cpp Primrose/include/Primrose/scene/construction_node.hpp
 
-	Primrose/include/Primrose/scene/scene.hpp
 	Primrose/include/Primrose/core.hpp
-	Primrose/include/Primrose/scene/node.hpp Primrose/src/scene/node.cpp Primrose/src/scene/primitive_node.cpp Primrose/include/Primrose/scene/primitive_node.hpp Primrose/src/scene/construction_node.cpp Primrose/include/Primrose/scene/construction_node.hpp Primrose/include/Primrose/scene/node_visitor.hpp)
+	Primrose/include/Primrose/scene/node_visitor.hpp
+
+	)
 
 target_include_directories(Primrose SYSTEM PUBLIC C:/dev/include)
 target_include_directories(Primrose SYSTEM PUBLIC C:/VulkanSDK/1.3.250.0/Include)

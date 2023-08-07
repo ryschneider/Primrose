@@ -22,10 +22,10 @@ void Scene::importScene(std::filesystem::path sceneFile) {
 	rapidjson::Document doc = loadDoc(sceneFile.string().c_str());
 
 	if (doc.IsObject()) {
-		processJson((Node*)&root, doc, sceneFile.parent_path());
+		processJson(reinterpret_cast<Node*>(&root), doc, sceneFile.parent_path());
 	} else {
 		for (const auto& v : doc.GetArray()) {
-			processJson((Node*)&root, v, sceneFile.parent_path());
+			processJson(reinterpret_cast<Node*>(&root), v, sceneFile.parent_path());
 		}
 	}
 }
@@ -85,7 +85,7 @@ Node* Scene::processJson(Node* parent, const rapidjson::Value& v, std::filesyste
 	if (type == "difference" && v.HasMember("subtractIndices")) {
 		for (const auto& sub : v["subtractIndices"].GetArray()) {
 			int i = sub.GetInt();
-			((DifferenceNode*)node)->subtractNodes.insert(node->getChildren()[i].get());
+			(static_cast<DifferenceNode*>(node))->subtractNodes.insert(node->getChildren()[i].get());
 		}
 	}
 
