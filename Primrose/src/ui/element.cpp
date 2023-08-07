@@ -46,15 +46,15 @@ void Primrose::UIElement::updateBuffers() {
 	vkDestroyBuffer(device, indexBuffer, nullptr);
 	vkFreeMemory(device, indexBufferMemory, nullptr);
 
-	VkDeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
-	createBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	vk::DeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
+	createBuffer(vertexBufferSize, vk::BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		vk::MEMORY_PROPERTY_DEVICE_LOCAL_BIT | vk::MEMORY_PROPERTY_HOST_VISIBLE_BIT | vk::MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		&vertexBuffer, &vertexBufferMemory);
 	writeToDevice(vertexBufferMemory, vertices.data(), vertexBufferSize);
 
-	VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
-	createBuffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	vk::DeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
+	createBuffer(indexBufferSize, vk::BUFFER_USAGE_INDEX_BUFFER_BIT,
+		vk::MEMORY_PROPERTY_DEVICE_LOCAL_BIT | vk::MEMORY_PROPERTY_HOST_VISIBLE_BIT | vk::MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		&indexBuffer, &indexBufferMemory);
 	writeToDevice(indexBufferMemory, indices.data(), indexBufferSize);
 }

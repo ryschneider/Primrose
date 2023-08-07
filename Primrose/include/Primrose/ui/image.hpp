@@ -19,10 +19,10 @@ namespace Primrose {
 
 		float aspect; // width / height
 
-		VkImage texture;
-		VkDeviceMemory textureMemory;
-		VkImageView imageView;
-		VkSampler sampler;
+		vk::Image texture;
+		vk::DeviceMemory textureMemory;
+		vk::ImageView imageView;
+		vk::Sampler sampler;
 	};
 }
 
