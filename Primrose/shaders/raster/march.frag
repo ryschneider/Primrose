@@ -465,17 +465,17 @@ void main() {
 //		}
 //	}
 
-	Bounce bounce = Bounce(ray, NO_MAT, 1);
-	for (int i = 0; i < numBounces+1; ++i) {
-		Hit hit = march(bounce.ray);
-
-		if (hit.mat != NO_MAT) {
-			hit = dither(hit, bounce.ray);
-			renderMaterial(hit, bounce, color);
-		}
-
-		bounce = bounces[i];
-	}
+//	Bounce bounce = Bounce(ray, NO_MAT, 1);
+//	for (int i = 0; i < numBounces+1; ++i) {
+//		Hit hit = march(bounce.ray);
+//
+//		if (hit.mat != NO_MAT) {
+//			hit = dither(hit, bounce.ray);
+//			renderMaterial(hit, bounce, color);
+//		}
+//
+//		bounce = bounces[i];
+//	}
 
 	fragColor = vec4(color, 1.f);
 
