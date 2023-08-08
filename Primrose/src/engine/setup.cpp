@@ -179,21 +179,6 @@ namespace Primrose {
 			return indices;
 		}
 
-		struct SwapchainDetails {
-			vk::SurfaceCapabilitiesKHR capabilities;
-			std::vector<vk::SurfaceFormatKHR> formats;
-			std::vector<vk::PresentModeKHR> presentModes;
-		};
-		SwapchainDetails getSwapchainDetails(vk::PhysicalDevice phyDevice) {
-			SwapchainDetails details;
-
-			details.capabilities = phyDevice.getSurfaceCapabilitiesKHR(surface);
-			details.formats = phyDevice.getSurfaceFormatsKHR(surface);
-			details.presentModes = phyDevice.getSurfacePresentModesKHR(surface);
-
-			return details;
-		}
-
 		bool isPhysicalDeviceSuitable(vk::PhysicalDevice phyDevice) {
 			// check for correct queue families
 			QueueFamilyIndices indices = getQueueFamilies(phyDevice);
@@ -733,20 +718,26 @@ void Primrose::createLogicalDevice() {
 }
 
 void Primrose::createSwapchain() {
-	SwapchainDetails swapDetails = getSwapchainDetails(physicalDevice);
-	auto swapCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
-	auto swapCormats = physicalDevice.getSurfaceFormatsKHR(surface);
-	auto swapCresentModes = physicalDevice.getSurfacePresentModesKHR(surface);
+	vk::SurfaceCapabilitiesKHR swapCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+	std::vector<vk::SurfaceFormatKHR> swapFormats = physicalDevice.getSurfaceFormatsKHR(surface);
+	std::vector<vk::PresentModeKHR> swapPresentModes = physicalDevice.getSurfacePresentModesKHR(surface);
 
 	// choose surface format
 	bool ideal = false;
-	vk::SurfaceFormatKHR surfaceFormat = swapDetails.formats[0]; // default if ideal not found
-	for (const auto& format : swapDetails.formats) {
+	vk::SurfaceFormatKHR surfaceFormat = swapFormats[0]; // default if ideal not found
+	std::cout << "looking for: " << to_string(IDEAL_SURFACE_FORMAT.format) << ", " << to_string(IDEAL_SURFACE_FORMAT.colorSpace) << std::endl;
+	for (const auto format : swapFormats) {
+		std::cout << "candidate: " << to_string(format.format) << ", " << to_string(format.colorSpace) << std::endl;
 		if (format.format == IDEAL_SURFACE_FORMAT.format && format.colorSpace == IDEAL_SURFACE_FORMAT.colorSpace) {
 			surfaceFormat = format;
 			ideal = true;
 			break;
 		}
+//		if (format.format == IDEAL_SURFACE_FORMAT.format && format.colorSpace == IDEAL_SURFACE_FORMAT.colorSpace) {
+//			surfaceFormat = format;
+//			ideal = true;
+//			break;
+//		}
 	}
 	std::cout << "Swapchain format: " << to_string(surfaceFormat.format) << ", " << to_string(surfaceFormat.colorSpace);
 	std::cout << (ideal ? " (ideal)" : " (not ideal)") << std::endl;
@@ -755,7 +746,7 @@ void Primrose::createSwapchain() {
 	// choose presentation mode
 	ideal = false;
 	vk::PresentModeKHR presentMode = vk::PresentModeKHR::eFifo;
-	for (const auto& availableMode : swapDetails.presentModes) {
+	for (const auto& availableMode : swapPresentModes) {
 		if (availableMode == IDEAL_PRESENT_MODE) {
 			presentMode = availableMode;
 			ideal = true;
@@ -767,24 +758,24 @@ void Primrose::createSwapchain() {
 	glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
 	// choose swap extent (resolution of images)
-	if (swapDetails.capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
+	if (swapCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
 		// if currentExtent.width is max value, use the size of the window as extent
 
 		// keep within min and max image extent allowed by swapchain
 		swapchainExtent.width = std::clamp((uint32_t)windowWidth,
-			swapDetails.capabilities.minImageExtent.width, swapDetails.capabilities.maxImageExtent.width);
+			swapCapabilities.minImageExtent.width, swapCapabilities.maxImageExtent.width);
 		swapchainExtent.height = std::clamp((uint32_t)windowHeight,
-			swapDetails.capabilities.minImageExtent.height, swapDetails.capabilities.maxImageExtent.height);
+			swapCapabilities.minImageExtent.height, swapCapabilities.maxImageExtent.height);
 	} else {
-		swapchainExtent = swapDetails.capabilities.currentExtent; // use extent given
+		swapchainExtent = swapCapabilities.currentExtent; // use extent given
 	}
 	std::cout << "Swapchain extent: (" << swapchainExtent.width << ", " << swapchainExtent.height << ")" << std::endl;
 
 	// number of images held by swapchain
-	uint32_t imageCount = swapDetails.capabilities.minImageCount + 1; // use 1 more than minimum
-	if (imageCount > swapDetails.capabilities.maxImageCount // up to maximum
-		&& swapDetails.capabilities.maxImageCount > 0) { // 0 means unlimited maximum
-		imageCount = swapDetails.capabilities.maxImageCount;
+	uint32_t imageCount = swapCapabilities.minImageCount + 1; // use 1 more than minimum
+	if (imageCount > swapCapabilities.maxImageCount // up to maximum
+		&& swapCapabilities.maxImageCount > 0) { // 0 means unlimited maximum
+		imageCount = swapCapabilities.maxImageCount;
 	}
 
 	// create info
@@ -814,7 +805,7 @@ void Primrose::createSwapchain() {
 		createInfo.pQueueFamilyIndices = familyIndices;
 	}
 
-	createInfo.preTransform = swapDetails.capabilities.currentTransform; // no special transformations
+	createInfo.preTransform = swapCapabilities.currentTransform; // no special transformations
 	createInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque; // alpha bit is ignored by compositor
 	createInfo.clipped = VK_TRUE; // cull pixels that are covered by other windows
 
@@ -824,8 +815,8 @@ void Primrose::createSwapchain() {
 
 	// print num of images (device could have chosen different number than imageCount)
 	std::cout << "Swapchain images: " << device.getSwapchainImagesKHR(swapchain).size();
-	std::cout << " (" << swapDetails.capabilities.minImageCount << " to ";
-	std::cout << swapDetails.capabilities.maxImageCount << ")" << std::endl;
+	std::cout << " (" << swapCapabilities.minImageCount << " to ";
+	std::cout << swapCapabilities.maxImageCount << ")" << std::endl;
 
 	std::cout << std::endl; // newline to seperate prints
 }
