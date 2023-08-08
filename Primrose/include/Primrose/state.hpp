@@ -34,7 +34,6 @@ namespace Primrose {
 
 	extern const vk::SurfaceFormatKHR IDEAL_SURFACE_FORMAT;
 	extern const vk::PresentModeKHR IDEAL_PRESENT_MODE;
-	extern const std::map<int, const char*> PRESENT_MODE_STRINGS;
 
 	extern const bool DYNAMIC_VIEWPORT;
 

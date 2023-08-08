@@ -148,7 +148,7 @@ int main() {
 	keyCallback = keyCb;
 
 	// load scene
-	mainScene.importScene("scenes/perftest.json");
+	mainScene.importScene("scenes/tmp.json");
 	mainScene.generateUniforms();
 
 //	std::cout << uniforms.toString() << std::endl;

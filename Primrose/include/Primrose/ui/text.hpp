@@ -6,6 +6,7 @@
 #include <freetype/ft2build.h>
 #include FT_FREETYPE_H
 #include <map>
+#include <vulkan/vulkan.hpp>
 
 struct CharTexture {
 	vk::Buffer buffer;

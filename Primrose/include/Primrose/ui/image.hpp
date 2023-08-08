@@ -2,6 +2,7 @@
 #define PRIMROSE_IMAGE_HPP
 
 #include "element.hpp"
+#include <vulkan/vulkan.hpp>
 
 namespace Primrose {
 	class UIImage: public UIElement {

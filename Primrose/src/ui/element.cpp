@@ -47,14 +47,16 @@ void Primrose::UIElement::updateBuffers() {
 	vkFreeMemory(device, indexBufferMemory, nullptr);
 
 	vk::DeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
-	createBuffer(vertexBufferSize, vk::BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		vk::MEMORY_PROPERTY_DEVICE_LOCAL_BIT | vk::MEMORY_PROPERTY_HOST_VISIBLE_BIT | vk::MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	createBuffer(vertexBufferSize, vk::BufferUsageFlagBits::eVertexBuffer,
+		vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
+		| vk::MemoryPropertyFlagBits::eHostCoherent,
 		&vertexBuffer, &vertexBufferMemory);
 	writeToDevice(vertexBufferMemory, vertices.data(), vertexBufferSize);
 
 	vk::DeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
-	createBuffer(indexBufferSize, vk::BUFFER_USAGE_INDEX_BUFFER_BIT,
-		vk::MEMORY_PROPERTY_DEVICE_LOCAL_BIT | vk::MEMORY_PROPERTY_HOST_VISIBLE_BIT | vk::MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	createBuffer(indexBufferSize, vk::BufferUsageFlagBits::eIndexBuffer,
+		vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
+		| vk::MemoryPropertyFlagBits::eHostCoherent,
 		&indexBuffer, &indexBufferMemory);
 	writeToDevice(indexBufferMemory, indices.data(), indexBufferSize);
 }

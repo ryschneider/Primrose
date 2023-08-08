@@ -6,6 +6,7 @@
 #include <glm/vec2.hpp>
 #include <string>
 #include <memory>
+#include <vulkan/vulkan.hpp>
 
 namespace Primrose {
 	class UIElement {
@@ -22,8 +23,8 @@ namespace Primrose {
 		void* pPush = nullptr;
 		uint32_t pushSize = 0;
 
-		vk::Buffer vertexBuffer = vk::NULL_HANDLE;
-		vk::Buffer indexBuffer = vk::NULL_HANDLE;
+		vk::Buffer vertexBuffer = VK_NULL_HANDLE;
+		vk::Buffer indexBuffer = VK_NULL_HANDLE;
 		int numIndices;
 
 		vk::DescriptorSet descriptorSet;
@@ -40,8 +41,8 @@ namespace Primrose {
 		virtual std::vector<UIVertex> genVertices();
 		virtual std::vector<uint16_t> genIndices();
 
-		vk::DeviceMemory vertexBufferMemory = vk::NULL_HANDLE;
-		vk::DeviceMemory indexBufferMemory = vk::NULL_HANDLE;
+		vk::DeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
+		vk::DeviceMemory indexBufferMemory = VK_NULL_HANDLE;
 	};
 }
 

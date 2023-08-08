@@ -1,6 +1,7 @@
 #include "fps_counter.hpp"
 #include <Primrose/ui/text.hpp>
 #include <Primrose/state.hpp>
+#include <GLFW/glfw3.h>
 
 using namespace Primrose;
 

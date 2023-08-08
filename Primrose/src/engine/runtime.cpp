@@ -38,24 +38,20 @@ void Primrose::run(void(*callback)(float)) {
 
 void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex, FrameInFlight& currentFlight) {
 	vk::CommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = vk::STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != vk::SUCCESS) {
-		throw std::runtime_error("failed to begin recording cmd buffer");
-	}
+	commandBuffer.begin(beginInfo);
 
 	vk::RenderPassBeginInfo renderBeginInfo{};
-	renderBeginInfo.sType = vk::STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderBeginInfo.renderPass = renderPass;
 	renderBeginInfo.framebuffer = swapchainFrames[imageIndex].framebuffer;
 
-	renderBeginInfo.renderArea.offset = { 0, 0 };
+	renderBeginInfo.renderArea.offset = vk::Offset2D(0, 0);
 	renderBeginInfo.renderArea.extent = swapchainExtent;
 
-	vk::ClearValue clearColor = {{{1.f, 0.f, 1.f, 1.f}}}; // magenta, not intended to be shown
+	vk::ClearValue clearColor = vk::ClearValue(vk::ClearColorValue(1.f, 0.f, 1.f, 1.f)); // magenta, should not be shown
 	renderBeginInfo.clearValueCount = 1;
 	renderBeginInfo.pClearValues = &clearColor;
 
-	vkCmdBeginRenderPass(commandBuffer, &renderBeginInfo, vk::SUBPASS_CONTENTS_INLINE); // cmd: begin render pass
+	commandBuffer.beginRenderPass(renderBeginInfo, vk::SubpassContents::eInline); // cmd: begin render pass
 
 //	vkCmdBindPipeline(commandBuffer, vk::PIPELINE_BIND_POINT_GRAPHICS, marchPipeline); // cmd: bind pipeline
 
@@ -68,62 +64,60 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 		viewport.height = static_cast<float>(swapchainExtent.height);
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
-		vkCmdSetViewport(commandBuffer, 0, 1, &viewport); // cmd: set viewport size
+		commandBuffer.setViewport(0, 1, &viewport); // cmd: set viewport size
 
 		vk::Rect2D scissor{};
-		scissor.offset = { 0, 0 };
+		scissor.offset = vk::Offset2D(0, 0);
 		scissor.extent = swapchainExtent;
-		vkCmdSetScissor(commandBuffer, 0, 1, &scissor); // cmd: set scissor
+		commandBuffer.setScissor(0, 1, &scissor);
 	}
 
-	vkCmdBindDescriptorSets(commandBuffer, vk::PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout,
 		0, 1, &currentFlight.descriptorSet, 0, nullptr); // cmd: bind descriptor sets
 
 	// push constants
 	PushConstants push{};
 	push.time = glfwGetTime();
-	vkCmdPushConstants(commandBuffer, pipelineLayout, vk::SHADER_STAGE_FRAGMENT_BIT, 0,
+	commandBuffer.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
 		sizeof(PushConstants), &push); // cmd: set push constants
 
 	// draw 3d scene
-	vkCmdBindPipeline(commandBuffer, vk::PIPELINE_BIND_POINT_GRAPHICS, marchPipeline); // cmd: bind pipeline
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, marchPipeline); // cmd: bind pipeline
 
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0); // cmd: draw
+	commandBuffer.draw(3, 1, 0, 0); // cmd: draw
 
 	// draw ui
-	vkCmdBindPipeline(commandBuffer, vk::PIPELINE_BIND_POINT_GRAPHICS, uiPipeline); // cmd: bind pipeline
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, uiPipeline); // cmd: bind pipeline
 
 	for (const auto& element : uiScene) {
 		if (element->hide) continue;
 		if (element->pPush != nullptr) {
 			// push custom struct
-			vkCmdPushConstants(commandBuffer, pipelineLayout, vk::SHADER_STAGE_FRAGMENT_BIT, 0,
+			commandBuffer.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
 				element->pushSize, element->pPush);
 		} else {
 			// push ui nodeType
-			vkCmdPushConstants(commandBuffer, pipelineLayout, vk::SHADER_STAGE_FRAGMENT_BIT, 0,
+			commandBuffer.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
 				sizeof(element->uiType), &element->uiType);
 		}
 
-		if (element->descriptorSet != vk::NULL_HANDLE) {
-			vkCmdBindDescriptorSets(commandBuffer, vk::PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+		if (VkDescriptorSet(element->descriptorSet) != VK_NULL_HANDLE) {
+			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout,
 				0, 1, &element->descriptorSet, 0, nullptr);
 		}
 
 		vk::DeviceSize offset = 0;
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &(element->vertexBuffer), &offset);
-		vkCmdBindIndexBuffer(commandBuffer, element->indexBuffer, 0, vk::INDEX_TYPE_UINT16);
+		commandBuffer.bindVertexBuffers(0, 1, &(element->vertexBuffer), &offset);
+		commandBuffer.bindIndexBuffer(element->indexBuffer, 0, vk::IndexType::eUint16);
 
-		vkCmdDrawIndexed(commandBuffer, element->numIndices, 1, 0, 0, 0);
+		commandBuffer.drawIndexed(element->numIndices, 1, 0, 0, 0);
 	}
 
 	renderPassCallback(commandBuffer);
 
-	vkCmdEndRenderPass(commandBuffer); // cmd: end render
+	commandBuffer.endRenderPass(); // cmd: end render
 
-	if (vkEndCommandBuffer(commandBuffer) != vk::SUCCESS) {
-		throw std::runtime_error("failed to record command buffer");
-	}
+	commandBuffer.end();
 }
 
 void Primrose::updateUniforms(FrameInFlight& frame) {
@@ -141,20 +135,21 @@ void Primrose::drawFrame() {
 	auto& currentFlight = framesInFlight[flightIndex];
 
 	// don't clear the command buffer until the last frame is finished
-	vkWaitForFences(device, 1, &currentFlight.inFlightFence, vk::TRUE, UINT64_MAX);
+	if (device.waitForFences(1, &currentFlight.inFlightFence, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess) {
+		throw std::runtime_error("failed to wait for fences");
+	}
 
-	uint32_t imageIndex;
-	vk::Result result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, currentFlight.imageAvailableSemaphore,
-		vk::NULL_HANDLE, &imageIndex); // signal imageAvailableSemaphore once the image is acquired
+	auto res = device.acquireNextImageKHR(swapchain, UINT64_MAX,
+		currentFlight.imageAvailableSemaphore, VK_NULL_HANDLE);
 
-	if (result == vk::ERROR_OUT_OF_DATE_KHR) {
+	if (res.result == vk::Result::eErrorOutOfDateKHR) {
 		recreateSwapchain();
 		return;
-	}
-	else if (result != vk::SUCCESS && result != vk::SUBOPTIMAL_KHR) {
+	} else if (res.result != vk::Result::eSuccess && res.result != vk::Result::eSuboptimalKHR) {
 		// if swapchain is suboptimal it will be recreated later
 		throw std::runtime_error("failed to acquire swap chain image");
 	}
+	uint32_t imageIndex = res.value;
 
 	updateUniforms(currentFlight);
 
@@ -162,10 +157,9 @@ void Primrose::drawFrame() {
 	recordCommandBuffer(currentFlight.commandBuffer, imageIndex, currentFlight);
 
 	vk::SubmitInfo submitInfo{};
-	submitInfo.sType = vk::STRUCTURE_TYPE_SUBMIT_INFO;
 
 	// once the gpu reaches the color attachment stage, wait until the image is actually available
-	vk::PipelineStageFlags flag = vk::PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	vk::PipelineStageFlags flag = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 	submitInfo.pWaitDstStageMask = &flag;
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = &currentFlight.imageAvailableSemaphore;
@@ -177,26 +171,22 @@ void Primrose::drawFrame() {
 	submitInfo.pSignalSemaphores = &currentFlight.renderFinishedSemaphore;
 
 	// submits command to the graphics queue
-	vkResetFences(device, 1, &currentFlight.inFlightFence); // clear fence for use below
-	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, currentFlight.inFlightFence) != vk::SUCCESS) {
-		throw std::runtime_error("failed to submit draw command buffer");
-	}
+	device.resetFences({currentFlight.inFlightFence}); // clear fence for use below
+	graphicsQueue.submit({submitInfo}, currentFlight.inFlightFence);
 
 	vk::PresentInfoKHR presentInfo{};
-	presentInfo.sType = vk::STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = &currentFlight.renderFinishedSemaphore; // wait for the render to finish before presenting
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &swapchain; // swapchain we're presenting to
 	presentInfo.pImageIndices = &imageIndex; // image we're presenting
 
-	result = vkQueuePresentKHR(presentQueue, &presentInfo);
-	if (result == vk::ERROR_OUT_OF_DATE_KHR || result == vk::SUBOPTIMAL_KHR || windowResized) {
+	vk::Result result = presentQueue.presentKHR(presentInfo);
+	if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || windowResized) {
 		recreateSwapchain();
 		windowResized = false;
-	}
-	else if (result != vk::SUCCESS) {
-		throw std::runtime_error("failed to present swapchain image");
+	} else if (result != vk::Result::eSuccess) {
+//		throw std::runtime_error("failed to present swapchain image");
 	}
 
 	// go to next frame in flight

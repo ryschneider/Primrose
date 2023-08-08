@@ -19,22 +19,13 @@ namespace Primrose {
 
 	std::vector<std::unique_ptr<UIElement>> uiScene{};
 
-	const std::vector<const char*> VALIDATION_LAYERS = { "vk::LAYER_KHRONOS_validation" };
-	const std::vector<const char*> REQUIRED_EXTENSIONS = {
-		vk::KHR_SWAPCHAIN_EXTENSION_NAME,
-	};
+	const std::vector<const char*> VALIDATION_LAYERS = { "VK_LAYER_KHRONOS_validation" };
+	const std::vector<const char*> REQUIRED_EXTENSIONS = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-	const vk::SurfaceFormatKHR IDEAL_SURFACE_FORMAT = { vk::FORMAT_B8G8R8A8_SRGB, vk::COLOR_SPACE_SRGB_NONLINEAR_KHR };
-	//const vk::PresentModeKHR IDEAL_PRESENT_MODE = vk::PRESENT_MODE_MAILBOX_KHR;
-	const vk::PresentModeKHR IDEAL_PRESENT_MODE = vk::PRESENT_MODE_IMMEDIATE_KHR;
-	const std::map<int, const char*> PRESENT_MODE_STRINGS = {
-		{ vk::PRESENT_MODE_IMMEDIATE_KHR, "IMMEDIATE" },
-		{ vk::PRESENT_MODE_MAILBOX_KHR, "MAILBOX" },
-		{ vk::PRESENT_MODE_FIFO_KHR, "FIFO" },
-		{ vk::PRESENT_MODE_FIFO_RELAXED_KHR, "FIFO_RELAXED" },
-		{ vk::PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR, "SHARED_DEMAND_REFRESH" },
-		{ vk::PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR, "SHARED_CONTINUOUS_REFRESH" }
-	};
+	const vk::SurfaceFormatKHR IDEAL_SURFACE_FORMAT = vk::SurfaceFormatKHR(
+		vk::Format::eR8G8B8A8Srgb, vk::ColorSpaceKHR::eSrgbNonlinear);
+	//const vk::PresentModeKHR IDEAL_PRESENT_MODE = vk::PresentModeKHR::eMailbox;
+	const vk::PresentModeKHR IDEAL_PRESENT_MODE = vk::PresentModeKHR::eImmediate;
 
 	const bool DYNAMIC_VIEWPORT = true;
 

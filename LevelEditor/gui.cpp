@@ -104,35 +104,31 @@ void guiKeyCb(int key, int action, int mods) {
 }
 
 void createImguiDescriptorPool() {
-	vk::DescriptorPoolSize pool_sizes[] =
-		{
-			{ vk::DESCRIPTOR_TYPE_SAMPLER, 1000 },
-			{ vk::DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-			{ vk::DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-			{ vk::DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-			{ vk::DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-			{ vk::DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-			{ vk::DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-			{ vk::DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-			{ vk::DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-			{ vk::DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-			{ vk::DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-		};
+	vk::DescriptorPoolSize pool_sizes[] = {
+		vk::DescriptorPoolSize(vk::DescriptorType::eSampler, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eSampler, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eSampledImage, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eStorageImage, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eUniformTexelBuffer, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eStorageTexelBuffer, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBufferDynamic, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eStorageBufferDynamic, 1000),
+		vk::DescriptorPoolSize(vk::DescriptorType::eInputAttachment, 1000)};
 
 	vk::DescriptorPoolCreateInfo pool_info = {};
-	pool_info.sType = vk::STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.flags = vk::DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 	pool_info.maxSets = 1000;
 	pool_info.poolSizeCount = std::size(pool_sizes);
 	pool_info.pPoolSizes = pool_sizes;
 
-	if (vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiDescriptorPool) != vk::SUCCESS) {
-		throw std::runtime_error("failed to create imgui descriptor pool");
-	}
+	imguiDescriptorPool = device.createDescriptorPool(pool_info);
 }
 
-void checkVk(vk::Result res) {
-	if (res != vk::SUCCESS) {
+void checkVk(VkResult res) {
+	if (res != VK_SUCCESS) {
 		throw std::runtime_error("IMGUI VULKAN ERROR");
 	}
 }
@@ -158,8 +154,8 @@ void setupGui() {
 	info.DescriptorPool = imguiDescriptorPool;
 	info.MinImageCount = swapchainFrames.size();
 	info.ImageCount = swapchainFrames.size();
-	info.MSAASamples = vk::SAMPLE_COUNT_1_BIT;
-	info.Checkvk::ResultFn = checkVk;
+	info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	info.CheckVkResultFn = checkVk;
 
 	ImGui_ImplVulkan_Init(&info, renderPass);
 
