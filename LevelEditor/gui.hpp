@@ -13,7 +13,7 @@ void guiKeyCb(int key, int action, int mods);
 
 void setupGui();
 bool updateGui(Primrose::Scene& scene, float dt);
-void renderGui(VkCommandBuffer& cmd);
+void renderGui(vk::CommandBuffer& cmd);
 void cleanupGui();
 
 #endif

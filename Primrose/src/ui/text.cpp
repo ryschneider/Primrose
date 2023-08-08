@@ -35,21 +35,20 @@ void Primrose::UIText::createDescriptorSet() {
 	allocateDescriptorSet(&descriptorSet);
 
 	// write to descriptor set
-	VkWriteDescriptorSet descriptorWrite{};
-	descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	vk::WriteDescriptorSet descriptorWrite{};
 	descriptorWrite.dstSet = descriptorSet; // which set to update
 	descriptorWrite.dstArrayElement = 0; // not using an array, 0
 	descriptorWrite.descriptorCount = 1;
 
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	vk::DescriptorImageInfo imageInfo{};
+	imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 	imageInfo.imageView = imageView;
 	imageInfo.sampler = sampler;
 	descriptorWrite.dstBinding = 1; // which binding index
-	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptorWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
 	descriptorWrite.pImageInfo = &imageInfo;
 
-	vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr); // apply write
+	device.updateDescriptorSets({descriptorWrite}, nullptr); // apply write
 }
 
 void Primrose::UIText::loadAlphabet(const char* fontPath) {
@@ -97,9 +96,9 @@ void Primrose::UIText::loadAlphabet(const char* fontPath) {
 		};
 
 		// create staging buffer
-		VkDeviceSize dataSize = bitmap.width * bitmap.rows;
-		createBuffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		vk::DeviceSize dataSize = bitmap.width * bitmap.rows;
+		createBuffer(dataSize, vk::BufferUsageFlagBits::eTransferSrc,
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
 			&charTexture.buffer, &charTexture.bufferMemory);
 		writeToDevice(charTexture.bufferMemory, bitmap.buffer, dataSize);
 
@@ -107,61 +106,55 @@ void Primrose::UIText::loadAlphabet(const char* fontPath) {
 	}
 
 	// create image
-	VkImageCreateInfo imageInfo{};
-	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.imageType = VK_IMAGE_TYPE_2D;
+	vk::ImageCreateInfo imageInfo{};
+	imageInfo.imageType = vk::ImageType::e2D;
 	imageInfo.mipLevels = 1; // no mipmapping
 	imageInfo.arrayLayers = 1; // not a layered image
-	imageInfo.format = VK_FORMAT_R8_SRGB;
-	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageInfo.extent = { static_cast<uint32_t>(textureWidth), static_cast<uint32_t>(textureHeight), 1 };
+	imageInfo.format = vk::Format::eR8Srgb;
+	imageInfo.tiling = vk::ImageTiling::eOptimal;
+	imageInfo.initialLayout = vk::ImageLayout::eUndefined;
+	imageInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
+	imageInfo.sharingMode = vk::SharingMode::eExclusive;
+	imageInfo.samples = vk::SampleCountFlagBits::e1;
+	imageInfo.extent = vk::Extent3D(textureWidth, textureHeight, 1);
 
-	if (vkCreateImage(device, &imageInfo, nullptr, &texture) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create character bitmap image");
-	}
+	texture = device.createImage(imageInfo);
 
 	// create & bind image memory
-	VkMemoryRequirements memReqs;
-	vkGetImageMemoryRequirements(device, texture, &memReqs);
-	createDeviceMemory(memReqs, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &textureMemory);
+	vk::MemoryRequirements memReqs = device.getImageMemoryRequirements(texture);
+	createDeviceMemory(memReqs, vk::MemoryPropertyFlagBits::eDeviceLocal, &textureMemory);
 	vkBindImageMemory(device, texture, textureMemory, 0);
 
 	// transition image layout to optimal destination layout
-	transitionImageLayout(texture, VK_FORMAT_R8_SRGB,
-		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	transitionImageLayout(texture, vk::Format::eR8Srgb,
+		vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 
 	// copy data to image
-	VkCommandBuffer cmdBuffer = startSingleTimeCommandBuffer();
+	vk::CommandBuffer cmdBuffer = startSingleTimeCommandBuffer();
 
 	for (const auto& pair : characters) {
 		const auto& tex = pair.second;
 		if (tex.width == 0 || tex.height == 0) continue;
 
-		VkBufferImageCopy region{};
+		vk::BufferImageCopy region{};
 		region.bufferOffset = 0;
 		region.bufferRowLength = 0; // 0 to use region.imageExtent
 		region.bufferImageHeight = 0;
-		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
 		region.imageSubresource.mipLevel = 0;
 		region.imageSubresource.baseArrayLayer = 0;
 		region.imageSubresource.layerCount = 1;
-		region.imageOffset = {tex.texX, 0, 0 };
-		region.imageExtent = { tex.width, tex.height, 1 };
+		region.imageOffset = vk::Offset3D(tex.texX, 0, 0);
+		region.imageExtent = vk::Extent3D(tex.width, tex.height, 1);
 
-		vkCmdCopyBufferToImage(cmdBuffer, pair.second.buffer,
-			texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			1, &region);
+		cmdBuffer.copyBufferToImage(pair.second.buffer, texture, vk::ImageLayout::eTransferDstOptimal, {region});
 	}
 
 	endSingleTimeCommandBuffer(cmdBuffer);
 
 	// transition image layout to optimal shader reading layout
-	transitionImageLayout(texture, VK_FORMAT_R8_SRGB,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	transitionImageLayout(texture, vk::Format::eR8Srgb,
+		vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 
 	// cleanup character texture buffers
 	for (const auto& pair : characters) {
@@ -171,32 +164,28 @@ void Primrose::UIText::loadAlphabet(const char* fontPath) {
 	}
 
 	// create image view
-	imageView = createImageView(texture, VK_FORMAT_R8_SRGB);
+	imageView = createImageView(texture, vk::Format::eR8Srgb);
 
 	// create sampler
-	VkPhysicalDeviceProperties deviceProperties{};
-	vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+	vk::PhysicalDeviceProperties deviceProperties = physicalDevice.getProperties();
 
-	VkSamplerCreateInfo samplerInfo{};
-	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerInfo.magFilter = VK_FILTER_LINEAR; // when magnified, ie one fragment corresponds to multiple image pixels
-	samplerInfo.minFilter = VK_FILTER_LINEAR; // when minified, ie one fragment is between image pixels
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vk::SamplerCreateInfo samplerInfo{};
+	samplerInfo.magFilter = vk::Filter::eLinear; // when magnified, ie one fragment corresponds to multiple image pixels
+	samplerInfo.minFilter = vk::Filter::eLinear; // when minified, ie one fragment is between image pixels
+	samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
+	samplerInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
+	samplerInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
 	samplerInfo.anisotropyEnable = VK_TRUE; // TODO add to performance settings
 	samplerInfo.maxAnisotropy = deviceProperties.limits.maxSamplerAnisotropy;
 	samplerInfo.unnormalizedCoordinates = VK_FALSE; // true to sample using width/height coords instead of 0-1 range
 	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.compareOp = vk::CompareOp::eAlways;
+	samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
 	samplerInfo.mipLodBias = 0;
 	samplerInfo.minLod = 0;
 	samplerInfo.maxLod = 0;
 
-	if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture sampler");
-	}
+	sampler = device.createSampler(samplerInfo);
 }
 
 std::vector<Primrose::UIVertex> Primrose::UIText::genVertices() {

@@ -6,10 +6,11 @@
 #include <freetype/ft2build.h>
 #include FT_FREETYPE_H
 #include <map>
+#include <vulkan/vulkan.hpp>
 
 struct CharTexture {
-	VkBuffer buffer;
-	VkDeviceMemory bufferMemory;
+	vk::Buffer buffer;
+	vk::DeviceMemory bufferMemory;
 
 	// texture coordinates (in px)
 	int32_t texX;
@@ -57,10 +58,10 @@ namespace Primrose {
 		int textureWidth;
 		int textureHeight;
 
-		VkImage texture;
-		VkDeviceMemory textureMemory;
-		VkImageView imageView;
-		VkSampler sampler;
+		vk::Image texture;
+		vk::DeviceMemory textureMemory;
+		vk::ImageView imageView;
+		vk::Sampler sampler;
 	};
 }
 

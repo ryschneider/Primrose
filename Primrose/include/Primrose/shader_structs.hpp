@@ -1,8 +1,6 @@
 #ifndef PRIMROSE_SHADER_STRUCTS_HPP
 #define PRIMROSE_SHADER_STRUCTS_HPP
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <array>
 #include <vector>
@@ -11,6 +9,7 @@
 #include <fmt/format.h>
 #include <glm/gtx/transform.hpp>
 #include <map>
+#include <vulkan/vulkan.hpp>
 
 typedef unsigned int uint;
 
@@ -146,26 +145,26 @@ namespace Primrose {
 		glm::vec2 pos;
 		glm::vec2 uv;
 
-		static VkVertexInputBindingDescription getBindingDescription() {
-			VkVertexInputBindingDescription bindingDesc{};
+		static vk::VertexInputBindingDescription getBindingDescription() {
+			vk::VertexInputBindingDescription bindingDesc{};
 			bindingDesc.binding = 0;
 			bindingDesc.stride = sizeof(UIVertex);
-			bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+			bindingDesc.inputRate = vk::VertexInputRate::eVertex;
 
 			return bindingDesc;
 		}
 
-		static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-			std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+		static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
+			std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
 
 			attributeDescriptions[0].binding = 0;
 			attributeDescriptions[0].location = 0;
-			attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+			attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
 			attributeDescriptions[0].offset = offsetof(UIVertex, pos);
 
 			attributeDescriptions[1].binding = 0;
 			attributeDescriptions[1].location = 1;
-			attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+			attributeDescriptions[1].format = vk::Format::eR32G32Sfloat;
 			attributeDescriptions[1].offset = offsetof(UIVertex, uv);
 
 			return attributeDescriptions;

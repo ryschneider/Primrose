@@ -1,77 +1,77 @@
 #ifndef PRIMROSE_SETUP_HPP
 #define PRIMROSE_SETUP_HPP
 
-#define GLFW_INCLUDE_VULKAN
+#include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 #include <vector>
 
 namespace Primrose {
-	extern VkInstance instance; // used as global vulkan state
-	extern VkPhysicalDevice physicalDevice; // graphics device
-	extern VkDevice device; // logical connection to the physical device
+	extern vk::Instance instance; // used as global vulkan state
+	extern vk::PhysicalDevice physicalDevice; // graphics device
+	extern vk::Device device; // logical connection to the physical device
 
-	extern VkRenderPass renderPass; // render pass with commands used to render a frame
-	extern VkDescriptorSetLayout descriptorSetLayout; // layout for shader uniforms
+	extern vk::RenderPass renderPass; // render pass with commands used to render a frame
+	extern vk::DescriptorSetLayout descriptorSetLayout; // layout for shader uniforms
 
 	extern bool rayAcceleration;
-	extern VkPipelineLayout acceleratedPipelineLayout; // graphics pipeline layout
-	extern VkPipeline acceleratedPipeline; // if device supports acceleration
-	extern VkPipelineLayout rasterPipelineLayout; // graphics pipeline layout
-	extern VkPipeline rasterPipeline; // if acceleration not supported
+	extern vk::PipelineLayout acceleratedPipelineLayout; // graphics pipeline layout
+	extern vk::Pipeline acceleratedPipeline; // if device supports acceleration
+	extern vk::PipelineLayout rasterPipelineLayout; // graphics pipeline layout
+	extern vk::Pipeline rasterPipeline; // if acceleration not supported
 
-	extern VkPipelineLayout uiPipelineLayout; // graphics pipeline layout
-	extern VkPipeline uiPipeline; // graphics pipeline
+	extern vk::PipelineLayout uiPipelineLayout; // graphics pipeline layout
+	extern vk::Pipeline uiPipeline; // graphics pipeline
 
 	extern GLFWwindow* window;
-	extern VkSurfaceKHR surface;
+	extern vk::SurfaceKHR surface;
 
-	extern VkSwapchainKHR swapchain; // chain of images queued to be presented to display
+	extern vk::SwapchainKHR swapchain; // chain of images queued to be presented to display
 	struct SwapchainFrame {
-		VkImage image; // gpu image handle
-		VkImageView imageView; // interface for image
-		VkFramebuffer framebuffer; // render pass target used to draw to image
+		vk::Image image; // gpu image handle
+		vk::ImageView imageView; // interface for image
+		vk::Framebuffer framebuffer; // render pass target used to draw to image
 	};
 	extern std::vector<SwapchainFrame> swapchainFrames;
-	extern VkFormat swapchainImageFormat; // pixel format used in swapchain
-	extern VkExtent2D swapchainExtent; // resolution of swapchain
+	extern vk::Format swapchainImageFormat; // pixel format used in swapchain
+	extern vk::Extent2D swapchainExtent; // resolution of swapchain
 
 	extern int windowWidth;
 	extern int windowHeight;
 
-	extern VkDescriptorPool descriptorPool;
+	extern vk::DescriptorPool descriptorPool;
 
-	extern VkImage marchTexture;
-	extern VkDeviceMemory marchTextureMemory;
-	extern VkImageView marchImageView;
-	extern VkSampler marchSampler;
+	extern vk::Image marchTexture;
+	extern vk::DeviceMemory marchTextureMemory;
+	extern vk::ImageView marchImageView;
+	extern vk::Sampler marchSampler;
 
 	struct FrameInFlight {
-		VkCommandBuffer commandBuffer;
+		vk::CommandBuffer commandBuffer;
 
-		VkSemaphore imageAvailableSemaphore;
-		VkSemaphore renderFinishedSemaphore;
-		VkFence inFlightFence;
+		vk::Semaphore imageAvailableSemaphore;
+		vk::Semaphore renderFinishedSemaphore;
+		vk::Fence inFlightFence;
 
-		VkDescriptorSet descriptorSet; // descriptor set for uniforms
-		VkBuffer uniformBuffer; // buffer for ubo
-		VkDeviceMemory uniformBufferMemory; // memory for ubo
+		vk::DescriptorSet descriptorSet; // descriptor set for uniforms
+		vk::Buffer uniformBuffer; // buffer for ubo
+		vk::DeviceMemory uniformBufferMemory; // memory for ubo
 
 		//GlobalUniforms uniforms; // persistent uniform data
 	};
 	extern std::vector<FrameInFlight> framesInFlight;
 
-	extern VkCommandPool commandPool;
-	extern VkQueue graphicsQueue; // queue for graphics commands sent to gpu
-	extern VkQueue presentQueue; // queue for present commands sent to gpu
+	extern vk::CommandPool commandPool;
+	extern vk::Queue graphicsQueue; // queue for graphics commands sent to gpu
+	extern vk::Queue presentQueue; // queue for present commands sent to gpu
 
-	extern VkDebugUtilsMessengerEXT debugMessenger; // handles logging validation details
+	extern vk::DebugUtilsMessengerEXT debugMessenger; // handles logging validation details
 
 	// application functions
 	extern void(*mouseMovementCallback)(float xpos, float ypos, bool refocused);
 	extern void(*mouseButtonCallback)(int button, int action);
 	extern void(*keyCallback)(int key, int action, int mods);
 	extern void(*endCallback)();
-	extern void(*renderPassCallback)(VkCommandBuffer& cmd);
+	extern void(*renderPassCallback)(vk::CommandBuffer& cmd);
 	extern void(*scrollCallback)(float scroll);
 
 	// main functions
@@ -111,24 +111,24 @@ namespace Primrose {
 	void recreateSwapchain();
 
 	// other vulkan
-	void allocateDescriptorSet(VkDescriptorSet* descSet);
+	void allocateDescriptorSet(vk::DescriptorSet* descSet);
 
-	void createDeviceMemory(VkMemoryRequirements memReqs, VkMemoryPropertyFlags properties, VkDeviceMemory* memory);
-	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
-		VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-	void writeToDevice(VkDeviceMemory memory, void* data, size_t size, size_t offset = 0);
+	void createDeviceMemory(vk::MemoryRequirements memReqs, vk::MemoryPropertyFlags properties, vk::DeviceMemory* memory);
+	void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
+		vk::Buffer* buffer, vk::DeviceMemory* bufferMemory);
+	void writeToDevice(vk::DeviceMemory memory, void* data, size_t size, size_t offset = 0);
 
-	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-	void importTexture(const char* path, VkImage* image, VkDeviceMemory* imageMemory, float* aspect = nullptr);
+	void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+	void importTexture(const char* path, vk::Image* image, vk::DeviceMemory* imageMemory, float* aspect = nullptr);
 
-	void imageFromData(void* data, uint32_t width, uint32_t height, VkImage* image, VkDeviceMemory* imageMemory);
+	void imageFromData(void* data, uint32_t width, uint32_t height, vk::Image* image, vk::DeviceMemory* imageMemory);
 
-	VkImageView createImageView(VkImage image, VkFormat format);
+	vk::ImageView createImageView(vk::Image image, vk::Format format);
 
-	VkCommandBuffer startSingleTimeCommandBuffer();
-	void endSingleTimeCommandBuffer(VkCommandBuffer cmdBuffer);
+	vk::CommandBuffer startSingleTimeCommandBuffer();
+	void endSingleTimeCommandBuffer(vk::CommandBuffer cmdBuffer);
 
-	VkShaderModule createShaderModule(const uint32_t* code, size_t length);
+	vk::ShaderModule createShaderModule(const uint32_t* code, size_t length);
 }
 
 #endif

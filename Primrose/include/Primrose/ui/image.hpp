@@ -2,6 +2,7 @@
 #define PRIMROSE_IMAGE_HPP
 
 #include "element.hpp"
+#include <vulkan/vulkan.hpp>
 
 namespace Primrose {
 	class UIImage: public UIElement {
@@ -19,10 +20,10 @@ namespace Primrose {
 
 		float aspect; // width / height
 
-		VkImage texture;
-		VkDeviceMemory textureMemory;
-		VkImageView imageView;
-		VkSampler sampler;
+		vk::Image texture;
+		vk::DeviceMemory textureMemory;
+		vk::ImageView imageView;
+		vk::Sampler sampler;
 	};
 }
 

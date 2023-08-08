@@ -4,8 +4,6 @@
 #include "shader_structs.hpp"
 #include "ui/element.hpp"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <vector>
 #include <map>
@@ -33,9 +31,8 @@ namespace Primrose {
 	extern const std::vector<const char*> REQUIRED_EXTENSIONS;
 	extern const std::vector<const char*> RAY_EXTENSIONS;
 
-	extern const VkSurfaceFormatKHR IDEAL_SURFACE_FORMAT;
-	extern const VkPresentModeKHR IDEAL_PRESENT_MODE;
-	extern const std::map<int, const char*> PRESENT_MODE_STRINGS;
+	extern const vk::SurfaceFormatKHR IDEAL_SURFACE_FORMAT;
+	extern const vk::PresentModeKHR IDEAL_PRESENT_MODE;
 
 	extern const bool DYNAMIC_VIEWPORT;
 
