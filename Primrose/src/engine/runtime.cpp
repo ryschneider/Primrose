@@ -93,16 +93,16 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 		if (element->hide) continue;
 		if (element->pPush != nullptr) {
 			// push custom struct
-			commandBuffer.pushConstants(rasterPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
+			commandBuffer.pushConstants(uiPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
 				element->pushSize, element->pPush);
 		} else {
 			// push ui nodeType
-			commandBuffer.pushConstants(rasterPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
+			commandBuffer.pushConstants(uiPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
 				sizeof(element->uiType), &element->uiType);
 		}
 
 		if (VkDescriptorSet(element->descriptorSet) != VK_NULL_HANDLE) {
-			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, rasterPipelineLayout,
+			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, uiPipelineLayout,
 				0, 1, &element->descriptorSet, 0, nullptr);
 		}
 
