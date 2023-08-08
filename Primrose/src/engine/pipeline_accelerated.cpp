@@ -63,8 +63,8 @@ void Primrose::createAcceleratedPipeline() {
 		throw std::runtime_error("failed to create accelerated pipeline");
 	}
 
-	vkDestroyShaderModule(device, rgenInfo.module, nullptr);
-	vkDestroyShaderModule(device, rintInfo.module, nullptr);
-	vkDestroyShaderModule(device, rchitInfo.module, nullptr);
-	vkDestroyShaderModule(device, rmissInfo.module, nullptr);
+	device.destroyShaderModule(rgenInfo.module);
+	device.destroyShaderModule(rintInfo.module);
+	device.destroyShaderModule(rchitInfo.module);
+	device.destroyShaderModule(rmissInfo.module);
 }

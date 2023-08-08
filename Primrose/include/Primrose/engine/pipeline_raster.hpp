@@ -1,13 +1,13 @@
 #ifndef PRIMROSE_PIPELINE_RASTER_HPP
 #define PRIMROSE_PIPELINE_RASTER_HPP
 
-#define GLFW_INCLUDE_VULKAN
+#include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 
 namespace Primrose {
-	void createGraphicsPipeline(VkShaderModule vertModule, VkShaderModule fragModule,
-		VkPipelineVertexInputStateCreateInfo vertInputInfo, VkPipelineInputAssemblyStateCreateInfo assemblyInfo,
-		VkPipelineLayout *pipelineLayout, VkPipeline *pipeline);
+	void createGraphicsPipeline(vk::ShaderModule vertModule, vk::ShaderModule fragModule,
+		vk::PipelineVertexInputStateCreateInfo vertInputInfo, vk::PipelineInputAssemblyStateCreateInfo assemblyInfo,
+		vk::PipelineLayout *pipelineLayout, vk::Pipeline *pipeline);
 	void createRasterPipeline();
 }
 

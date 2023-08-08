@@ -82,7 +82,7 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 		sizeof(PushConstants), &push); // cmd: set push constants
 
 	// draw 3d scene
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, acceleratedPipeline); // cmd: bind pipeline
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, rasterPipeline); // cmd: bind pipeline
 
 	commandBuffer.draw(3, 1, 0, 0); // cmd: draw
 
