@@ -728,16 +728,11 @@ void Primrose::createSwapchain() {
 	std::cout << "looking for: " << to_string(IDEAL_SURFACE_FORMAT.format) << ", " << to_string(IDEAL_SURFACE_FORMAT.colorSpace) << std::endl;
 	for (const auto format : swapFormats) {
 		std::cout << "candidate: " << to_string(format.format) << ", " << to_string(format.colorSpace) << std::endl;
-		if (format.format == IDEAL_SURFACE_FORMAT.format && format.colorSpace == IDEAL_SURFACE_FORMAT.colorSpace) {
+		if (format == IDEAL_SURFACE_FORMAT) {
 			surfaceFormat = format;
 			ideal = true;
 			break;
 		}
-//		if (format.format == IDEAL_SURFACE_FORMAT.format && format.colorSpace == IDEAL_SURFACE_FORMAT.colorSpace) {
-//			surfaceFormat = format;
-//			ideal = true;
-//			break;
-//		}
 	}
 	std::cout << "Swapchain format: " << to_string(surfaceFormat.format) << ", " << to_string(surfaceFormat.colorSpace);
 	std::cout << (ideal ? " (ideal)" : " (not ideal)") << std::endl;

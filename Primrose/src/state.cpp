@@ -23,7 +23,7 @@ namespace Primrose {
 	const std::vector<const char*> REQUIRED_EXTENSIONS = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
 	const vk::SurfaceFormatKHR IDEAL_SURFACE_FORMAT = vk::SurfaceFormatKHR(
-		vk::Format::eR8G8B8A8Srgb, vk::ColorSpaceKHR::eSrgbNonlinear);
+		vk::Format::eB8G8R8A8Srgb, vk::ColorSpaceKHR::eSrgbNonlinear);
 	//const vk::PresentModeKHR IDEAL_PRESENT_MODE = vk::PresentModeKHR::eMailbox;
 	const vk::PresentModeKHR IDEAL_PRESENT_MODE = vk::PresentModeKHR::eImmediate;
 
