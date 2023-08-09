@@ -26,13 +26,11 @@ namespace Primrose {
 	vk::Device device; // logical connection to the physical device
 
 	vk::RenderPass renderPass; // render pass with commands used to render a frame
-	vk::DescriptorSetLayout descriptorSetLayout; // layout for shader uniforms
+	vk::DescriptorSetLayout mainDescriptorSetLayout; // layout for shader uniforms
 
 	bool rayAcceleration; // set by pickPhysicalDevice
-	vk::PipelineLayout acceleratedPipelineLayout;
-	vk::Pipeline acceleratedPipeline;
-	vk::PipelineLayout rasterPipelineLayout;
-	vk::Pipeline rasterPipeline;
+	vk::PipelineLayout mainPipelineLayout;
+	vk::Pipeline mainPipeline;
 
 	vk::PipelineLayout uiPipelineLayout;
 	vk::Pipeline uiPipeline;
@@ -235,7 +233,7 @@ void Primrose::allocateDescriptorSet(vk::DescriptorSet* descSet) {
 	vk::DescriptorSetAllocateInfo allocInfo{};
 	allocInfo.descriptorPool = descriptorPool;
 	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = &descriptorSetLayout;
+	allocInfo.pSetLayouts = &mainDescriptorSetLayout;
 
 	*descSet = device.allocateDescriptorSets(allocInfo)[0];
 }
@@ -540,22 +538,26 @@ void Primrose::initVulkan() {
 	createSwapchain();
 	createRenderPass();
 	createSwapchainFrames();
-	createDescriptorSetLayout();
+
+	createDescriptorPool();
+	// testing
+	createAcceleratedDescriptorSetLayout();
+	createAcceleratedPipeline();
+	device.destroyPipeline(mainPipeline);
+	device.destroyPipelineLayout(mainPipelineLayout);
+	device.destroyDescriptorSetLayout(mainDescriptorSetLayout);
+	// testing
 
 	if (rayAcceleration) {
+		createAcceleratedDescriptorSetLayout();
 		createAcceleratedPipeline();
 	} else {
+		createRasterDescriptorSetLayout();
 		createRasterPipeline();
 	}
-	// testing
-	createAcceleratedPipeline();
-	vkDestroyPipeline(device, acceleratedPipeline, nullptr);
-	vkDestroyPipelineLayout(device, acceleratedPipelineLayout, nullptr);
-	// testing
 	createUIPipeline();
 
 	createCommandPool();
-	createDescriptorPool();
 
 	createDitherTexture();
 
@@ -929,38 +931,6 @@ void Primrose::createSwapchainFrames() {
 
 
 
-void Primrose::createDescriptorSetLayout() {
-	// uniform binding
-	vk::DescriptorSetLayoutBinding uniformBinding{};
-	uniformBinding.binding = 0; // binding in shader
-	uniformBinding.descriptorType = vk::DescriptorType::eUniformBuffer; // uniform buffer
-	uniformBinding.descriptorCount = 1; // numbers of ubos
-	uniformBinding.stageFlags = vk::ShaderStageFlagBits::eFragment; // shader stage
-
-	// texture binding
-	vk::DescriptorSetLayoutBinding textureBinding{};
-	textureBinding.binding = 1; // binding in shader
-	textureBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler; // uniform buffer
-	textureBinding.descriptorCount = 1; // numbers of textures
-	textureBinding.pImmutableSamplers = nullptr;
-	textureBinding.stageFlags = vk::ShaderStageFlagBits::eFragment; // shader stage
-
-	vk::DescriptorSetLayoutBinding bindings[2] = {uniformBinding, textureBinding};
-
-	// extra flags for descriptor set layout
-	vk::DescriptorBindingFlags flags = vk::DescriptorBindingFlagBits::ePartiallyBound;
-	vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{};
-	bindingFlags.pBindingFlags = &flags;
-
-	// create descriptor set layout
-	vk::DescriptorSetLayoutCreateInfo info{};
-	info.bindingCount = 2;
-	info.pBindings = bindings;
-	info.pNext = &bindingFlags;
-
-	descriptorSetLayout = device.createDescriptorSetLayout(info);
-}
-
 void Primrose::createUIPipeline() {
 	// shader modules
 	vk::ShaderModule vertModule = createShaderModule((uint32_t*)uiVertSpvData, uiVertSpvSize);
@@ -1046,6 +1016,10 @@ void Primrose::createDescriptorPool() {
 	// sampler
 	poolSizes[1].type = vk::DescriptorType::eCombinedImageSampler;
 	poolSizes[1].descriptorCount = (uint32_t)MAX_FRAMES_IN_FLIGHT;
+
+//	std::vector<vk::DescriptorPoolSize> poolSizes = {
+//
+//	};
 
 	vk::DescriptorPoolCreateInfo info{};
 	info.poolSizeCount = 2;
@@ -1141,16 +1115,12 @@ void Primrose::cleanup() {
 	device.destroyDescriptorPool(descriptorPool);
 	device.destroyCommandPool(commandPool);
 
-	vkDestroyPipeline(device, uiPipeline, nullptr);
-	vkDestroyPipelineLayout(device, uiPipelineLayout, nullptr);
-	if (rayAcceleration) {
-		vkDestroyPipeline(device, acceleratedPipeline, nullptr);
-		vkDestroyPipelineLayout(device, acceleratedPipelineLayout, nullptr);
-	} else {
-		vkDestroyPipeline(device, rasterPipeline, nullptr);
-		vkDestroyPipelineLayout(device, rasterPipelineLayout, nullptr);
-	}
-	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+	device.destroyPipeline(uiPipeline);
+	device.destroyPipelineLayout(uiPipelineLayout);
+
+	device.destroyPipeline(mainPipeline);
+	device.destroyPipelineLayout(mainPipelineLayout);
+	device.destroyDescriptorSetLayout(mainDescriptorSetLayout);
 
 	cleanupSwapchain();
 	device.destroyRenderPass(renderPass);

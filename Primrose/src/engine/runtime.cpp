@@ -72,17 +72,17 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 		commandBuffer.setScissor(0, 1, &scissor);
 	}
 
-	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, rasterPipelineLayout,
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mainPipelineLayout,
 		0, 1, &currentFlight.descriptorSet, 0, nullptr); // cmd: bind descriptor sets
 
 	// push constants
 	PushConstants push{};
 	push.time = glfwGetTime();
-	commandBuffer.pushConstants(rasterPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
+	commandBuffer.pushConstants(mainPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
 		sizeof(PushConstants), &push); // cmd: set push constants
 
 	// draw 3d scene
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, rasterPipeline); // cmd: bind pipeline
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mainPipeline); // cmd: bind pipeline
 
 	commandBuffer.draw(3, 1, 0, 0); // cmd: draw
 

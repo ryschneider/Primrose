@@ -8,6 +8,8 @@ namespace Primrose {
 	void createGraphicsPipeline(vk::ShaderModule vertModule, vk::ShaderModule fragModule,
 		vk::PipelineVertexInputStateCreateInfo vertInputInfo, vk::PipelineInputAssemblyStateCreateInfo assemblyInfo,
 		vk::PipelineLayout *pipelineLayout, vk::Pipeline *pipeline);
+
+	void createRasterDescriptorSetLayout();
 	void createRasterPipeline();
 }
 

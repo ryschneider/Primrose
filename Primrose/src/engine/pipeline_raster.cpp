@@ -4,9 +4,39 @@
 #include "embed/flat_vert_spv.h"
 #include "embed/march_frag_spv.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #include <vector>
+
+void Primrose::createRasterDescriptorSetLayout() {
+	// uniform binding
+	vk::DescriptorSetLayoutBinding uniformBinding{};
+	uniformBinding.binding = 0; // binding in shader
+	uniformBinding.descriptorType = vk::DescriptorType::eUniformBuffer; // uniform buffer
+	uniformBinding.descriptorCount = 1; // numbers of ubos
+	uniformBinding.stageFlags = vk::ShaderStageFlagBits::eFragment; // shader stage
+
+	// texture binding
+	vk::DescriptorSetLayoutBinding textureBinding{};
+	textureBinding.binding = 1; // binding in shader
+	textureBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler; // uniform buffer
+	textureBinding.descriptorCount = 1; // numbers of textures
+	textureBinding.pImmutableSamplers = nullptr;
+	textureBinding.stageFlags = vk::ShaderStageFlagBits::eFragment; // shader stage
+
+	vk::DescriptorSetLayoutBinding bindings[2] = {uniformBinding, textureBinding};
+
+	// extra flags for descriptor set layout
+	vk::DescriptorBindingFlags flags = vk::DescriptorBindingFlagBits::ePartiallyBound;
+	vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{};
+	bindingFlags.pBindingFlags = &flags;
+
+	// create descriptor set layout
+	vk::DescriptorSetLayoutCreateInfo info{};
+	info.bindingCount = 2;
+	info.pBindings = bindings;
+	info.pNext = &bindingFlags;
+
+	mainDescriptorSetLayout = device.createDescriptorSetLayout(info);
+}
 
 void Primrose::createGraphicsPipeline(vk::ShaderModule vertModule, vk::ShaderModule fragModule,
 	vk::PipelineVertexInputStateCreateInfo vertInputInfo, vk::PipelineInputAssemblyStateCreateInfo assemblyInfo,
@@ -20,7 +50,7 @@ void Primrose::createGraphicsPipeline(vk::ShaderModule vertModule, vk::ShaderMod
 
 	vk::PipelineLayoutCreateInfo layoutInfo{};
 	layoutInfo.setLayoutCount = 1;
-	layoutInfo.pSetLayouts = &descriptorSetLayout;
+	layoutInfo.pSetLayouts = &mainDescriptorSetLayout;
 	layoutInfo.pPushConstantRanges = &pushConstant;
 	layoutInfo.pushConstantRangeCount = 1;
 
@@ -138,7 +168,7 @@ void Primrose::createRasterPipeline() {
 	assemblyInfo.primitiveRestartEnable = VK_FALSE;
 
 	// create pipeline
-	createGraphicsPipeline(vertModule, fragModule, vertInputInfo, assemblyInfo, &rasterPipelineLayout, &rasterPipeline);
+	createGraphicsPipeline(vertModule, fragModule, vertInputInfo, assemblyInfo, &mainPipelineLayout, &mainPipeline);
 
 	// cleanup
 	device.destroyShaderModule(vertModule);

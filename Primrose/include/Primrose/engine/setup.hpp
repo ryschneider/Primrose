@@ -11,16 +11,15 @@ namespace Primrose {
 	extern vk::Device device; // logical connection to the physical device
 
 	extern vk::RenderPass renderPass; // render pass with commands used to render a frame
-	extern vk::DescriptorSetLayout descriptorSetLayout; // layout for shader uniforms
 
 	extern bool rayAcceleration;
-	extern vk::PipelineLayout acceleratedPipelineLayout; // graphics pipeline layout
-	extern vk::Pipeline acceleratedPipeline; // if device supports acceleration
-	extern vk::PipelineLayout rasterPipelineLayout; // graphics pipeline layout
-	extern vk::Pipeline rasterPipeline; // if acceleration not supported
+	extern vk::DescriptorSetLayout mainDescriptorSetLayout; // layout for shader uniforms
+	extern vk::PipelineLayout mainPipelineLayout;
+	extern vk::Pipeline mainPipeline;
 
-	extern vk::PipelineLayout uiPipelineLayout; // graphics pipeline layout
-	extern vk::Pipeline uiPipeline; // graphics pipeline
+	extern vk::DescriptorSetLayout uiDescriptorSetLayout; // layout for shader uniforms
+	extern vk::PipelineLayout uiPipelineLayout;
+	extern vk::Pipeline uiPipeline;
 
 	extern GLFWwindow* window;
 	extern vk::SurfaceKHR surface;

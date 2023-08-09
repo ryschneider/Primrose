@@ -1,3 +1,4 @@
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 #include "engine/pipeline_accelerated.hpp"
 #include "engine/setup.hpp"
 #include "state.hpp"
@@ -10,14 +11,46 @@
 #include <stdexcept>
 #include <iostream>
 
+void Primrose::createAcceleratedDescriptorSetLayout() {
+	// uniform binding
+	vk::DescriptorSetLayoutBinding uniformBinding{};
+	uniformBinding.binding = 0; // binding in shader
+	uniformBinding.descriptorType = vk::DescriptorType::eUniformBuffer; // uniform buffer
+	uniformBinding.descriptorCount = 1; // numbers of ubos
+	uniformBinding.stageFlags = vk::ShaderStageFlagBits::eAnyHitKHR;
+
+	// texture binding
+	vk::DescriptorSetLayoutBinding textureBinding{};
+	textureBinding.binding = 1; // binding in shader
+	textureBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler; // uniform buffer
+	textureBinding.descriptorCount = 1; // numbers of textures
+	textureBinding.pImmutableSamplers = nullptr;
+	textureBinding.stageFlags = vk::ShaderStageFlagBits::eAnyHitKHR; // shader stage
+
+	vk::DescriptorSetLayoutBinding bindings[2] = {uniformBinding, textureBinding};
+
+	// extra flags for descriptor set layout
+	vk::DescriptorBindingFlags flags = vk::DescriptorBindingFlagBits::ePartiallyBound;
+	vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{};
+	bindingFlags.pBindingFlags = &flags;
+
+	// create descriptor set layout
+	vk::DescriptorSetLayoutCreateInfo info{};
+	info.bindingCount = 2;
+	info.pBindings = bindings;
+	info.pNext = &bindingFlags;
+
+	mainDescriptorSetLayout = device.createDescriptorSetLayout(info);
+}
+
 void Primrose::createAcceleratedPipeline() {
 	// pipeline layout
 	std::vector<vk::PushConstantRange> pushRanges = {
 		vk::PushConstantRange(vk::ShaderStageFlagBits::eAll, 0, 128)}; // 128 bytes is min supported push size
 	// TODO change eALl to specific stage ^
-	std::vector<vk::DescriptorSetLayout> setLayouts = {descriptorSetLayout};
+	std::vector<vk::DescriptorSetLayout> setLayouts = {mainDescriptorSetLayout};
 	vk::PipelineLayoutCreateInfo layoutInfo({}, setLayouts, pushRanges);
-	acceleratedPipelineLayout = static_cast<vk::Device>(device).createPipelineLayout(layoutInfo);
+	mainPipelineLayout = device.createPipelineLayout(layoutInfo);
 
 	// shader stages info
 	vk::PipelineShaderStageCreateInfo rgenInfo({}, vk::ShaderStageFlagBits::eRaygenKHR,
@@ -40,7 +73,7 @@ void Primrose::createAcceleratedPipeline() {
 	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups = {genGroup, hitGroup, missGroup};
 
 	// get rt pipeline properties
-	auto rtProperties = static_cast<vk::PhysicalDevice>(physicalDevice).getProperties2<vk::PhysicalDeviceProperties2,
+	auto rtProperties = physicalDevice.getProperties2<vk::PhysicalDeviceProperties2,
 		vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>().get<vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
 
 	// pipeline create info
@@ -50,18 +83,11 @@ void Primrose::createAcceleratedPipeline() {
 		| vk::PipelineCreateFlagBits::eRayTracingNoNullMissShadersKHR,
 		stages, groups,
 		rtProperties.maxRayRecursionDepth, // use device max recursion for max ray recursions
-		nullptr, nullptr, nullptr, acceleratedPipelineLayout);
+		nullptr, nullptr, nullptr, mainPipelineLayout);
 
-	vk::DispatchLoaderDynamic dld(instance, vkGetInstanceProcAddr); // TODO make default dispatcher
-	auto res = static_cast<vk::Device>(device).createRayTracingPipelineKHR(
-		VK_NULL_HANDLE, VK_NULL_HANDLE, pipelineInfo, nullptr, dld);
-
-	if (res.result == vk::Result::eSuccess) {
-		acceleratedPipeline = res.value;
-	} else {
-		std::cout << res.result << std::endl;
-		throw std::runtime_error("failed to create accelerated pipeline");
-	}
+	auto res = device.createRayTracingPipelineKHR(VK_NULL_HANDLE, VK_NULL_HANDLE, pipelineInfo);
+	if (res.result != vk::Result::eSuccess) throw std::runtime_error("failed to create accelerated pipeline");
+	mainPipeline = res.value;
 
 	device.destroyShaderModule(rgenInfo.module);
 	device.destroyShaderModule(rintInfo.module);
