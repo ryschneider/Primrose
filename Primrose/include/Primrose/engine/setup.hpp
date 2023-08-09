@@ -13,11 +13,11 @@ namespace Primrose {
 	extern vk::RenderPass renderPass; // render pass with commands used to render a frame
 
 	extern bool rayAcceleration;
-	extern vk::DescriptorSetLayout mainDescriptorSetLayout; // layout for shader uniforms
+	extern vk::DescriptorSetLayout mainDescriptorLayout;
 	extern vk::PipelineLayout mainPipelineLayout;
 	extern vk::Pipeline mainPipeline;
 
-	extern vk::DescriptorSetLayout uiDescriptorSetLayout; // layout for shader uniforms
+	extern vk::DescriptorSetLayout uiDescriptorLayout;
 	extern vk::PipelineLayout uiPipelineLayout;
 	extern vk::Pipeline uiPipeline;
 
@@ -37,7 +37,7 @@ namespace Primrose {
 	extern int windowWidth;
 	extern int windowHeight;
 
-	extern vk::DescriptorPool descriptorPool;
+//	extern vk::DescriptorPool descriptorPool;
 
 	extern vk::Image marchTexture;
 	extern vk::DeviceMemory marchTextureMemory;
@@ -51,7 +51,7 @@ namespace Primrose {
 		vk::Semaphore renderFinishedSemaphore;
 		vk::Fence inFlightFence;
 
-		vk::DescriptorSet descriptorSet; // descriptor set for uniforms
+//		vk::DescriptorSet descriptorSet; // descriptor set for uniforms
 		vk::Buffer uniformBuffer; // buffer for ubo
 		vk::DeviceMemory uniformBufferMemory; // memory for ubo
 
@@ -94,14 +94,14 @@ namespace Primrose {
 	void createSwapchain();
 	void createRenderPass();
 	void createSwapchainFrames();
-	void createDescriptorSetLayout();
+//	void createDescriptorSetLayout();
 
 	void createUIPipeline();
 
 	void createDitherTexture();
 
 	void createCommandPool();
-	void createDescriptorPool();
+//	void createDescriptorPool();
 	void createFramesInFlight();
 
 	void cleanup();
@@ -110,7 +110,7 @@ namespace Primrose {
 	void recreateSwapchain();
 
 	// other vulkan
-	void allocateDescriptorSet(vk::DescriptorSet* descSet);
+//	void allocateDescriptorSet(vk::DescriptorSet* descSet);
 
 	void createDeviceMemory(vk::MemoryRequirements memReqs, vk::MemoryPropertyFlags properties, vk::DeviceMemory* memory);
 	void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,

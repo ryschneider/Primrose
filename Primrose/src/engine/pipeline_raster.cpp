@@ -6,55 +6,30 @@
 
 #include <vector>
 
-void Primrose::createRasterDescriptorSetLayout() {
-	// uniform binding
-	vk::DescriptorSetLayoutBinding uniformBinding{};
-	uniformBinding.binding = 0; // binding in shader
-	uniformBinding.descriptorType = vk::DescriptorType::eUniformBuffer; // uniform buffer
-	uniformBinding.descriptorCount = 1; // numbers of ubos
-	uniformBinding.stageFlags = vk::ShaderStageFlagBits::eFragment; // shader stage
+void Primrose::createGraphicsPipelineLayout(vk::PipelineLayout* pipelineLayout, vk::DescriptorSetLayout* descLayout) {
+	// pipeline layout
+	std::vector<vk::PushConstantRange> pushRanges = {
+		vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, 0, 128) // 128 bytes is min supported push size
+	};
 
-	// texture binding
-	vk::DescriptorSetLayoutBinding textureBinding{};
-	textureBinding.binding = 1; // binding in shader
-	textureBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler; // uniform buffer
-	textureBinding.descriptorCount = 1; // numbers of textures
-	textureBinding.pImmutableSamplers = nullptr;
-	textureBinding.stageFlags = vk::ShaderStageFlagBits::eFragment; // shader stage
+	std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {
+		vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
+			vk::ShaderStageFlagBits::eFragment),
+		vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1,
+			vk::ShaderStageFlagBits::eFragment),
+	};
 
-	vk::DescriptorSetLayoutBinding bindings[2] = {uniformBinding, textureBinding};
+	vk::DescriptorSetLayoutCreateInfo descLayoutInfo(
+		vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR, bindings);
+	*descLayout = device.createDescriptorSetLayout(descLayoutInfo);
 
-	// extra flags for descriptor set layout
-	vk::DescriptorBindingFlags flags = vk::DescriptorBindingFlagBits::ePartiallyBound;
-	vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{};
-	bindingFlags.pBindingFlags = &flags;
-
-	// create descriptor set layout
-	vk::DescriptorSetLayoutCreateInfo info{};
-	info.bindingCount = 2;
-	info.pBindings = bindings;
-	info.pNext = &bindingFlags;
-
-	mainDescriptorSetLayout = device.createDescriptorSetLayout(info);
+	vk::PipelineLayoutCreateInfo layoutInfo({}, *descLayout, pushRanges);
+	*pipelineLayout = device.createPipelineLayout(layoutInfo);
 }
 
 void Primrose::createGraphicsPipeline(vk::ShaderModule vertModule, vk::ShaderModule fragModule,
 	vk::PipelineVertexInputStateCreateInfo vertInputInfo, vk::PipelineInputAssemblyStateCreateInfo assemblyInfo,
-	vk::PipelineLayout *pipelineLayout, vk::Pipeline *pipeline) {
-
-	// pipeline layout
-	vk::PushConstantRange pushConstant{};
-	pushConstant.offset = 0;
-	pushConstant.size = 128; // min required size
-	pushConstant.stageFlags = vk::ShaderStageFlagBits::eFragment;
-
-	vk::PipelineLayoutCreateInfo layoutInfo{};
-	layoutInfo.setLayoutCount = 1;
-	layoutInfo.pSetLayouts = &mainDescriptorSetLayout;
-	layoutInfo.pPushConstantRanges = &pushConstant;
-	layoutInfo.pushConstantRangeCount = 1;
-
-	*pipelineLayout = device.createPipelineLayout(layoutInfo);
+	vk::PipelineLayout pipelineLayout, vk::Pipeline* pipeline) {
 
 	// shaders
 	vk::PipelineShaderStageCreateInfo vertStageInfo{};
@@ -140,7 +115,7 @@ void Primrose::createGraphicsPipeline(vk::ShaderModule vertModule, vk::ShaderMod
 	if (DYNAMIC_VIEWPORT) {
 		pipelineInfo.pDynamicState = &dynamicStateInfo;
 	}
-	pipelineInfo.layout = *pipelineLayout;
+	pipelineInfo.layout = pipelineLayout;
 	pipelineInfo.renderPass = renderPass;
 	pipelineInfo.stageCount = 2;
 	pipelineInfo.pStages = shaderStagesInfo;
@@ -150,6 +125,10 @@ void Primrose::createGraphicsPipeline(vk::ShaderModule vertModule, vk::ShaderMod
 	auto res = device.createGraphicsPipeline(VK_NULL_HANDLE, pipelineInfo);
 	if (res.result != vk::Result::eSuccess) throw std::runtime_error("failed to create graphics pipeline");
 	*pipeline = res.value;
+}
+
+void Primrose::createRasterPipelineLayout() {
+	createGraphicsPipelineLayout(&mainPipelineLayout, &mainDescriptorLayout);
 }
 
 void Primrose::createRasterPipeline() {
@@ -168,7 +147,7 @@ void Primrose::createRasterPipeline() {
 	assemblyInfo.primitiveRestartEnable = VK_FALSE;
 
 	// create pipeline
-	createGraphicsPipeline(vertModule, fragModule, vertInputInfo, assemblyInfo, &mainPipelineLayout, &mainPipeline);
+	createGraphicsPipeline(vertModule, fragModule, vertInputInfo, assemblyInfo, mainPipelineLayout, &mainPipeline);
 
 	// cleanup
 	device.destroyShaderModule(vertModule);

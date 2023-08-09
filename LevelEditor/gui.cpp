@@ -164,7 +164,7 @@ void setupGui() {
 
 	ImVector<ImWchar> ranges;
 	ImFontGlyphRangesBuilder builder;
-	builder.AddText((const char*)u8"θ");
+	builder.AddText(reinterpret_cast<const char*>(u8"θ"));
 	builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
 	builder.BuildRanges(&ranges);
 
@@ -211,7 +211,7 @@ static void addTreeNode(Scene& scene, Node* node) {
 
 	if (ImGui::BeginDragDropTarget()) {
 		if (ImGui::AcceptDragDropPayload("uniqueptr")) {
-			dragSrc = *((Node**)ImGui::GetDragDropPayload()->Data);
+			dragSrc = *(reinterpret_cast<Node**>(ImGui::GetDragDropPayload()->Data));
 			dragDst = node;
 		}
 

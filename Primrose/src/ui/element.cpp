@@ -26,7 +26,7 @@ void Primrose::UIElement::updateBuffers() {
 	// create vertex/index buffers
 	std::vector<UIVertex> vertices = genVertices();
 	std::vector<uint16_t> indices = genIndices();
-	numIndices = (int)indices.size();
+	numIndices = static_cast<int>(indices.size());
 
 	for (auto& v : vertices) {
 		// apply transformations

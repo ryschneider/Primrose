@@ -32,23 +32,23 @@ void Primrose::UIText::init(const char* fontPath, int fntSize) {
 }
 
 void Primrose::UIText::createDescriptorSet() {
-	allocateDescriptorSet(&descriptorSet);
-
-	// write to descriptor set
-	vk::WriteDescriptorSet descriptorWrite{};
-	descriptorWrite.dstSet = descriptorSet; // which set to update
-	descriptorWrite.dstArrayElement = 0; // not using an array, 0
-	descriptorWrite.descriptorCount = 1;
-
-	vk::DescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-	imageInfo.imageView = imageView;
-	imageInfo.sampler = sampler;
-	descriptorWrite.dstBinding = 1; // which binding index
-	descriptorWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-	descriptorWrite.pImageInfo = &imageInfo;
-
-	device.updateDescriptorSets({descriptorWrite}, nullptr); // apply write
+//	allocateDescriptorSet(&descriptorSet);
+//
+//	// write to descriptor set
+//	vk::WriteDescriptorSet descriptorWrite{};
+//	descriptorWrite.dstSet = descriptorSet; // which set to update
+//	descriptorWrite.dstArrayElement = 0; // not using an array, 0
+//	descriptorWrite.descriptorCount = 1;
+//
+//	vk::DescriptorImageInfo imageInfo{};
+//	imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+//	imageInfo.imageView = imageView;
+//	imageInfo.sampler = sampler;
+//	descriptorWrite.dstBinding = 1; // which binding index
+//	descriptorWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+//	descriptorWrite.pImageInfo = &imageInfo;
+//
+//	device.updateDescriptorSets({descriptorWrite}, nullptr); // apply write
 }
 
 void Primrose::UIText::loadAlphabet(const char* fontPath) {

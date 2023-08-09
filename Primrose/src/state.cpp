@@ -19,7 +19,8 @@ namespace Primrose {
 
 	const std::vector<const char*> VALIDATION_LAYERS = { "VK_LAYER_KHRONOS_validation" };
 	const std::vector<const char*> REQUIRED_EXTENSIONS = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+		VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
 	};
 	const std::vector<const char*> RAY_EXTENSIONS = {
 		VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,

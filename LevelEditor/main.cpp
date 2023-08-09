@@ -60,7 +60,7 @@ void mouseOrbitCb(float xpos, float ypos, bool refocused) {
 
 		if (shiftHeld) {
 			float w = 2 * orbitDist * tan(fov / 2);
-			float panSens = w / (float)windowWidth;
+			float panSens = w / static_cast<float>(windowWidth);
 
 			glm::vec3 right = glm::normalize(glm::cross(uniforms.camUp, uniforms.camDir));
 			glm::vec3 screenUp = glm::normalize(glm::cross(uniforms.camDir, right));

@@ -11,47 +11,28 @@
 #include <stdexcept>
 #include <iostream>
 
-void Primrose::createAcceleratedDescriptorSetLayout() {
-	// uniform binding
-	vk::DescriptorSetLayoutBinding uniformBinding{};
-	uniformBinding.binding = 0; // binding in shader
-	uniformBinding.descriptorType = vk::DescriptorType::eUniformBuffer; // uniform buffer
-	uniformBinding.descriptorCount = 1; // numbers of ubos
-	uniformBinding.stageFlags = vk::ShaderStageFlagBits::eAnyHitKHR;
+void Primrose::createAcceleratedPipelineLayout() {
+	std::vector<vk::PushConstantRange> pushRanges = {
+		vk::PushConstantRange(vk::ShaderStageFlagBits::eCompute, 0, 128) // 128 bytes is min supported push size
+	};
 
-	// texture binding
-	vk::DescriptorSetLayoutBinding textureBinding{};
-	textureBinding.binding = 1; // binding in shader
-	textureBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler; // uniform buffer
-	textureBinding.descriptorCount = 1; // numbers of textures
-	textureBinding.pImmutableSamplers = nullptr;
-	textureBinding.stageFlags = vk::ShaderStageFlagBits::eAnyHitKHR; // shader stage
+	std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {
+		vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
+			vk::ShaderStageFlagBits::eCompute),
+		vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1,
+			vk::ShaderStageFlagBits::eCompute),
+	};
+	// TODO change eCompute to specific stage ^
 
-	vk::DescriptorSetLayoutBinding bindings[2] = {uniformBinding, textureBinding};
+	vk::DescriptorSetLayoutCreateInfo descLayoutInfo(
+		vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR, bindings);
+	mainDescriptorLayout = device.createDescriptorSetLayout(descLayoutInfo);
 
-	// extra flags for descriptor set layout
-	vk::DescriptorBindingFlags flags = vk::DescriptorBindingFlagBits::ePartiallyBound;
-	vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{};
-	bindingFlags.pBindingFlags = &flags;
-
-	// create descriptor set layout
-	vk::DescriptorSetLayoutCreateInfo info{};
-	info.bindingCount = 2;
-	info.pBindings = bindings;
-	info.pNext = &bindingFlags;
-
-	mainDescriptorSetLayout = device.createDescriptorSetLayout(info);
+	vk::PipelineLayoutCreateInfo layoutInfo({}, mainDescriptorLayout, pushRanges);
+	mainPipelineLayout = device.createPipelineLayout(layoutInfo);
 }
 
 void Primrose::createAcceleratedPipeline() {
-	// pipeline layout
-	std::vector<vk::PushConstantRange> pushRanges = {
-		vk::PushConstantRange(vk::ShaderStageFlagBits::eAll, 0, 128)}; // 128 bytes is min supported push size
-	// TODO change eALl to specific stage ^
-	std::vector<vk::DescriptorSetLayout> setLayouts = {mainDescriptorSetLayout};
-	vk::PipelineLayoutCreateInfo layoutInfo({}, setLayouts, pushRanges);
-	mainPipelineLayout = device.createPipelineLayout(layoutInfo);
-
 	// shader stages info
 	vk::PipelineShaderStageCreateInfo rgenInfo({}, vk::ShaderStageFlagBits::eRaygenKHR,
 		createShaderModule(reinterpret_cast<uint32_t*>(mainRgenSpvData), mainRgenSpvSize), "main");

@@ -13,7 +13,6 @@
 #include <stb/stb_image.h>
 
 #include <cmath>
-#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <optional>
@@ -26,12 +25,13 @@ namespace Primrose {
 	vk::Device device; // logical connection to the physical device
 
 	vk::RenderPass renderPass; // render pass with commands used to render a frame
-	vk::DescriptorSetLayout mainDescriptorSetLayout; // layout for shader uniforms
 
 	bool rayAcceleration; // set by pickPhysicalDevice
+	vk::DescriptorSetLayout mainDescriptorLayout;
 	vk::PipelineLayout mainPipelineLayout;
 	vk::Pipeline mainPipeline;
 
+	vk::DescriptorSetLayout uiDescriptorLayout;
 	vk::PipelineLayout uiPipelineLayout;
 	vk::Pipeline uiPipeline;
 
@@ -45,8 +45,6 @@ namespace Primrose {
 
 	int windowWidth = 0;
 	int windowHeight = 0;
-
-	vk::DescriptorPool descriptorPool;
 
 	vk::Image marchTexture;
 	vk::DeviceMemory marchTextureMemory;
@@ -152,12 +150,7 @@ namespace Primrose {
 			std::optional<uint32_t> presentFamily;
 		};
 		QueueFamilyIndices getQueueFamilies(vk::PhysicalDevice phyDevice) {
-//			uint32_t queueCount = 0;
-//			vk::GetPhysicalDeviceQueueFamilyProperties(phyDevice, &queueCount, nullptr);
-//			std::vector<vk::QueueFamilyProperties> queueFamilies(queueCount);
-//			vk::GetPhysicalDeviceQueueFamilyProperties(phyDevice, &queueCount, queueFamilies.data());
-
-			auto queueFamilies = phyDevice.getQueueFamilyProperties();
+			std::vector<vk::QueueFamilyProperties> queueFamilies = phyDevice.getQueueFamilyProperties();
 
 			QueueFamilyIndices indices;
 
@@ -228,15 +221,6 @@ namespace Primrose {
 }
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE // storage for vulkan.hpp dynamic loader
-
-void Primrose::allocateDescriptorSet(vk::DescriptorSet* descSet) {
-	vk::DescriptorSetAllocateInfo allocInfo{};
-	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = &mainDescriptorSetLayout;
-
-	*descSet = device.allocateDescriptorSets(allocInfo)[0];
-}
 
 void Primrose::createDeviceMemory(vk::MemoryRequirements memReqs,
 	vk::MemoryPropertyFlags properties, vk::DeviceMemory* memory) {
@@ -539,20 +523,19 @@ void Primrose::initVulkan() {
 	createRenderPass();
 	createSwapchainFrames();
 
-	createDescriptorPool();
 	// testing
-	createAcceleratedDescriptorSetLayout();
+	createAcceleratedPipelineLayout();
 	createAcceleratedPipeline();
 	device.destroyPipeline(mainPipeline);
 	device.destroyPipelineLayout(mainPipelineLayout);
-	device.destroyDescriptorSetLayout(mainDescriptorSetLayout);
+	device.destroyDescriptorSetLayout(mainDescriptorLayout);
 	// testing
 
 	if (rayAcceleration) {
-		createAcceleratedDescriptorSetLayout();
+		createAcceleratedPipelineLayout();
 		createAcceleratedPipeline();
 	} else {
-		createRasterDescriptorSetLayout();
+		createRasterPipelineLayout();
 		createRasterPipeline();
 	}
 	createUIPipeline();
@@ -797,9 +780,9 @@ void Primrose::createSwapchain() {
 		// if currentExtent.width is max value, use the size of the window as extent
 
 		// keep within min and max image extent allowed by swapchain
-		swapchainExtent.width = std::clamp((uint32_t)windowWidth,
+		swapchainExtent.width = std::clamp(static_cast<uint32_t>(windowWidth),
 			swapCapabilities.minImageExtent.width, swapCapabilities.maxImageExtent.width);
-		swapchainExtent.height = std::clamp((uint32_t)windowHeight,
+		swapchainExtent.height = std::clamp(static_cast<uint32_t>(windowHeight),
 			swapCapabilities.minImageExtent.height, swapCapabilities.maxImageExtent.height);
 	} else {
 		swapchainExtent = swapCapabilities.currentExtent; // use extent given
@@ -933,8 +916,8 @@ void Primrose::createSwapchainFrames() {
 
 void Primrose::createUIPipeline() {
 	// shader modules
-	vk::ShaderModule vertModule = createShaderModule((uint32_t*)uiVertSpvData, uiVertSpvSize);
-	vk::ShaderModule fragModule = createShaderModule((uint32_t*)uiFragSpvData, uiFragSpvSize);
+	vk::ShaderModule vertModule = createShaderModule(reinterpret_cast<uint32_t*>(uiVertSpvData), uiVertSpvSize);
+	vk::ShaderModule fragModule = createShaderModule(reinterpret_cast<uint32_t*>(uiFragSpvData), uiFragSpvSize);
 
 	// vertex input
 	auto bindingDesc = UIVertex::getBindingDescription();
@@ -952,7 +935,8 @@ void Primrose::createUIPipeline() {
 	assemblyInfo.primitiveRestartEnable = VK_FALSE;
 
 	// create pipeline
-	createGraphicsPipeline(vertModule, fragModule, vertInputInfo, assemblyInfo, &uiPipelineLayout, &uiPipeline);
+	createGraphicsPipelineLayout(&uiPipelineLayout, &uiDescriptorLayout);
+	createGraphicsPipeline(vertModule, fragModule, vertInputInfo, assemblyInfo, uiPipelineLayout, &uiPipeline);
 
 	// cleanup
 	device.destroyShaderModule(vertModule);
@@ -1008,28 +992,6 @@ void Primrose::createCommandPool() {
 	commandPool = device.createCommandPool(info);
 }
 
-void Primrose::createDescriptorPool() {
-	vk::DescriptorPoolSize poolSizes[2]{};
-	// uniform
-	poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
-	poolSizes[0].descriptorCount = (uint32_t)MAX_FRAMES_IN_FLIGHT;
-	// sampler
-	poolSizes[1].type = vk::DescriptorType::eCombinedImageSampler;
-	poolSizes[1].descriptorCount = (uint32_t)MAX_FRAMES_IN_FLIGHT;
-
-//	std::vector<vk::DescriptorPoolSize> poolSizes = {
-//
-//	};
-
-	vk::DescriptorPoolCreateInfo info{};
-	info.poolSizeCount = 2;
-	info.pPoolSizes = poolSizes;
-//	info.maxSets = (uint32_t)MAX_FRAMES_IN_FLIGHT;
-	info.maxSets = 100;
-
-	descriptorPool = device.createDescriptorPool(info);
-}
-
 void Primrose::createFramesInFlight() {
 	// resize vector
 	framesInFlight.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1061,32 +1023,6 @@ void Primrose::createFramesInFlight() {
 			vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
 			| vk::MemoryPropertyFlagBits::eHostCoherent, // smart access memory (256 mb)
 			&frame.uniformBuffer, &frame.uniformBufferMemory);
-
-		allocateDescriptorSet(&frame.descriptorSet);
-
-		vk::WriteDescriptorSet descriptorWrite{};
-		descriptorWrite.dstSet = frame.descriptorSet; // which set to update
-		descriptorWrite.dstArrayElement = 0; // not using an array, 0
-		descriptorWrite.descriptorCount = 1;
-		vk::WriteDescriptorSet writes[2] = {descriptorWrite, descriptorWrite};
-
-		vk::DescriptorBufferInfo uniformBufferInfo{};
-		uniformBufferInfo.buffer = frame.uniformBuffer;
-		uniformBufferInfo.offset = 0;
-		uniformBufferInfo.range = sizeof(MarchUniforms);
-		writes[0].dstBinding = 0; // which binding index
-		writes[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-		writes[0].pBufferInfo = &uniformBufferInfo;
-
-		vk::DescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-		imageInfo.imageView = marchImageView;
-		imageInfo.sampler = marchSampler;
-		writes[1].dstBinding = 1; // which binding index
-		writes[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
-		writes[1].pImageInfo = &imageInfo;
-
-		device.updateDescriptorSets(2, writes, 0, nullptr);
 	}
 
 	std::cout << std::endl; // newline
@@ -1112,15 +1048,15 @@ void Primrose::cleanup() {
 	device.destroyImageView(marchImageView);
 	device.destroySampler(marchSampler);
 
-	device.destroyDescriptorPool(descriptorPool);
 	device.destroyCommandPool(commandPool);
 
 	device.destroyPipeline(uiPipeline);
 	device.destroyPipelineLayout(uiPipelineLayout);
+	device.destroyDescriptorSetLayout(uiDescriptorLayout);
 
 	device.destroyPipeline(mainPipeline);
 	device.destroyPipelineLayout(mainPipelineLayout);
-	device.destroyDescriptorSetLayout(mainDescriptorSetLayout);
+	device.destroyDescriptorSetLayout(mainDescriptorLayout);
 
 	cleanupSwapchain();
 	device.destroyRenderPass(renderPass);

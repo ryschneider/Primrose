@@ -2,7 +2,7 @@
 #define PRIMROSE_PIPELINE_ACCELERATED_HPP
 
 namespace Primrose {
-	void createAcceleratedDescriptorSetLayout();
+	void createAcceleratedPipelineLayout();
 	void createAcceleratedPipeline();
 }
 

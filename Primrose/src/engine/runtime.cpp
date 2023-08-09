@@ -1,3 +1,4 @@
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 #include "engine/runtime.hpp"
 #include "state.hpp"
 
@@ -72,8 +73,21 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 		commandBuffer.setScissor(0, 1, &scissor);
 	}
 
-	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mainPipelineLayout,
-		0, 1, &currentFlight.descriptorSet, 0, nullptr); // cmd: bind descriptor sets
+	if (rayAcceleration) {
+
+	} else {
+		std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {
+			vk::WriteDescriptorSet(VK_NULL_HANDLE, 0, 0, 1, vk::DescriptorType::eUniformBuffer),
+			vk::WriteDescriptorSet(VK_NULL_HANDLE, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler)
+		};
+		vk::DescriptorBufferInfo ubInfo = vk::DescriptorBufferInfo(currentFlight.uniformBuffer, 0, sizeof(MarchUniforms));
+		descriptorWrites[0].pBufferInfo = &ubInfo;
+		vk::DescriptorImageInfo imgInfo = vk::DescriptorImageInfo(marchSampler, marchImageView,
+			vk::ImageLayout::eShaderReadOnlyOptimal);
+		descriptorWrites[1].pImageInfo = &imgInfo;
+
+		commandBuffer.pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, mainPipelineLayout, 0, descriptorWrites);
+	}
 
 	// push constants
 	PushConstants push{};
