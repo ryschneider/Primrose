@@ -5,7 +5,9 @@ layout(location = 0) rayPayloadEXT Payload {
 	vec3 pos;
 	vec3 dir;
 } rayPayload;
+
 layout(binding = 0, set = 0) uniform accelerationStructureEXT acc;
+
 void main() {
 
 }

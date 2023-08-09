@@ -11,6 +11,10 @@
 #include <stdexcept>
 #include <iostream>
 
+const static int genGroupIndex = 0;
+const static int hitGroupIndex = 1;
+const static int missGroupIndex = 2;
+
 void Primrose::createAcceleratedPipelineLayout() {
 	std::vector<vk::PushConstantRange> pushRanges = {
 		vk::PushConstantRange(vk::ShaderStageFlagBits::eCompute, 0, 128) // 128 bytes is min supported push size
@@ -45,13 +49,13 @@ void Primrose::createAcceleratedPipeline() {
 	std::vector<vk::PipelineShaderStageCreateInfo> stages = {rgenInfo, rintInfo, rchitInfo, rmissInfo};
 
 	// shader groups info
-	vk::RayTracingShaderGroupCreateInfoKHR genGroup(vk::RayTracingShaderGroupTypeKHR::eGeneral,
+	std::array<vk::RayTracingShaderGroupCreateInfoKHR, 3> groups;
+	groups[genGroupIndex] = vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eGeneral,
 		0, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR); // gen: stages[0]
-	vk::RayTracingShaderGroupCreateInfoKHR hitGroup(vk::RayTracingShaderGroupTypeKHR::eProceduralHitGroup,
+	groups[hitGroupIndex] = vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eProceduralHitGroup,
 		VK_SHADER_UNUSED_KHR, 2, VK_SHADER_UNUSED_KHR, 1); // chit: stages[2], int: stages[1]
-	vk::RayTracingShaderGroupCreateInfoKHR missGroup(vk::RayTracingShaderGroupTypeKHR::eGeneral,
+	groups[missGroupIndex] = vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eGeneral,
 		3, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR); // miss: stages[3]
-	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups = {genGroup, hitGroup, missGroup};
 
 	// get rt pipeline properties
 	auto rtProperties = physicalDevice.getProperties2<vk::PhysicalDeviceProperties2,
@@ -74,4 +78,46 @@ void Primrose::createAcceleratedPipeline() {
 	device.destroyShaderModule(rintInfo.module);
 	device.destroyShaderModule(rchitInfo.module);
 	device.destroyShaderModule(rmissInfo.module);
+}
+
+void Primrose::createShaderTable() {
+	auto rtProperties = physicalDevice.getProperties2<vk::PhysicalDeviceProperties2,
+		vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>().get<vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
+
+	const int numGroups = 3;
+	vk::DeviceSize progSize = rtProperties.shaderGroupBaseAlignment;
+	vk::DeviceSize tableSize = progSize * numGroups;
+
+	// create shader table buffer/memory
+	Primrose::createBuffer(tableSize,
+		vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
+		vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
+		| vk::MemoryPropertyFlagBits::eHostCoherent,
+		&rayShaderTable, &rayShaderTableMemory);
+
+	// get handles to shader groups
+	std::vector<uint8_t> handles = device.getRayTracingShaderGroupHandlesKHR<uint8_t>(mainPipeline,
+		0, numGroups, tableSize);
+
+	// copy handles to the shader table memory
+	uint8_t* dst = reinterpret_cast<uint8_t*>(device.mapMemory(rayShaderTableMemory, 0, tableSize));
+	for (int i = 0; i < numGroups; ++i) {
+		uint8_t* src = handles.data() + (i * rtProperties.shaderGroupHandleSize);
+		memcpy(dst, src, rtProperties.shaderGroupHandleSize);
+
+		dst += progSize;
+	}
+	device.unmapMemory(rayShaderTableMemory);
+
+	// get device addresses for shader groups
+	vk::BufferDeviceAddressInfo tableBufferInfo(rayShaderTable);
+	vk::DeviceAddress shaderTableAddress = device.getBufferAddressKHR(tableBufferInfo);
+
+	genGroupAddress = vk::StridedDeviceAddressRegionKHR(
+		shaderTableAddress + genGroupIndex * progSize, progSize, progSize);
+	hitGroupAddress = vk::StridedDeviceAddressRegionKHR(
+		shaderTableAddress + hitGroupIndex * progSize, progSize, progSize);
+	missGroupAddress = vk::StridedDeviceAddressRegionKHR(
+		shaderTableAddress + missGroupIndex * progSize, progSize, progSize);
+	callableGroupAddress = vk::StridedDeviceAddressRegionKHR();
 }

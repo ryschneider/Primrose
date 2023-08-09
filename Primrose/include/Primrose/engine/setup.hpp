@@ -13,6 +13,13 @@ namespace Primrose {
 	extern vk::RenderPass renderPass; // render pass with commands used to render a frame
 
 	extern bool rayAcceleration;
+	extern vk::Buffer rayShaderTable;
+	extern vk::DeviceMemory rayShaderTableMemory;
+	extern vk::StridedDeviceAddressRegionKHR genGroupAddress;
+	extern vk::StridedDeviceAddressRegionKHR hitGroupAddress;
+	extern vk::StridedDeviceAddressRegionKHR missGroupAddress;
+	extern vk::StridedDeviceAddressRegionKHR callableGroupAddress;
+
 	extern vk::DescriptorSetLayout mainDescriptorLayout;
 	extern vk::PipelineLayout mainPipelineLayout;
 	extern vk::Pipeline mainPipeline;

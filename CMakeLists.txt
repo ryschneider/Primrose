@@ -77,7 +77,7 @@ add_library(Primrose
 	Primrose/src/ui/text.cpp Primrose/include/Primrose/ui/text.hpp
 
 	Primrose/src/state.cpp Primrose/include/Primrose/state.hpp
-	Primrose/src/scene/shader_structs.cpp Primrose/include/Primrose/shader_structs.hpp
+	Primrose/src/shader_structs.cpp Primrose/include/Primrose/shader_structs.hpp
 
 	Primrose/src/scene/scene.cpp Primrose/include/Primrose/scene/scene.hpp
 	Primrose/src/scene/node.cpp Primrose/include/Primrose/scene/node.hpp
@@ -87,7 +87,7 @@ add_library(Primrose
 	Primrose/include/Primrose/core.hpp
 	Primrose/include/Primrose/scene/node_visitor.hpp
 
-	)
+	Primrose/src/log.cpp Primrose/include/Primrose/log.hpp)
 
 target_include_directories(Primrose SYSTEM PUBLIC C:/dev/include)
 target_include_directories(Primrose SYSTEM PUBLIC C:/VulkanSDK/1.3.250.0/Include)

@@ -52,30 +52,33 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 	renderBeginInfo.clearValueCount = 1;
 	renderBeginInfo.pClearValues = &clearColor;
 
-	commandBuffer.beginRenderPass(renderBeginInfo, vk::SubpassContents::eInline); // cmd: begin render pass
-
-//	vkCmdBindPipeline(commandBuffer, vk::PIPELINE_BIND_POINT_GRAPHICS, marchPipeline); // cmd: bind pipeline
-
-	// set dynamic viewport and scissor
-	if (DYNAMIC_VIEWPORT) {
-		vk::Viewport viewport{};
-		viewport.x = 0.f;
-		viewport.y = 0.f;
-		viewport.width = static_cast<float>(swapchainExtent.width);
-		viewport.height = static_cast<float>(swapchainExtent.height);
-		viewport.minDepth = 0.f;
-		viewport.maxDepth = 1.f;
-		commandBuffer.setViewport(0, 1, &viewport); // cmd: set viewport size
-
-		vk::Rect2D scissor{};
-		scissor.offset = vk::Offset2D(0, 0);
-		scissor.extent = swapchainExtent;
-		commandBuffer.setScissor(0, 1, &scissor);
-	}
-
 	if (rayAcceleration) {
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, mainPipeline);
+		commandBuffer.traceRaysKHR(genGroupAddress, missGroupAddress, hitGroupAddress, callableGroupAddress,
+			swapchainExtent.width, swapchainExtent.height, 1);
 
+		commandBuffer.beginRenderPass(renderBeginInfo, vk::SubpassContents::eInline); // cmd: begin render pass
 	} else {
+		commandBuffer.beginRenderPass(renderBeginInfo, vk::SubpassContents::eInline); // cmd: begin render pass
+
+		// set dynamic viewport and scissor
+		if (DYNAMIC_VIEWPORT) {
+			vk::Viewport viewport{};
+			viewport.x = 0.f;
+			viewport.y = 0.f;
+			viewport.width = static_cast<float>(swapchainExtent.width);
+			viewport.height = static_cast<float>(swapchainExtent.height);
+			viewport.minDepth = 0.f;
+			viewport.maxDepth = 1.f;
+			commandBuffer.setViewport(0, 1, &viewport); // cmd: set viewport size
+
+			vk::Rect2D scissor{};
+			scissor.offset = vk::Offset2D(0, 0);
+			scissor.extent = swapchainExtent;
+			commandBuffer.setScissor(0, 1, &scissor);
+		}
+
+		// uniforms
 		std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {
 			vk::WriteDescriptorSet(VK_NULL_HANDLE, 0, 0, 1, vk::DescriptorType::eUniformBuffer),
 			vk::WriteDescriptorSet(VK_NULL_HANDLE, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler)
@@ -87,18 +90,17 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 		descriptorWrites[1].pImageInfo = &imgInfo;
 
 		commandBuffer.pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, mainPipelineLayout, 0, descriptorWrites);
+
+		// push constants
+		PushConstants push{};
+		push.time = glfwGetTime();
+		commandBuffer.pushConstants(mainPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
+			sizeof(PushConstants), &push); // cmd: set push constants
+
+		// draw 3d scene
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mainPipeline); // cmd: bind pipeline
+		commandBuffer.draw(3, 1, 0, 0); // cmd: draw
 	}
-
-	// push constants
-	PushConstants push{};
-	push.time = glfwGetTime();
-	commandBuffer.pushConstants(mainPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
-		sizeof(PushConstants), &push); // cmd: set push constants
-
-	// draw 3d scene
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mainPipeline); // cmd: bind pipeline
-
-	commandBuffer.draw(3, 1, 0, 0); // cmd: draw
 
 	// draw ui
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, uiPipeline); // cmd: bind pipeline

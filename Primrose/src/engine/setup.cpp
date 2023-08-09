@@ -1,5 +1,6 @@
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 #include "engine/setup.hpp"
+#include "log.hpp"
 #include "state.hpp"
 #include "engine/runtime.hpp"
 #include "engine/pipeline_accelerated.hpp"
@@ -27,6 +28,13 @@ namespace Primrose {
 	vk::RenderPass renderPass; // render pass with commands used to render a frame
 
 	bool rayAcceleration; // set by pickPhysicalDevice
+	vk::Buffer rayShaderTable;
+	vk::DeviceMemory rayShaderTableMemory;
+	vk::StridedDeviceAddressRegionKHR genGroupAddress;
+	vk::StridedDeviceAddressRegionKHR hitGroupAddress;
+	vk::StridedDeviceAddressRegionKHR missGroupAddress;
+	vk::StridedDeviceAddressRegionKHR callableGroupAddress;
+
 	vk::DescriptorSetLayout mainDescriptorLayout;
 	vk::PipelineLayout mainPipelineLayout;
 	vk::Pipeline mainPipeline;
@@ -446,6 +454,8 @@ vk::ShaderModule Primrose::createShaderModule(const uint32_t* code, size_t lengt
 
 
 void Primrose::setup(const char* applicationName, unsigned int applicationVersion) {
+	log("Setting up engine");
+
 	Primrose::appName = applicationName;
 	Primrose::appVersion = applicationVersion;
 
@@ -457,10 +467,12 @@ void Primrose::setup(const char* applicationName, unsigned int applicationVersio
 	setZoom(1.f); // initial set zoom
 	uniforms.screenHeight = static_cast<float>(swapchainExtent.height) / static_cast<float>(swapchainExtent.width);
 	//Runtime::uniforms.primitives = Scene::primitives.data();
+
+	log("Finished setting up engine");
 }
 
 void Primrose::initWindow() {
-	std::cout << "Initialising glfw" << std::endl << std::endl;
+	log("Initialising window");
 
 	if (glfwInit() != GLFW_TRUE) {
 		throw std::runtime_error("failed to initialise glfw");
@@ -509,6 +521,8 @@ bool Primrose::isWindowMinimized() {
 
 
 void Primrose::initVulkan() {
+	log("Initialising vulkan");
+
 	// set up vulkan.hpp dynamic loader
 	static vk::DynamicLoader dl; // static since it needs to last entire program
 	VULKAN_HPP_DEFAULT_DISPATCHER.init(dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr"));
@@ -523,18 +537,21 @@ void Primrose::initVulkan() {
 	createRenderPass();
 	createSwapchainFrames();
 
-	// testing
-	createAcceleratedPipelineLayout();
-	createAcceleratedPipeline();
-	device.destroyPipeline(mainPipeline);
-	device.destroyPipelineLayout(mainPipelineLayout);
-	device.destroyDescriptorSetLayout(mainDescriptorLayout);
-	// testing
+//	// testing
+//	createAcceleratedPipelineLayout();
+//	createAcceleratedPipeline();
+//	device.destroyPipeline(mainPipeline);
+//	device.destroyPipelineLayout(mainPipelineLayout);
+//	device.destroyDescriptorSetLayout(mainDescriptorLayout);
+//	// testing
 
 	if (rayAcceleration) {
+		std::cout << "Creating ray tracing pipeline" << std::endl;
 		createAcceleratedPipelineLayout();
 		createAcceleratedPipeline();
+		createShaderTable();
 	} else {
+		std::cout << "Creating unaccelerated graphics pipeline" << std::endl;
 		createRasterPipelineLayout();
 		createRasterPipeline();
 	}
@@ -550,6 +567,8 @@ void Primrose::initVulkan() {
 
 
 void Primrose::setupDebugMessenger() {
+	log("Setting up debug messenger");
+
 	if (!Settings::validationEnabled) return;
 
 	vk::DebugUtilsMessengerCreateInfoEXT info{};
@@ -566,6 +585,8 @@ void Primrose::setupDebugMessenger() {
 }
 
 void Primrose::createInstance() {
+	log("Creating vulkan instance");
+
 	if (Settings::validationEnabled) {
 		// check for validation layers
 		auto availableLayers = vk::enumerateInstanceLayerProperties();
@@ -639,6 +660,8 @@ void Primrose::createInstance() {
 }
 
 void Primrose::createSurface() {
+	log("Creating vulkan surface");
+
 	VkSurfaceKHR tempSurface; // since glfwCreateWindowSurface needs VkSurfaceKHR*
 	if (glfwCreateWindowSurface(VkInstance(instance), window, nullptr, &tempSurface) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create window surface");
@@ -649,10 +672,10 @@ void Primrose::createSurface() {
 
 
 void Primrose::pickPhysicalDevice() {
+	log("Picking physical device");
+
 	std::vector<vk::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
-	if (devices.empty()) {
-		throw std::runtime_error("no GPU with vulkan support");
-	}
+	if (devices.empty()) { error("No GPU with vulkan support"); }
 
 	int bestScore = -1;
 	vk::PhysicalDevice bestDevice = VK_NULL_HANDLE;
@@ -694,7 +717,7 @@ void Primrose::pickPhysicalDevice() {
 	}
 
 	physicalDevice = bestDevice;
-	rayAcceleration = bestSupportsRay && false;
+	rayAcceleration = bestSupportsRay;
 	std::cout << "Choosing graphics device with " << getPhysicalDeviceVramMb(physicalDevice) << " mb VRAM" << std::endl;
 
 	std::cout << std::endl; // newline to seperate prints
@@ -720,12 +743,12 @@ void Primrose::createLogicalDevice() {
 
 	std::vector<const char*> extensions;
 	extensions.insert(extensions.end(), REQUIRED_EXTENSIONS.begin(), REQUIRED_EXTENSIONS.end());
-	if (rayAcceleration || true) extensions.insert(extensions.end(), RAY_EXTENSIONS.begin(), RAY_EXTENSIONS.end()); // TODO remove ||true
+	if (rayAcceleration) extensions.insert(extensions.end(), RAY_EXTENSIONS.begin(), RAY_EXTENSIONS.end()); // TODO remove ||true
 
 	vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rtFeatures(VK_TRUE);
 
 	vk::DeviceCreateInfo createInfo{};
-	if (rayAcceleration || true) createInfo.pNext = &rtFeatures;
+	if (rayAcceleration) createInfo.pNext = &rtFeatures;
 	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size()); // create queues
 	createInfo.pQueueCreateInfos = queueInfos.data();
 	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size()); // enable extensions
@@ -831,7 +854,7 @@ void Primrose::createSwapchain() {
 
 	swapchain = device.createSwapchainKHR(createInfo);
 
-	// print num of images (device could have chosen different number than imageCount)
+	// send num of images (device could have chosen different number than imageCount)
 	std::cout << "Swapchain images: " << device.getSwapchainImagesKHR(swapchain).size();
 	std::cout << " (" << swapCapabilities.minImageCount << " to ";
 	std::cout << swapCapabilities.maxImageCount << ")" << std::endl;
