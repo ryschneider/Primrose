@@ -28,12 +28,21 @@ namespace Primrose {
 	vk::RenderPass renderPass; // render pass with commands used to render a frame
 
 	bool rayAcceleration; // set by pickPhysicalDevice
+
+	vk::AccelerationStructureKHR topStructure;
+	vk::Buffer topStructureBuffer;
+	vk::DeviceMemory topStructureMemory;
+	vk::AccelerationStructureKHR aabbStructure;
+	vk::Buffer aabbStructureBuffer;
+	vk::DeviceMemory aabbStructureMemory;
+
 	vk::Buffer rayShaderTable;
 	vk::DeviceMemory rayShaderTableMemory;
 	vk::StridedDeviceAddressRegionKHR genGroupAddress;
 	vk::StridedDeviceAddressRegionKHR hitGroupAddress;
 	vk::StridedDeviceAddressRegionKHR missGroupAddress;
 	vk::StridedDeviceAddressRegionKHR callableGroupAddress;
+
 	vk::Image traceImage;
 	vk::ImageView traceImageView;
 	vk::DeviceMemory traceImageMemory;
@@ -239,30 +248,34 @@ void Primrose::createDeviceMemory(vk::MemoryRequirements memReqs,
 
 	vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
 
-	uint32_t bestMemory;
+	uint32_t bestMemoryType;
+	vk::DeviceSize bestMemorySize = 0;
 	bool found = false;
 	for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
 		// which of chosen [properties] are supported
 		vk::MemoryPropertyFlags supportedProperties = memProperties.memoryTypes[i].propertyFlags & properties;
 
+		uint32_t heapIndex = memProperties.memoryTypes[i].heapIndex;
+
 		if (memReqs.memoryTypeBits & (1 << i) // check if memory is suitable according to memReqs
-			&& supportedProperties == properties) { // and all properties are supported
-			bestMemory = i;
+			&& supportedProperties == properties // and all properties are supported
+			&& memProperties.memoryHeaps[heapIndex].size > bestMemorySize) { // choose the heap with the most memory
+			bestMemoryType = i;
+			bestMemorySize = memProperties.memoryHeaps[heapIndex].size;
 			found = true;
-			break;
 		}
 	}
 	if (!found) {
 		throw std::runtime_error("failed to find suitable memory nodeType");
 	}
 
-//	uint32_t heapIndex = memProperties.memoryTypes[bestMemory].heapIndex;
+	uint32_t heapIndex = memProperties.memoryTypes[bestMemoryType].heapIndex;
 
 	vk::MemoryAllocateInfo allocInfo{};
 	allocInfo.allocationSize = memReqs.size;
-	allocInfo.memoryTypeIndex = bestMemory;
-//	std::cout << "Creating " << memReqs.size << " byte buffer on heap " << heapIndex << " (";
-//	std::cout << memProperties.memoryHeaps[heapIndex].size / (1024 * 1024) << " mb)" << std::endl;
+	allocInfo.memoryTypeIndex = bestMemoryType;
+	verbose(fmt::format("Allocating {} bytes of memory on heap {} ({} mb)", memReqs.size, heapIndex,
+		memProperties.memoryHeaps[heapIndex].size / (1024 * 1024)));
 
 	vk::MemoryAllocateFlagsInfo allocFlags(vk::MemoryAllocateFlagBits::eDeviceAddress);
 	if (deviceAddressFlag) allocInfo.pNext = &allocFlags;
@@ -556,18 +569,12 @@ void Primrose::initVulkan() {
 	createSwapchainFrames();
 	if (rayAcceleration) createTraceImage();
 
-//	// testing
-//	createAcceleratedPipelineLayout();
-//	createAcceleratedPipeline();
-//	device.destroyPipeline(mainPipeline);
-//	device.destroyPipelineLayout(mainPipelineLayout);
-//	device.destroyDescriptorSetLayout(mainDescriptorLayout);
-//	// testing
-
 	if (rayAcceleration) {
 		createAcceleratedPipelineLayout();
 		createAcceleratedPipeline();
 		createShaderTable();
+		createBottomAccelerationStructure();
+		createTopAccelerationStructure();
 	} else {
 		createRasterPipelineLayout();
 		createRasterPipeline();
@@ -771,9 +778,11 @@ void Primrose::createLogicalDevice() {
 
 	vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rtFeatures(VK_TRUE);
 	vk::PhysicalDeviceBufferDeviceAddressFeatures addressFeatures(VK_TRUE);
+	vk::PhysicalDeviceAccelerationStructureFeaturesKHR asFeatures(VK_TRUE);
 	if (rayAcceleration) {
 		createInfo.pNext = &rtFeatures;
 		rtFeatures.pNext = &addressFeatures;
+		addressFeatures.pNext = &asFeatures;
 	};
 
 	device = physicalDevice.createDevice(createInfo);
@@ -898,7 +907,9 @@ void Primrose::createRenderPass() {
 	colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
 	colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
 
-	colorAttachment.initialLayout = vk::ImageLayout::eUndefined; // dont care what layout it has before rendering
+//	colorAttachment.initialLayout = vk::ImageLayout::eUndefined; // dont care what layout it has before rendering
+	colorAttachment.initialLayout = vk::ImageLayout::ePresentSrcKHR; // keep same layout between frames
+	// TODO ^ see if this or (loadOp = eLoad) affects performance, if so find a way to trace rays inside the render pass
 	colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR; // want the image to be presentable after rendering
 
 	vk::AttachmentReference colorAttachmentRef{};
@@ -1155,6 +1166,13 @@ void Primrose::cleanup() {
 	device.destroyPipeline(uiPipeline);
 	device.destroyPipelineLayout(uiPipelineLayout);
 	device.destroyDescriptorSetLayout(uiDescriptorLayout);
+
+	device.destroyAccelerationStructureKHR(topStructure);
+	device.destroyBuffer(topStructureBuffer);
+	device.freeMemory(topStructureMemory);
+	device.destroyAccelerationStructureKHR(aabbStructure);
+	device.destroyBuffer(aabbStructureBuffer);
+	device.freeMemory(aabbStructureMemory);
 
 	device.destroyBuffer(rayShaderTable);
 	device.freeMemory(rayShaderTableMemory);

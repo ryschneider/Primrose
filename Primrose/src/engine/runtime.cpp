@@ -56,12 +56,16 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 
 	if (rayAcceleration) {
 		// descriptor sets
-		std::array<vk::WriteDescriptorSet, 1> descriptorWrites = {
+		std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {
+			vk::WriteDescriptorSet(VK_NULL_HANDLE, 0, 0, 1, vk::DescriptorType::eAccelerationStructureKHR),
 			vk::WriteDescriptorSet(VK_NULL_HANDLE, 1, 0, 1, vk::DescriptorType::eStorageImage)
 		};
+		vk::WriteDescriptorSetAccelerationStructureKHR accWrite(1, &topStructure);
+		descriptorWrites[0].pNext = &accWrite;
+
 		vk::DescriptorImageInfo imgInfo = vk::DescriptorImageInfo(VK_NULL_HANDLE,
 			traceImageView, vk::ImageLayout::eGeneral);
-		descriptorWrites[0].pImageInfo = &imgInfo;
+		descriptorWrites[1].pImageInfo = &imgInfo;
 
 		commandBuffer.pushDescriptorSetKHR(vk::PipelineBindPoint::eRayTracingKHR,
 			mainPipelineLayout, 0, descriptorWrites);

@@ -13,3 +13,4 @@
 * [SPIRV ray tracing extension doc](https://github.com/KhronosGroup/SPIRV-Registry/blob/main/extensions/KHR/SPV_KHR_ray_tracing.asciidoc)
 * [NVIDIA ray tracing book](https://link.springer.com/book/10.1007/978-1-4842-7185-8)
 * [Minimal example of ray pipeline/ray query](https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction)
+* [Example ray shaders](https://github.com/georgeouzou/vk_exp/tree/master/shaders)

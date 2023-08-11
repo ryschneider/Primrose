@@ -128,3 +128,162 @@ void Primrose::createShaderTable() {
 		shaderTableAddress + missGroupIndex * progSize, progSize, progSize);
 	callableGroupAddress = vk::StridedDeviceAddressRegionKHR();
 }
+
+void Primrose::createBottomAccelerationStructure() {
+	log("Creating bottom-level acceleration structure");
+
+	std::vector<vk::AabbPositionsKHR> aabbData = {
+		vk::AabbPositionsKHR(
+			-6, -1, 4,
+			-4, 1, 6),
+		vk::AabbPositionsKHR(
+			4, -1, 4,
+			6, 1, 6)
+	};
+
+	// store aabb data in device buffer
+	vk::Buffer aabbDataBuffer;
+	vk::DeviceMemory aabbDataMemory;
+	createBuffer(aabbData.size() * sizeof(vk::AabbPositionsKHR), vk::BufferUsageFlagBits::eShaderDeviceAddress
+		| vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR,
+//		| vk::BufferUsageFlagBits::eStorageBuffer,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		&aabbDataBuffer, &aabbDataMemory, true);
+	writeToDevice(aabbDataMemory, aabbData.data(), aabbData.size() * sizeof(vk::AabbPositionsKHR));
+
+	// build/create info structures
+	vk::AccelerationStructureGeometryKHR geom{};
+	geom.geometryType = vk::GeometryTypeKHR::eAabbs;
+	geom.geometry.aabbs = vk::AccelerationStructureGeometryAabbsDataKHR(
+		vk::DeviceOrHostAddressConstKHR(device.getBufferAddress(vk::BufferDeviceAddressInfo(aabbDataBuffer))),
+		sizeof(vk::AabbPositionsKHR));
+	geom.flags = vk::GeometryFlagBitsKHR::eNoDuplicateAnyHitInvocation;
+
+	vk::AccelerationStructureBuildGeometryInfoKHR buildInfo{};
+	buildInfo.type = vk::AccelerationStructureTypeKHR::eBottomLevel;
+	buildInfo.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
+	buildInfo.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
+	buildInfo.geometryCount = 1;
+	buildInfo.pGeometries = &geom;
+
+	vk::AccelerationStructureBuildSizesInfoKHR buildSizes = device.getAccelerationStructureBuildSizesKHR(
+		vk::AccelerationStructureBuildTypeKHR::eDevice, buildInfo, {static_cast<unsigned int>(aabbData.size())});
+
+	createBuffer(buildSizes.accelerationStructureSize, vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR,
+		vk::MemoryPropertyFlagBits::eDeviceLocal, &aabbStructureBuffer, &aabbStructureMemory);
+
+	vk::AccelerationStructureCreateInfoKHR asInfo{};
+	asInfo.buffer = aabbStructureBuffer;
+	asInfo.offset = 0;
+	asInfo.size = buildSizes.accelerationStructureSize;
+	asInfo.type = vk::AccelerationStructureTypeKHR::eBottomLevel;
+
+	aabbStructure = device.createAccelerationStructureKHR(asInfo);
+
+	vk::Buffer scratchBuffer;
+	vk::DeviceMemory scratchMemory;
+	createBuffer(buildSizes.buildScratchSize,
+		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress,
+		vk::MemoryPropertyFlagBits::eDeviceLocal, &scratchBuffer, &scratchMemory, true);
+	vk::DeviceAddress scratchAddress = device.getBufferAddress(vk::BufferDeviceAddressInfo(scratchBuffer));
+
+	buildInfo.dstAccelerationStructure = aabbStructure;
+	buildInfo.scratchData.deviceAddress = scratchAddress;
+
+	vk::AccelerationStructureBuildRangeInfoKHR buildRange(aabbData.size(), 0, 0, 0);
+
+	// build acceleration structure
+	vk::CommandBuffer cmd = startSingleTimeCommandBuffer();
+	cmd.buildAccelerationStructuresKHR({buildInfo}, {&buildRange});
+	endSingleTimeCommandBuffer(cmd);
+
+	// cleanup
+	device.freeMemory(scratchMemory);
+	device.destroyBuffer(scratchBuffer);
+
+	device.freeMemory(aabbDataMemory);
+	device.destroyBuffer(aabbDataBuffer);
+};
+
+void Primrose::createTopAccelerationStructure() {
+	log("Creating top-level acceleration structure");
+
+	// instance data
+	vk::DeviceAddress aabbStructureAddress = device.getAccelerationStructureAddressKHR(
+		vk::AccelerationStructureDeviceAddressInfoKHR(aabbStructure));
+
+	vk::TransformMatrixKHR identityMatrix{};
+	identityMatrix.matrix[0] = vk::ArrayWrapper1D<float, 4>({1, 0, 0, 0});
+	identityMatrix.matrix[1] = vk::ArrayWrapper1D<float, 4>({0, 1, 0, 0});
+	identityMatrix.matrix[2] = vk::ArrayWrapper1D<float, 4>({0, 0, 1, 0});
+
+	std::vector<vk::AccelerationStructureInstanceKHR> instanceData = {
+		vk::AccelerationStructureInstanceKHR(identityMatrix, 0, 0xFF, 0, {}, aabbStructureAddress)
+	};
+
+	vk::Buffer instanceBuffer;
+	vk::DeviceMemory instanceMemory;
+	createBuffer(instanceData.size() * sizeof(vk::AccelerationStructureInstanceKHR),
+		vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR
+		| vk::BufferUsageFlagBits::eShaderDeviceAddress,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		&instanceBuffer, &instanceMemory, true);
+	writeToDevice(instanceMemory,
+		instanceData.data(), instanceData.size() * sizeof(vk::AccelerationStructureInstanceKHR));
+
+	vk::AccelerationStructureGeometryKHR geom{};
+	geom.geometryType = vk::GeometryTypeKHR::eInstances;
+	geom.geometry.instances = vk::AccelerationStructureGeometryInstancesDataKHR(VK_FALSE,
+		vk::DeviceOrHostAddressConstKHR(device.getBufferAddress(vk::BufferDeviceAddressInfo(instanceBuffer))));
+	geom.flags = vk::GeometryFlagBitsKHR::eOpaque;
+
+	// fill build info struct enough to calculate structure size
+	vk::AccelerationStructureBuildGeometryInfoKHR buildInfo{};
+	buildInfo.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+	buildInfo.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
+	buildInfo.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
+	buildInfo.geometryCount = 1;
+	buildInfo.pGeometries = &geom;
+
+	// calculate structure build size
+	vk::AccelerationStructureBuildSizesInfoKHR buildSizes = device.getAccelerationStructureBuildSizesKHR(
+		vk::AccelerationStructureBuildTypeKHR::eDevice, buildInfo, {static_cast<unsigned int>(instanceData.size())});
+
+	// create buffer for structure
+	createBuffer(buildSizes.accelerationStructureSize, vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR,
+		vk::MemoryPropertyFlagBits::eDeviceLocal, &topStructureBuffer, &topStructureMemory);
+
+	// create structure
+	vk::AccelerationStructureCreateInfoKHR asInfo{};
+	asInfo.buffer = topStructureBuffer;
+	asInfo.offset = 0;
+	asInfo.size = buildSizes.accelerationStructureSize;
+	asInfo.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+	topStructure = device.createAccelerationStructureKHR(asInfo);
+
+	// create scratch buffer
+	vk::Buffer scratchBuffer;
+	vk::DeviceMemory scratchMemory;
+	createBuffer(buildSizes.buildScratchSize,
+		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress,
+		vk::MemoryPropertyFlagBits::eDeviceLocal, &scratchBuffer, &scratchMemory, true);
+	vk::DeviceAddress scratchAddress = device.getBufferAddress(vk::BufferDeviceAddressInfo(scratchBuffer));
+
+	// finish build info structure
+	buildInfo.dstAccelerationStructure = topStructure;
+	buildInfo.scratchData.deviceAddress = scratchAddress;
+
+	// build acceleration structure
+	vk::AccelerationStructureBuildRangeInfoKHR buildRange(instanceData.size(), 0, 0, 0);
+
+	vk::CommandBuffer cmd = startSingleTimeCommandBuffer();
+	cmd.buildAccelerationStructuresKHR({buildInfo}, {&buildRange});
+	endSingleTimeCommandBuffer(cmd);
+
+	// cleanup
+	device.freeMemory(scratchMemory);
+	device.destroyBuffer(scratchBuffer);
+
+	device.freeMemory(instanceMemory);
+	device.destroyBuffer(instanceBuffer);
+};
