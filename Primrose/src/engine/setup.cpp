@@ -34,6 +34,9 @@ namespace Primrose {
 	vk::StridedDeviceAddressRegionKHR hitGroupAddress;
 	vk::StridedDeviceAddressRegionKHR missGroupAddress;
 	vk::StridedDeviceAddressRegionKHR callableGroupAddress;
+	vk::Image traceImage;
+	vk::ImageView traceImageView;
+	vk::DeviceMemory traceImageMemory;
 
 	vk::DescriptorSetLayout mainDescriptorLayout;
 	vk::PipelineLayout mainPipelineLayout;
@@ -117,7 +120,8 @@ namespace Primrose {
 			if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT // if warning or worse
 				|| type == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) { // or non-optimal use of vulkan
 
-				std::cerr << pCallbackData->pMessage << std::endl << std::endl;
+//				std::cerr << pCallbackData->pMessage << std::endl << std::endl;
+				warning(pCallbackData->pMessage);
 			}
 
 			return VK_FALSE; // whether to abort the vulkan call which triggered the callback
@@ -231,7 +235,7 @@ namespace Primrose {
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE // storage for vulkan.hpp dynamic loader
 
 void Primrose::createDeviceMemory(vk::MemoryRequirements memReqs,
-	vk::MemoryPropertyFlags properties, vk::DeviceMemory* memory) {
+	vk::MemoryPropertyFlags properties, vk::DeviceMemory* memory, bool deviceAddressFlag) {
 
 	vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
 
@@ -260,10 +264,16 @@ void Primrose::createDeviceMemory(vk::MemoryRequirements memReqs,
 //	std::cout << "Creating " << memReqs.size << " byte buffer on heap " << heapIndex << " (";
 //	std::cout << memProperties.memoryHeaps[heapIndex].size / (1024 * 1024) << " mb)" << std::endl;
 
+	vk::MemoryAllocateFlagsInfo allocFlags(vk::MemoryAllocateFlagBits::eDeviceAddress);
+	if (deviceAddressFlag) allocInfo.pNext = &allocFlags;
+
 	*memory = device.allocateMemory(allocInfo);
 }
 void Primrose::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
-	vk::MemoryPropertyFlags properties, vk::Buffer* buffer, vk::DeviceMemory* bufferMemory) {
+	vk::MemoryPropertyFlags properties, vk::Buffer* buffer, vk::DeviceMemory* bufferMemory, bool deviceAddressFlag) {
+
+	verbose(fmt::format("Creating {} byte buffer: usage{}, properties{}",
+		size, to_string(usage), to_string(properties)));
 
 	// create buffer
 	vk::BufferCreateInfo bufferInfo{};
@@ -275,7 +285,7 @@ void Primrose::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
 
 	vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(*buffer);
 
-	createDeviceMemory(memReqs, properties, bufferMemory);
+	createDeviceMemory(memReqs, properties, bufferMemory, deviceAddressFlag);
 
 	device.bindBufferMemory(*buffer, *bufferMemory, 0); // bind memory to buffer
 }
@@ -317,13 +327,11 @@ void Primrose::endSingleTimeCommandBuffer(vk::CommandBuffer cmdBuffer) {
 	device.freeCommandBuffers(commandPool, cmdBuffer);
 }
 
-void Primrose::transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
-	vk::PipelineStageFlags srcStage;
-	vk::PipelineStageFlags dstStage;
+void Primrose::transitionImageLayout(vk::Image image, vk::CommandBuffer cmd,
+	vk::ImageLayout oldLayout, vk::AccessFlags oldAccess, vk::PipelineStageFlags oldStage,
+	vk::ImageLayout newLayout, vk::AccessFlags newAccess, vk::PipelineStageFlags newStage) {
 
 	vk::ImageMemoryBarrier barrier{};
-	barrier.oldLayout = oldLayout;
-	barrier.newLayout = newLayout;
 	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.image = image;
@@ -333,24 +341,35 @@ void Primrose::transitionImageLayout(vk::Image image, vk::Format format, vk::Ima
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount = 1;
 
+	barrier.oldLayout = oldLayout;
+	barrier.newLayout = newLayout;
+	barrier.srcAccessMask = oldAccess;
+	barrier.dstAccessMask = newAccess;
+
+	cmd.pipelineBarrier(oldStage, newStage, vk::DependencyFlagBits::eByRegion, nullptr, nullptr, {barrier});
+}
+
+void Primrose::transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
+	vk::CommandBuffer cmd = startSingleTimeCommandBuffer();
+
 	if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal) {
-		barrier.srcAccessMask = vk::AccessFlagBits::eNone;
-		barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-
-		srcStage = vk::PipelineStageFlagBits::eTopOfPipe;
-		dstStage = vk::PipelineStageFlagBits::eTransfer;
+		transitionImageLayout(image, cmd,
+			oldLayout, vk::AccessFlagBits::eNone, vk::PipelineStageFlagBits::eTopOfPipe,
+			newLayout, vk::AccessFlagBits::eTransferWrite, vk::PipelineStageFlagBits::eTransfer);
 	} else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
-		barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-		barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-		srcStage = vk::PipelineStageFlagBits::eTransfer;
-		dstStage = vk::PipelineStageFlagBits::eFragmentShader;
+		transitionImageLayout(image, cmd,
+			oldLayout, vk::AccessFlagBits::eTransferWrite, vk::PipelineStageFlagBits::eTransfer,
+			newLayout, vk::AccessFlagBits::eShaderRead, vk::PipelineStageFlagBits::eFragmentShader);
+	} else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eGeneral) {
+		transitionImageLayout(image, cmd,
+			oldLayout, vk::AccessFlagBits::eNone, vk::PipelineStageFlagBits::eAllCommands,
+			newLayout, vk::AccessFlagBits::eNone, vk::PipelineStageFlagBits::eAllCommands);
+	} else {
+		error(fmt::format("Transition from image layout {} to {} unsupported",
+			to_string(oldLayout), to_string(newLayout)));
 	}
 
-	vk::CommandBuffer cmdBuffer = startSingleTimeCommandBuffer();
-	cmdBuffer.pipelineBarrier(srcStage, dstStage, vk::DependencyFlagBits::eByRegion,
-		0, nullptr, 0, nullptr, 1, &barrier);
-	endSingleTimeCommandBuffer(cmdBuffer);
+	endSingleTimeCommandBuffer(cmd);
 }
 void Primrose::importTexture(const char* path, vk::Image* image, vk::DeviceMemory* imageMemory, float* aspect) {
 	// generateUniforms image data
@@ -370,7 +389,6 @@ void Primrose::importTexture(const char* path, vk::Image* image, vk::DeviceMemor
 }
 
 void Primrose::imageFromData(void* data, uint32_t width, uint32_t height, vk::Image* image, vk::DeviceMemory* imageMemory) {
-
 	vk::DeviceSize dataSize = width * height * 4;
 
 	// create and write to staging buffer
@@ -402,8 +420,7 @@ void Primrose::imageFromData(void* data, uint32_t width, uint32_t height, vk::Im
 	device.bindImageMemory(*image, *imageMemory, 0);
 
 	// transition image layout to optimal destination layout
-	transitionImageLayout(*image, vk::Format::eR8G8B8A8Srgb,
-		vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	transitionImageLayout(*image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 
 	// copy data to image
 	vk::CommandBuffer cmdBuffer = startSingleTimeCommandBuffer();
@@ -421,8 +438,7 @@ void Primrose::imageFromData(void* data, uint32_t width, uint32_t height, vk::Im
 	endSingleTimeCommandBuffer(cmdBuffer);
 
 	// transition image layout to optimal shader reading layout
-	transitionImageLayout(*image, vk::Format::eR8G8B8A8Srgb,
-		vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+	transitionImageLayout(*image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 
 	// cleanup staging buffer
 	device.destroyBuffer(stagingBuffer);
@@ -533,9 +549,12 @@ void Primrose::initVulkan() {
 	pickPhysicalDevice();
 	createLogicalDevice();
 
+	createCommandPool();
+
 	createSwapchain();
 	createRenderPass();
 	createSwapchainFrames();
+	if (rayAcceleration) createTraceImage();
 
 //	// testing
 //	createAcceleratedPipelineLayout();
@@ -546,18 +565,14 @@ void Primrose::initVulkan() {
 //	// testing
 
 	if (rayAcceleration) {
-		std::cout << "Creating ray tracing pipeline" << std::endl;
 		createAcceleratedPipelineLayout();
 		createAcceleratedPipeline();
 		createShaderTable();
 	} else {
-		std::cout << "Creating unaccelerated graphics pipeline" << std::endl;
 		createRasterPipelineLayout();
 		createRasterPipeline();
 	}
 	createUIPipeline();
-
-	createCommandPool();
 
 	createDitherTexture();
 
@@ -713,17 +728,19 @@ void Primrose::pickPhysicalDevice() {
 	}
 
 	if (VkPhysicalDevice(bestDevice) == VK_NULL_HANDLE) {
-		throw std::runtime_error("no suitable graphics device could be found");
+		error("No suitable graphics device could be found");
 	}
 
 	physicalDevice = bestDevice;
 	rayAcceleration = bestSupportsRay;
-	std::cout << "Choosing graphics device with " << getPhysicalDeviceVramMb(physicalDevice) << " mb VRAM" << std::endl;
-
-	std::cout << std::endl; // newline to seperate prints
+	log(fmt::format("Choosing physical device with {} and {} mb VRAM",
+		rayAcceleration ? "ray tracing support" : "no ray tracing support",
+		getPhysicalDeviceVramMb(physicalDevice)));
 }
 
 void Primrose::createLogicalDevice() {
+	log("Creating logical device");
+
 	QueueFamilyIndices indices = getQueueFamilies(physicalDevice);
 
 	std::vector<vk::DeviceQueueCreateInfo> queueInfos;
@@ -745,15 +762,19 @@ void Primrose::createLogicalDevice() {
 	extensions.insert(extensions.end(), REQUIRED_EXTENSIONS.begin(), REQUIRED_EXTENSIONS.end());
 	if (rayAcceleration) extensions.insert(extensions.end(), RAY_EXTENSIONS.begin(), RAY_EXTENSIONS.end()); // TODO remove ||true
 
-	vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rtFeatures(VK_TRUE);
-
 	vk::DeviceCreateInfo createInfo{};
-	if (rayAcceleration) createInfo.pNext = &rtFeatures;
 	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size()); // create queues
 	createInfo.pQueueCreateInfos = queueInfos.data();
 	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size()); // enable extensions
 	createInfo.ppEnabledExtensionNames = extensions.data();
 	createInfo.pEnabledFeatures = &features;
+
+	vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rtFeatures(VK_TRUE);
+	vk::PhysicalDeviceBufferDeviceAddressFeatures addressFeatures(VK_TRUE);
+	if (rayAcceleration) {
+		createInfo.pNext = &rtFeatures;
+		rtFeatures.pNext = &addressFeatures;
+	};
 
 	device = physicalDevice.createDevice(createInfo);
 
@@ -766,6 +787,8 @@ void Primrose::createLogicalDevice() {
 }
 
 void Primrose::createSwapchain() {
+	log("Creating swapchain");
+
 	vk::SurfaceCapabilitiesKHR swapCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
 	std::vector<vk::SurfaceFormatKHR> swapFormats = physicalDevice.getSurfaceFormatsKHR(surface);
 	std::vector<vk::PresentModeKHR> swapPresentModes = physicalDevice.getSurfacePresentModesKHR(surface);
@@ -780,8 +803,9 @@ void Primrose::createSwapchain() {
 			break;
 		}
 	}
-	std::cout << "Swapchain format: " << to_string(surfaceFormat.format) << ", " << to_string(surfaceFormat.colorSpace);
-	std::cout << (ideal ? " (ideal)" : " (not ideal)") << std::endl;
+	verbose(fmt::format("Swapchain format: {}, {} {}", to_string(surfaceFormat.format),
+		to_string(surfaceFormat.colorSpace), ideal ? "(ideal)" : "(not ideal)"));
+
 	swapchainImageFormat = surfaceFormat.format; // save format to global var
 
 	// choose presentation mode
@@ -794,7 +818,7 @@ void Primrose::createSwapchain() {
 			break;
 		}
 	}
-	std::cout << "Swapchain present mode: " << to_string(presentMode) << (ideal ? " (ideal)" : " (not ideal)") << std::endl;
+	verbose(fmt::format("Swapchain present mode: {} {}", to_string(presentMode), ideal ? "(ideal)" : "(not ideal)"));
 
 	glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
@@ -810,7 +834,7 @@ void Primrose::createSwapchain() {
 	} else {
 		swapchainExtent = swapCapabilities.currentExtent; // use extent given
 	}
-	std::cout << "Swapchain extent: (" << swapchainExtent.width << ", " << swapchainExtent.height << ")" << std::endl;
+	verbose(fmt::format("Swapchain extent: ({}, {})", swapchainExtent.width, swapchainExtent.height));
 
 	// number of images held by swapchain
 	uint32_t imageCount = swapCapabilities.minImageCount + 1; // use 1 more than minimum
@@ -830,6 +854,8 @@ void Primrose::createSwapchain() {
 	createInfo.imageArrayLayers = 1; // layers per image
 	createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment; // what we're using the images for
 	createInfo.presentMode = presentMode;
+
+	if (rayAcceleration) createInfo.imageUsage |= vk::ImageUsageFlagBits::eTransferDst;
 
 	QueueFamilyIndices indices = getQueueFamilies(physicalDevice);
 	uint32_t familyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
@@ -855,19 +881,18 @@ void Primrose::createSwapchain() {
 	swapchain = device.createSwapchainKHR(createInfo);
 
 	// send num of images (device could have chosen different number than imageCount)
-	std::cout << "Swapchain images: " << device.getSwapchainImagesKHR(swapchain).size();
-	std::cout << " (" << swapCapabilities.minImageCount << " to ";
-	std::cout << swapCapabilities.maxImageCount << ")" << std::endl;
-
-	std::cout << std::endl; // newline to seperate prints
+	verbose(fmt::format("Swapchain images: {} ({} to {})", device.getSwapchainImagesKHR(swapchain).size(),
+		swapCapabilities.minImageCount, swapCapabilities.maxImageCount));
 }
 
 void Primrose::createRenderPass() {
+	log("Creating render pass");
+
 	vk::AttachmentDescription colorAttachment{};
 	colorAttachment.format = swapchainImageFormat;
 	colorAttachment.samples = vk::SampleCountFlagBits::e1; // multisampling count
 
-	colorAttachment.loadOp = vk::AttachmentLoadOp::eClear; // what to do with the framebuffer data before rendering
+	colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad; // what to do with the framebuffer data before rendering
 	colorAttachment.storeOp = vk::AttachmentStoreOp::eStore; // what to do with the framebuffer data after rendering
 
 	colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
@@ -909,6 +934,8 @@ void Primrose::createRenderPass() {
 }
 
 void Primrose::createSwapchainFrames() {
+	log("Creating swapchain frames");
+
 	// fetch images from swapchain
 	std::vector<vk::Image> images = device.getSwapchainImagesKHR(swapchain);
 	swapchainFrames.resize(images.size());
@@ -935,9 +962,56 @@ void Primrose::createSwapchainFrames() {
 	}
 }
 
+void Primrose::createTraceImage() {
+	log("Creating trace image");
+
+	vk::Format storageFormat = vk::Format::eUndefined;
+	std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(surface);
+	for (vk::SurfaceFormatKHR f : formats) {
+		vk::FormatProperties p = physicalDevice.getFormatProperties(f.format);
+		if (p.optimalTilingFeatures | vk::FormatFeatureFlagBits::eStorageImage) {
+			storageFormat = f.format;
+			break;
+		}
+	}
+	if (storageFormat == vk::Format::eUndefined) {
+		error("No surface format supports StorageImage bit");
+	}
+
+	// trace image
+	vk::ImageCreateInfo imgInfo{};
+
+	imgInfo.imageType = vk::ImageType::e2D;
+	imgInfo.extent = vk::Extent3D(swapchainExtent, 1);
+	imgInfo.mipLevels = 1;
+	imgInfo.arrayLayers = 1;
+	imgInfo.format = storageFormat;
+	imgInfo.tiling = vk::ImageTiling::eOptimal;
+	imgInfo.initialLayout = vk::ImageLayout::eUndefined;
+	imgInfo.usage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc;
+	// ^ storage for passing to shaders, transfer to blit to swapchain
+	imgInfo.sharingMode = vk::SharingMode::eExclusive;
+	imgInfo.samples = vk::SampleCountFlagBits::e1;
+
+	traceImage = device.createImage(imgInfo);
+
+	// image memory
+	vk::MemoryRequirements memReqs = device.getImageMemoryRequirements(traceImage);
+	createDeviceMemory(memReqs, vk::MemoryPropertyFlagBits::eDeviceLocal, &traceImageMemory);
+	device.bindImageMemory(traceImage, traceImageMemory, 0);
+
+	// image view
+	traceImageView = createImageView(traceImage, storageFormat);
+
+	// transition from undefined to general
+	transitionImageLayout(traceImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+}
+
 
 
 void Primrose::createUIPipeline() {
+	log("Creating ui pipeline");
+
 	// shader modules
 	vk::ShaderModule vertModule = createShaderModule(reinterpret_cast<uint32_t*>(uiVertSpvData), uiVertSpvSize);
 	vk::ShaderModule fragModule = createShaderModule(reinterpret_cast<uint32_t*>(uiFragSpvData), uiFragSpvSize);
@@ -967,6 +1041,8 @@ void Primrose::createUIPipeline() {
 }
 
 void Primrose::createDitherTexture() {
+	log("Creating dither texture");
+
 	int texWidth = windowWidth*2;
 	int texHeight = windowHeight*2;
 	size_t dataSize = texWidth * texHeight * 4;
@@ -1006,6 +1082,8 @@ void Primrose::createDitherTexture() {
 
 
 void Primrose::createCommandPool() {
+	log("Creating command pool");
+
 	QueueFamilyIndices indices = getQueueFamilies(physicalDevice);
 
 	vk::CommandPoolCreateInfo info{};
@@ -1016,11 +1094,12 @@ void Primrose::createCommandPool() {
 }
 
 void Primrose::createFramesInFlight() {
+	log("Creating frames in flight");
+
 	// resize vector
 	framesInFlight.resize(MAX_FRAMES_IN_FLIGHT);
 
 	// create objects for each frame
-	std::cout << "Creating frames in flight" << std::endl;
 	for (auto& frame : framesInFlight) {
 		// create command buffers
 		vk::CommandBufferAllocateInfo commandBufferInfo{};
@@ -1047,13 +1126,13 @@ void Primrose::createFramesInFlight() {
 			| vk::MemoryPropertyFlagBits::eHostCoherent, // smart access memory (256 mb)
 			&frame.uniformBuffer, &frame.uniformBufferMemory);
 	}
-
-	std::cout << std::endl; // newline
 }
 
 
 
 void Primrose::cleanup() {
+	log("Cleaning up vulkan");
+
 	// vulkan destruction
 	for (const auto& frame : framesInFlight) {
 		device.destroySemaphore(frame.imageAvailableSemaphore);
@@ -1077,6 +1156,13 @@ void Primrose::cleanup() {
 	device.destroyPipelineLayout(uiPipelineLayout);
 	device.destroyDescriptorSetLayout(uiDescriptorLayout);
 
+	device.destroyBuffer(rayShaderTable);
+	device.freeMemory(rayShaderTableMemory);
+
+	device.destroyImageView(traceImageView);
+	device.freeMemory(traceImageMemory);
+	device.destroyImage(traceImage);
+
 	device.destroyPipeline(mainPipeline);
 	device.destroyPipelineLayout(mainPipelineLayout);
 	device.destroyDescriptorSetLayout(mainDescriptorLayout);
@@ -1099,6 +1185,8 @@ void Primrose::cleanup() {
 }
 
 void Primrose::cleanupSwapchain() {
+	log("Cleaning up swapchain");
+
 	for (const auto& frame : swapchainFrames) {
 		device.destroyFramebuffer(frame.framebuffer);
 		device.destroyImageView(frame.imageView);
@@ -1108,13 +1196,12 @@ void Primrose::cleanupSwapchain() {
 }
 
 void Primrose::recreateSwapchain() {
+	log("Recreating swapchain");
+
 	if (isWindowMinimized()) {
 		windowMinimized = true;
 		return;
 	}
-
-	std::cout << "recreating swapchain might mess up screen idk" << std::endl;
-	std::cout << "Recreating Swapchain                          " << std::endl;
 
 	device.waitIdle();
 
@@ -1122,6 +1209,7 @@ void Primrose::recreateSwapchain() {
 
 	createSwapchain();
 	createSwapchainFrames();
+	if (rayAcceleration) createTraceImage();
 
 	//for (auto& frame : framesInFlight) {
 	//	frame.uniforms.screenHeight = (float)swapchainExtent.height / (float)swapchainExtent.width;

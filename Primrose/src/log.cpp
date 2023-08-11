@@ -2,9 +2,10 @@
 
 #include <chrono>
 #include <stdio.h>
+#include <fmt/chrono.h>
 
 namespace Primrose {
-	LOG_LEVEL printLevel = LOG_LEVEL::LOG;
+	LOG_LEVEL printLevel = LOG_LEVEL::VERBOSE;
 }
 
 namespace {
@@ -20,16 +21,16 @@ namespace {
 	}
 
 	static void send(std::string msg, LOG_LEVEL level) {
-//		static const auto clock = ;
-		static auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-		std::string fullMsg = fmt::format("{} {}: {}\n", label(level), std::ctime(&time), msg);
+		auto clock = std::chrono::system_clock::now();
+		std::string saveMsg = fmt::format("{} {:%Y-%m-%d %H:%M:%S}: {}\n", label(level), clock, msg);
+		std::string printMsg = fmt::format("{}: {}\n", label(level), msg);
 
 		// write to log file
 
 		if (level == LOG_LEVEL::ERROR) {
-			throw std::runtime_error("ERROR: " + msg);
+			throw std::runtime_error(printMsg);
 		} else if (level >= printLevel) {
-			printf("%s", fullMsg.c_str());
+			printf("%s", printMsg.c_str());
 		}
 	}
 }

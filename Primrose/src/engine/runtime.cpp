@@ -1,9 +1,9 @@
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 #include "engine/runtime.hpp"
 #include "state.hpp"
+#include "log.hpp"
 
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
 
 #include <iostream>
 
@@ -17,6 +17,8 @@ void Primrose::setZoom(float newZoom) {
 }
 
 void Primrose::run(void(*callback)(float)) {
+	log("Starting main loop");
+
 	float lastTime = glfwGetTime();
 
 	while (!glfwWindowShouldClose(window)) {
@@ -48,17 +50,63 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 	renderBeginInfo.renderArea.offset = vk::Offset2D(0, 0);
 	renderBeginInfo.renderArea.extent = swapchainExtent;
 
-	vk::ClearValue clearColor = vk::ClearValue(vk::ClearColorValue(1.f, 0.f, 1.f, 1.f)); // magenta, should not be shown
-	renderBeginInfo.clearValueCount = 1;
-	renderBeginInfo.pClearValues = &clearColor;
+//	vk::ClearValue clearColor = vk::ClearValue(vk::ClearColorValue(1.f, 0.f, 1.f, 1.f)); // magenta, should not be shown
+//	renderBeginInfo.clearValueCount = 1;
+//	renderBeginInfo.pClearValues = &clearColor;
 
 	if (rayAcceleration) {
+		// descriptor sets
+		std::array<vk::WriteDescriptorSet, 1> descriptorWrites = {
+			vk::WriteDescriptorSet(VK_NULL_HANDLE, 1, 0, 1, vk::DescriptorType::eStorageImage)
+		};
+		vk::DescriptorImageInfo imgInfo = vk::DescriptorImageInfo(VK_NULL_HANDLE,
+			traceImageView, vk::ImageLayout::eGeneral);
+		descriptorWrites[0].pImageInfo = &imgInfo;
+
+		commandBuffer.pushDescriptorSetKHR(vk::PipelineBindPoint::eRayTracingKHR,
+			mainPipelineLayout, 0, descriptorWrites);
+
+		// push constants
+		PushConstants push{};
+		push.time = glfwGetTime();
+		commandBuffer.pushConstants(mainPipelineLayout, vk::ShaderStageFlagBits::eRaygenKHR, 0,
+			sizeof(PushConstants), &push); // cmd: set push constants
+
+		// bind pipeline
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, mainPipeline);
+
+		// draw
 		commandBuffer.traceRaysKHR(genGroupAddress, missGroupAddress, hitGroupAddress, callableGroupAddress,
 			swapchainExtent.width, swapchainExtent.height, 1);
 
+		// transition images to prepare for copy
+		transitionImageLayout(swapchainFrames[imageIndex].image, commandBuffer, // swap image: undefined -> transfer dst
+			vk::ImageLayout::eUndefined, vk::AccessFlagBits::eNone, vk::PipelineStageFlagBits::eTopOfPipe,
+			vk::ImageLayout::eTransferDstOptimal, vk::AccessFlagBits::eTransferWrite, vk::PipelineStageFlagBits::eTransfer);
+		transitionImageLayout(traceImage, commandBuffer, // traceImage: general -> transfer src
+			vk::ImageLayout::eGeneral, vk::AccessFlagBits::eNone, vk::PipelineStageFlagBits::eRayTracingShaderKHR,
+			vk::ImageLayout::eTransferSrcOptimal, vk::AccessFlagBits::eTransferRead, vk::PipelineStageFlagBits::eTransfer);
+
+		// copy image from traceImage to swap image
+		vk::ImageCopy imgCopy(
+			vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1), vk::Offset3D(0, 0, 0), // src format
+			vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1), vk::Offset3D(0, 0, 0), // dst format
+			vk::Extent3D(swapchainExtent, 1)); // image size
+		commandBuffer.copyImage(traceImage, vk::ImageLayout::eTransferSrcOptimal,
+			swapchainFrames[imageIndex].image, vk::ImageLayout::eTransferDstOptimal, imgCopy);
+
+		// transition images back to normal
+		transitionImageLayout(swapchainFrames[imageIndex].image, commandBuffer, // swap image: transfer dst -> present src
+			vk::ImageLayout::eTransferDstOptimal, vk::AccessFlagBits::eTransferWrite, vk::PipelineStageFlagBits::eTransfer,
+			vk::ImageLayout::ePresentSrcKHR, vk::AccessFlagBits::eNone, vk::PipelineStageFlagBits::eBottomOfPipe);
+		transitionImageLayout(traceImage, commandBuffer, // traceImage: transfer src -> general
+			vk::ImageLayout::eTransferSrcOptimal, vk::AccessFlagBits::eTransferRead, vk::PipelineStageFlagBits::eTransfer,
+			vk::ImageLayout::eGeneral, vk::AccessFlagBits::eNone, vk::PipelineStageFlagBits::eBottomOfPipe);
+
+		// begin render pass
 		commandBuffer.beginRenderPass(renderBeginInfo, vk::SubpassContents::eInline); // cmd: begin render pass
 	} else {
+		// begin render pass
 		commandBuffer.beginRenderPass(renderBeginInfo, vk::SubpassContents::eInline); // cmd: begin render pass
 
 		// set dynamic viewport and scissor
@@ -102,32 +150,32 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 		commandBuffer.draw(3, 1, 0, 0); // cmd: draw
 	}
 
-	// draw ui
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, uiPipeline); // cmd: bind pipeline
-
-	for (const auto& element : uiScene) {
-		if (element->hide) continue;
-		if (element->pPush != nullptr) {
-			// push custom struct
-			commandBuffer.pushConstants(uiPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
-				element->pushSize, element->pPush);
-		} else {
-			// push ui nodeType
-			commandBuffer.pushConstants(uiPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
-				sizeof(element->uiType), &element->uiType);
-		}
-
-		if (VkDescriptorSet(element->descriptorSet) != VK_NULL_HANDLE) {
-			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, uiPipelineLayout,
-				0, 1, &element->descriptorSet, 0, nullptr);
-		}
-
-		vk::DeviceSize offset = 0;
-		commandBuffer.bindVertexBuffers(0, 1, &(element->vertexBuffer), &offset);
-		commandBuffer.bindIndexBuffer(element->indexBuffer, 0, vk::IndexType::eUint16);
-
-		commandBuffer.drawIndexed(element->numIndices, 1, 0, 0, 0);
-	}
+//	// draw ui
+//	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, uiPipeline); // cmd: bind pipeline
+//
+//	for (const auto& element : uiScene) {
+//		if (element->hide) continue;
+//		if (element->pPush != nullptr) {
+//			// push custom struct
+//			commandBuffer.pushConstants(uiPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
+//				element->pushSize, element->pPush);
+//		} else {
+//			// push ui nodeType
+//			commandBuffer.pushConstants(uiPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0,
+//				sizeof(element->uiType), &element->uiType);
+//		}
+//
+//		if (VkDescriptorSet(element->descriptorSet) != VK_NULL_HANDLE) {
+//			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, uiPipelineLayout,
+//				0, 1, &element->descriptorSet, 0, nullptr);
+//		}
+//
+//		vk::DeviceSize offset = 0;
+//		commandBuffer.bindVertexBuffers(0, 1, &(element->vertexBuffer), &offset);
+//		commandBuffer.bindIndexBuffer(element->indexBuffer, 0, vk::IndexType::eUint16);
+//
+//		commandBuffer.drawIndexed(element->numIndices, 1, 0, 0, 0);
+//	}
 
 	renderPassCallback(commandBuffer);
 
@@ -163,7 +211,7 @@ void Primrose::drawFrame() {
 		return;
 	} else if (res.result != vk::Result::eSuccess && res.result != vk::Result::eSuboptimalKHR) {
 		// if swapchain is suboptimal it will be recreated later
-		throw std::runtime_error("failed to acquire swap chain image");
+		error("Failed to acquire swap chain image");
 	}
 	uint32_t imageIndex = res.value;
 
@@ -197,12 +245,13 @@ void Primrose::drawFrame() {
 	presentInfo.pSwapchains = &swapchain; // swapchain we're presenting to
 	presentInfo.pImageIndices = &imageIndex; // image we're presenting
 
-	vk::Result result = presentQueue.presentKHR(presentInfo);
+
+	vk::Result result = presentQueue.presentKHR(&presentInfo);
 	if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || windowResized) {
 		recreateSwapchain();
 		windowResized = false;
 	} else if (result != vk::Result::eSuccess) {
-//		throw std::runtime_error("failed to present swapchain image");
+		error("Failed to present swapchain image");
 	}
 
 	// go to next frame in flight

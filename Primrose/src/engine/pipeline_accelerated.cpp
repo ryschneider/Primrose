@@ -2,6 +2,7 @@
 #include "engine/pipeline_accelerated.hpp"
 #include "engine/setup.hpp"
 #include "state.hpp"
+#include "log.hpp"
 #include "embed/main_rgen_spv.h"
 #include "embed/main_rint_spv.h"
 #include "embed/main_rchit_spv.h"
@@ -16,15 +17,17 @@ const static int hitGroupIndex = 1;
 const static int missGroupIndex = 2;
 
 void Primrose::createAcceleratedPipelineLayout() {
+	log("Creating accelerated pipeline layout");
+
 	std::vector<vk::PushConstantRange> pushRanges = {
-		vk::PushConstantRange(vk::ShaderStageFlagBits::eCompute, 0, 128) // 128 bytes is min supported push size
+		vk::PushConstantRange(vk::ShaderStageFlagBits::eRaygenKHR, 0, 128) // 128 bytes is min supported push size
 	};
 
 	std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {
-		vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
-			vk::ShaderStageFlagBits::eCompute),
-		vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1,
-			vk::ShaderStageFlagBits::eCompute),
+		vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eAccelerationStructureKHR, 1,
+			vk::ShaderStageFlagBits::eRaygenKHR),
+		vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eStorageImage, 1,
+			vk::ShaderStageFlagBits::eRaygenKHR)
 	};
 	// TODO change eCompute to specific stage ^
 
@@ -37,6 +40,8 @@ void Primrose::createAcceleratedPipelineLayout() {
 }
 
 void Primrose::createAcceleratedPipeline() {
+	log("Creating accelerated pipeline");
+
 	// shader stages info
 	vk::PipelineShaderStageCreateInfo rgenInfo({}, vk::ShaderStageFlagBits::eRaygenKHR,
 		createShaderModule(reinterpret_cast<uint32_t*>(mainRgenSpvData), mainRgenSpvSize), "main");
@@ -81,6 +86,8 @@ void Primrose::createAcceleratedPipeline() {
 }
 
 void Primrose::createShaderTable() {
+	log("Creating shader table");
+
 	auto rtProperties = physicalDevice.getProperties2<vk::PhysicalDeviceProperties2,
 		vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>().get<vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
 
@@ -93,7 +100,7 @@ void Primrose::createShaderTable() {
 		vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
 		vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
 		| vk::MemoryPropertyFlagBits::eHostCoherent,
-		&rayShaderTable, &rayShaderTableMemory);
+		&rayShaderTable, &rayShaderTableMemory, true);
 
 	// get handles to shader groups
 	std::vector<uint8_t> handles = device.getRayTracingShaderGroupHandlesKHR<uint8_t>(mainPipeline,
@@ -111,7 +118,7 @@ void Primrose::createShaderTable() {
 
 	// get device addresses for shader groups
 	vk::BufferDeviceAddressInfo tableBufferInfo(rayShaderTable);
-	vk::DeviceAddress shaderTableAddress = device.getBufferAddressKHR(tableBufferInfo);
+	vk::DeviceAddress shaderTableAddress = device.getBufferAddress(tableBufferInfo);
 
 	genGroupAddress = vk::StridedDeviceAddressRegionKHR(
 		shaderTableAddress + genGroupIndex * progSize, progSize, progSize);

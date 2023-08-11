@@ -7,7 +7,15 @@ layout(location = 0) rayPayloadEXT Payload {
 } rayPayload;
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT acc;
+layout(binding = 1, set = 0, rgba32f) uniform image2D image;
+
+layout(push_constant) uniform PushConstant {
+	float time;
+} push;
 
 void main() {
-
+//	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(0, 0, 1, 1));
+	vec2 screenPos = vec2(gl_LaunchIDEXT.xy) / vec2(gl_LaunchSizeEXT.xy);
+	screenPos.x = mod(screenPos.x + push.time*0.1, 1.0);
+	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(screenPos, (sin(push.time)+1)*0.5, 1));
 }

@@ -126,8 +126,7 @@ void Primrose::UIText::loadAlphabet(const char* fontPath) {
 	vkBindImageMemory(device, texture, textureMemory, 0);
 
 	// transition image layout to optimal destination layout
-	transitionImageLayout(texture, vk::Format::eR8Srgb,
-		vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	transitionImageLayout(texture, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 
 	// copy data to image
 	vk::CommandBuffer cmdBuffer = startSingleTimeCommandBuffer();
@@ -153,8 +152,7 @@ void Primrose::UIText::loadAlphabet(const char* fontPath) {
 	endSingleTimeCommandBuffer(cmdBuffer);
 
 	// transition image layout to optimal shader reading layout
-	transitionImageLayout(texture, vk::Format::eR8Srgb,
-		vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+	transitionImageLayout(texture, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 
 	// cleanup character texture buffers
 	for (const auto& pair : characters) {

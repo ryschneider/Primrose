@@ -1,6 +1,7 @@
 #include "engine/pipeline_raster.hpp"
 #include "engine/setup.hpp"
 #include "state.hpp"
+#include "log.hpp"
 #include "embed/flat_vert_spv.h"
 #include "embed/march_frag_spv.h"
 
@@ -128,10 +129,13 @@ void Primrose::createGraphicsPipeline(vk::ShaderModule vertModule, vk::ShaderMod
 }
 
 void Primrose::createRasterPipelineLayout() {
+	log("Creating raster pipeline layout");
 	createGraphicsPipelineLayout(&mainPipelineLayout, &mainDescriptorLayout);
 }
 
 void Primrose::createRasterPipeline() {
+	log("Creating raster pipeline");
+
 	// shader modules
 	vk::ShaderModule vertModule = createShaderModule(reinterpret_cast<uint32_t*>(flatVertSpvData), flatVertSpvSize);
 	vk::ShaderModule fragModule = createShaderModule(reinterpret_cast<uint32_t*>(marchFragSpvData), marchFragSpvSize);

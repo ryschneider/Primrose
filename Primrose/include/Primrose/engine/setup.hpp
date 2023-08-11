@@ -19,6 +19,9 @@ namespace Primrose {
 	extern vk::StridedDeviceAddressRegionKHR hitGroupAddress;
 	extern vk::StridedDeviceAddressRegionKHR missGroupAddress;
 	extern vk::StridedDeviceAddressRegionKHR callableGroupAddress;
+	extern vk::Image traceImage;
+	extern vk::ImageView traceImageView;
+	extern vk::DeviceMemory traceImageMemory;
 
 	extern vk::DescriptorSetLayout mainDescriptorLayout;
 	extern vk::PipelineLayout mainPipelineLayout;
@@ -101,6 +104,7 @@ namespace Primrose {
 	void createSwapchain();
 	void createRenderPass();
 	void createSwapchainFrames();
+	void createTraceImage();
 //	void createDescriptorSetLayout();
 
 	void createUIPipeline();
@@ -119,12 +123,17 @@ namespace Primrose {
 	// other vulkan
 //	void allocateDescriptorSet(vk::DescriptorSet* descSet);
 
-	void createDeviceMemory(vk::MemoryRequirements memReqs, vk::MemoryPropertyFlags properties, vk::DeviceMemory* memory);
+	void createDeviceMemory(vk::MemoryRequirements memReqs, vk::MemoryPropertyFlags properties,
+		vk::DeviceMemory* memory, bool deviceAddressFlag = false);
 	void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
-		vk::Buffer* buffer, vk::DeviceMemory* bufferMemory);
+		vk::Buffer* buffer, vk::DeviceMemory* bufferMemory, bool deviceAddressFlag = false);
 	void writeToDevice(vk::DeviceMemory memory, void* data, size_t size, size_t offset = 0);
 
-	void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+	void transitionImageLayout(vk::Image image, vk::CommandBuffer cmd,
+	vk::ImageLayout oldLayout, vk::AccessFlags oldAccess, vk::PipelineStageFlags oldStage,
+		vk::ImageLayout newLayout, vk::AccessFlags newAccess, vk::PipelineStageFlags newStage);
+	void transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+
 	void importTexture(const char* path, vk::Image* image, vk::DeviceMemory* imageMemory, float* aspect = nullptr);
 
 	void imageFromData(void* data, uint32_t width, uint32_t height, vk::Image* image, vk::DeviceMemory* imageMemory);
