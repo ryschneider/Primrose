@@ -114,21 +114,19 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 		commandBuffer.beginRenderPass(renderBeginInfo, vk::SubpassContents::eInline); // cmd: begin render pass
 
 		// set dynamic viewport and scissor
-		if (DYNAMIC_VIEWPORT) {
-			vk::Viewport viewport{};
-			viewport.x = 0.f;
-			viewport.y = 0.f;
-			viewport.width = static_cast<float>(swapchainExtent.width);
-			viewport.height = static_cast<float>(swapchainExtent.height);
-			viewport.minDepth = 0.f;
-			viewport.maxDepth = 1.f;
-			commandBuffer.setViewport(0, 1, &viewport); // cmd: set viewport size
+		vk::Viewport viewport{};
+		viewport.x = 0.f;
+		viewport.y = 0.f;
+		viewport.width = static_cast<float>(swapchainExtent.width);
+		viewport.height = static_cast<float>(swapchainExtent.height);
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+		commandBuffer.setViewport(0, 1, &viewport); // cmd: set viewport size
 
-			vk::Rect2D scissor{};
-			scissor.offset = vk::Offset2D(0, 0);
-			scissor.extent = swapchainExtent;
-			commandBuffer.setScissor(0, 1, &scissor);
-		}
+		vk::Rect2D scissor{};
+		scissor.offset = vk::Offset2D(0, 0);
+		scissor.extent = swapchainExtent;
+		commandBuffer.setScissor(0, 1, &scissor);
 
 		// uniforms
 		std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {

@@ -7,7 +7,7 @@
 float smin(float d1, float d2, float k) {
     // https://iquilezles.org/articles/distfunctions/
     float h = clamp( 0.5f + 0.5f*(d2-d1)/k, 0.f, 1.f);
-    return mix(d2, d1, h ) - k*h*(1.f-h);
+    return mix(d2, d1, h) - k*h*(1.f-h);
 }
 
 // sdf functions

@@ -14,3 +14,6 @@
 * [NVIDIA ray tracing book](https://link.springer.com/book/10.1007/978-1-4842-7185-8)
 * [Minimal example of ray pipeline/ray query](https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction)
 * [Example ray shaders](https://github.com/georgeouzou/vk_exp/tree/master/shaders)
+* [RTX best practices](https://developer.nvidia.com/blog/rtx-best-practices/)
+* [Ray Tracing Gems I (More conceptual)](https://www.realtimerendering.com/raytracinggems/unofficial_RayTracingGems_v1.9.pdf)
+* [Ray Tracing Gems II (More specific to graphics APIs like Vulkan)](https://link.springer.com/content/pdf/10.1007/978-1-4842-7185-8.pdf)

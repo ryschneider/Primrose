@@ -1177,10 +1177,6 @@ void Primrose::cleanup() {
 	device.destroyBuffer(rayShaderTable);
 	device.freeMemory(rayShaderTableMemory);
 
-	device.destroyImageView(traceImageView);
-	device.freeMemory(traceImageMemory);
-	device.destroyImage(traceImage);
-
 	device.destroyPipeline(mainPipeline);
 	device.destroyPipelineLayout(mainPipelineLayout);
 	device.destroyDescriptorSetLayout(mainDescriptorLayout);
@@ -1204,6 +1200,12 @@ void Primrose::cleanup() {
 
 void Primrose::cleanupSwapchain() {
 	log("Cleaning up swapchain");
+
+	if (rayAcceleration) {
+		device.destroyImageView(traceImageView);
+		device.freeMemory(traceImageMemory);
+		device.destroyImage(traceImage);
+	}
 
 	for (const auto& frame : swapchainFrames) {
 		device.destroyFramebuffer(frame.framebuffer);

@@ -24,7 +24,7 @@ void main() {
 	vec3 origin = vec3(screenPos * 10, 0);
 	vec3 dir = vec3(0, 0, 1);
 
-	traceRayEXT(acc, gl_RayFlagsOpaqueEXT,
+	traceRayEXT(acc, gl_RayFlagsNoneEXT,
 		0xFF, 0, 1, 0, // cull mask, SBT offset, SBT stride, miss index
 		origin, 0, dir, MAX_DIST,
 		0); // payload layout id

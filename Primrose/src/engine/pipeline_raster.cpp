@@ -113,15 +113,12 @@ void Primrose::createGraphicsPipeline(vk::ShaderModule vertModule, vk::ShaderMod
 	pipelineInfo.pMultisampleState = &multisamplingInfo;
 	pipelineInfo.pDepthStencilState = nullptr;
 	pipelineInfo.pColorBlendState = &colorBlendInfo;
-	if (DYNAMIC_VIEWPORT) {
-		pipelineInfo.pDynamicState = &dynamicStateInfo;
-	}
+	pipelineInfo.pDynamicState = &dynamicStateInfo;
 	pipelineInfo.layout = pipelineLayout;
 	pipelineInfo.renderPass = renderPass;
 	pipelineInfo.stageCount = 2;
 	pipelineInfo.pStages = shaderStagesInfo;
 	pipelineInfo.subpass = 0;
-
 
 	auto res = device.createGraphicsPipeline(VK_NULL_HANDLE, pipelineInfo);
 	if (res.result != vk::Result::eSuccess) throw std::runtime_error("failed to create graphics pipeline");
