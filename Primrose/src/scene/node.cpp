@@ -140,12 +140,16 @@ glm::mat4 Node::modelMatrix() {
 	return matrix;
 }
 
-bool Node::shouldHide() {
-	return hide || glm::determinant(modelMatrix()) == 0;
-}
-
 glm::mat4 RootNode::modelMatrix() {
 	return glm::mat4(1);
+}
+
+std::pair<glm::vec3, glm::vec3> RootNode::generateAabb() {
+	return {glm::vec3(0), glm::vec3(0)};
+}
+
+bool Node::shouldHide() {
+	return hide || glm::determinant(modelMatrix()) == 0;
 }
 
 void RootNode::accept(Primrose::NodeVisitor* visitor) {}

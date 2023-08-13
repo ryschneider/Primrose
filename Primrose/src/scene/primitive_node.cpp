@@ -67,8 +67,8 @@ std::string SphereNode::toString(std::string prefix) {
 glm::mat4 SphereNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
 	matrix = glm::translate(matrix, translate);
-	matrix = glm::scale(matrix, scale * radius);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
+	matrix = glm::scale(matrix, scale * radius);
 	return matrix;
 }
 void SphereNode::accept(NodeVisitor* visitor) {
@@ -84,7 +84,25 @@ void SphereNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer)
 Primitive SphereNode::toPrimitive() {
 	return Primitive::Sphere();
 }
+std::pair<glm::vec3, glm::vec3> SphereNode::generateAabb() {
+	std::vector<glm::vec3> verts = {
+		{0, 0, 1}, {0, 0, -1},
+		{0, 1, 0}, {0, -1, 0},
+		{1, 0, 0}, {-1, 0, 0}
+	};
 
+	auto[lesser, greater] = UnionNode::generateAabb();
+	glm::mat4 matrix = modelMatrix();
+	matrix = transformMatrix(getTranslate(matrix), getScale(matrix), 0, glm::vec3(1)); // ignore rotation
+	for (auto& v : verts) {
+		v = matrix * glm::vec4(v, 1);
+		lesser.x = std::min(lesser.x, v.x); greater.x = std::max(greater.x, v.x);
+		lesser.y = std::min(lesser.y, v.y); greater.y = std::max(greater.y, v.y);
+		lesser.z = std::min(lesser.z, v.z); greater.z = std::max(greater.z, v.z);
+	}
+
+	return {lesser, greater};
+}
 
 
 BoxNode::BoxNode(Node* parent, glm::vec3 size) : PrimitiveNode(parent), size(size) {
@@ -96,8 +114,8 @@ std::string BoxNode::toString(std::string prefix) {
 glm::mat4 BoxNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
 	matrix = glm::translate(matrix, translate);
-	matrix = glm::scale(matrix, scale * size);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
+	matrix = glm::scale(matrix, scale * size);
 	return matrix;
 }
 void BoxNode::accept(NodeVisitor* visitor) {
@@ -117,7 +135,25 @@ void BoxNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
 Primitive BoxNode::toPrimitive() {
 	return Primitive::Box();
 }
+std::pair<glm::vec3, glm::vec3> BoxNode::generateAabb() {
+	std::vector<glm::vec3> verts = {
+		{-1, -1, -1}, {-1, -1, +1},
+		{-1, +1, -1}, {-1, +1, +1},
+		{+1, -1, -1}, {+1, -1, +1},
+		{+1, +1, -1}, {+1, +1, +1}
+	};
 
+	auto[lesser, greater] = UnionNode::generateAabb();
+	glm::mat4 matrix = modelMatrix();
+	for (auto& v : verts) {
+		v = matrix * glm::vec4(v, 1);
+		lesser.x = std::min(lesser.x, v.x); greater.x = std::max(greater.x, v.x);
+		lesser.y = std::min(lesser.y, v.y); greater.y = std::max(greater.y, v.y);
+		lesser.z = std::min(lesser.z, v.z); greater.z = std::max(greater.z, v.z);
+	}
+
+	return {lesser, greater};
+}
 
 
 TorusNode::TorusNode(Node* parent, float ringRadius, float majorRadius)
@@ -130,8 +166,8 @@ std::string TorusNode::toString(std::string prefix) {
 glm::mat4 TorusNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
 	matrix = glm::translate(matrix, translate);
-	matrix = glm::scale(matrix, scale * majorRadius);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
+	matrix = glm::scale(matrix, scale * majorRadius);
 	return matrix;
 }
 void TorusNode::accept(NodeVisitor* visitor) {
@@ -149,7 +185,26 @@ void TorusNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) 
 Primitive TorusNode::toPrimitive() {
 	return Primitive::Torus(ringRadius / majorRadius);
 }
+std::pair<glm::vec3, glm::vec3> TorusNode::generateAabb() {
+	float r = (ringRadius / majorRadius) + 1;
+	std::vector<glm::vec3> verts = {
+		{0, 0, r}, {0, 0, -r},
+		{0, r, 0}, {0, -r, 0},
+		{r, 0, 0}, {-r, 0, 0}
+	};
 
+	auto[lesser, greater] = UnionNode::generateAabb();
+	glm::mat4 matrix = modelMatrix();
+	matrix = transformMatrix(getTranslate(matrix), getScale(matrix), 0, glm::vec3(1)); // ignore rotation
+	for (auto& v : verts) {
+		v = matrix * glm::vec4(v, 1);
+		lesser.x = std::min(lesser.x, v.x); greater.x = std::max(greater.x, v.x);
+		lesser.y = std::min(lesser.y, v.y); greater.y = std::max(greater.y, v.y);
+		lesser.z = std::min(lesser.z, v.z); greater.z = std::max(greater.z, v.z);
+	}
+
+	return {lesser, greater};
+}
 
 
 LineNode::LineNode(Node* parent, float height, float radius)
@@ -162,8 +217,8 @@ std::string LineNode::toString(std::string prefix) {
 glm::mat4 LineNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
 	matrix = glm::translate(matrix, translate);
-	matrix = glm::scale(matrix, scale * radius);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
+	matrix = glm::scale(matrix, scale * radius);
 	return matrix;
 }
 void LineNode::accept(NodeVisitor* visitor) {
@@ -181,7 +236,26 @@ void LineNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
 Primitive LineNode::toPrimitive() {
 	return Primitive::Line(height*0.5 / radius);
 }
+std::pair<glm::vec3, glm::vec3> LineNode::generateAabb() {
+	float h = height*0.5 / radius;
+	std::vector<glm::vec3> verts = {
+		{-1, -h, -1}, {-1, -h, +1},
+		{-1, +h, -1}, {-1, +h, +1},
+		{+1, -h, -1}, {+1, -h, +1},
+		{+1, +h, -1}, {+1, +h, +1}
+	};
 
+	auto[lesser, greater] = UnionNode::generateAabb();
+	glm::mat4 matrix = modelMatrix();
+	for (auto& v : verts) {
+		v = matrix * glm::vec4(v, 1);
+		lesser.x = std::min(lesser.x, v.x); greater.x = std::max(greater.x, v.x);
+		lesser.y = std::min(lesser.y, v.y); greater.y = std::max(greater.y, v.y);
+		lesser.z = std::min(lesser.z, v.z); greater.z = std::max(greater.z, v.z);
+	}
+
+	return {lesser, greater};
+}
 
 
 CylinderNode::CylinderNode(Node* parent, float radius) : PrimitiveNode(parent), radius(radius) {
@@ -193,8 +267,8 @@ std::string CylinderNode::toString(std::string prefix) {
 glm::mat4 CylinderNode::modelMatrix() {
 	glm::mat4 matrix = getParent()->modelMatrix();
 	matrix = glm::translate(matrix, translate);
-	matrix = glm::scale(matrix, scale * radius);
 	matrix = glm::rotate(matrix, glm::radians(angle), axis);
+	matrix = glm::scale(matrix, scale * radius);
 	return matrix;
 }
 void CylinderNode::accept(NodeVisitor* visitor) {
@@ -209,4 +283,24 @@ void CylinderNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &write
 }
 Primitive CylinderNode::toPrimitive() {
 	return Primitive::Cylinder();
+}
+std::pair<glm::vec3, glm::vec3> CylinderNode::generateAabb() {
+	float b = 1000; // arbitrary large number
+	std::vector<glm::vec3> verts = {
+		{-1, -b, -1}, {-1, -b, +1},
+		{-1, +b, -1}, {-1, +b, +1},
+		{+1, -b, -1}, {+1, -b, +1},
+		{+1, +b, -1}, {+1, +b, +1}
+	};
+
+	auto[lesser, greater] = UnionNode::generateAabb();
+	glm::mat4 matrix = modelMatrix();
+	for (auto& v : verts) {
+		v = matrix * glm::vec4(v, 1);
+		lesser.x = std::min(lesser.x, v.x); greater.x = std::max(greater.x, v.x);
+		lesser.y = std::min(lesser.y, v.y); greater.y = std::max(greater.y, v.y);
+		lesser.z = std::min(lesser.z, v.z); greater.z = std::max(greater.z, v.z);
+	}
+
+	return {lesser, greater};
 }

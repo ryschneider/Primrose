@@ -1,3 +1,4 @@
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 #include <Primrose/core.hpp>
 #include <Primrose/ui/text.hpp>
 #include <Primrose/ui/panel.hpp>
@@ -33,7 +34,17 @@ void update(float dt) {
 
 	bool updatedScene = updateGui(mainScene, dt);
 	if (updatedScene) {
-		mainScene.generateUniforms();
+		if (rayAcceleration) {
+			device.destroyAccelerationStructureKHR(topStructure);
+			device.destroyBuffer(topStructureBuffer);
+			device.freeMemory(topStructureMemory);
+			device.destroyAccelerationStructureKHR(aabbStructure);
+			device.destroyBuffer(aabbStructureBuffer);
+			device.freeMemory(aabbStructureMemory);
+			createAccelerationStructure(mainScene);
+		} else {
+			mainScene.generateUniforms();
+		}
 	}
 }
 
@@ -149,7 +160,13 @@ int main() {
 
 	// load scene
 	mainScene.importScene("scenes/perftest.json");
-	mainScene.generateUniforms();
+//	mainScene.importScene("scenes/test.json");
+
+	if (rayAcceleration) {
+		createAccelerationStructure(mainScene);
+	} else {
+		mainScene.generateUniforms();
+	}
 
 //	std::cout << uniforms.toString() << std::endl;
 

@@ -1,8 +1,8 @@
 #version 460 core
 #extension GL_EXT_ray_tracing : require
-layout(location = 0) rayPayloadInEXT Payload {
-	vec3 color;
-} payload;
+
+#include "payload.glsl"
+layout(location = 0) rayPayloadInEXT Payload payload;
 
 const int TILE_W = 24;
 const int TILE_H = 16;

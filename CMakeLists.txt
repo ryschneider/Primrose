@@ -17,6 +17,7 @@ add_compile_options(-Wold-style-cast)
 add_custom_command(OUTPUT
 	${PROJECT_SOURCE_DIR}/Primrose/src/embed/main_rgen_spv.h
 	${PROJECT_SOURCE_DIR}/Primrose/src/embed/main_rint_spv.h
+	${PROJECT_SOURCE_DIR}/Primrose/src/embed/main_rahit_spv.h
 	${PROJECT_SOURCE_DIR}/Primrose/src/embed/main_rchit_spv.h
 	${PROJECT_SOURCE_DIR}/Primrose/src/embed/main_rmiss_spv.h
 	${PROJECT_SOURCE_DIR}/Primrose/src/embed/flat_vert_spv.h
@@ -26,6 +27,7 @@ add_custom_command(OUTPUT
 
 	COMMAND bash -c "./shaders/buildshader.sh shaders/accelerated/main.rgen"
 	COMMAND bash -c "./shaders/buildshader.sh shaders/accelerated/main.rint"
+	COMMAND bash -c "./shaders/buildshader.sh shaders/accelerated/main.rahit"
 	COMMAND bash -c "./shaders/buildshader.sh shaders/accelerated/main.rchit"
 	COMMAND bash -c "./shaders/buildshader.sh shaders/accelerated/main.rmiss"
 	COMMAND bash -c "./shaders/buildshader.sh shaders/raster/flat.vert"
@@ -37,7 +39,8 @@ add_custom_command(OUTPUT
 	Primrose/shaders/raster/flat.vert Primrose/shaders/raster/march.frag
 	Primrose/shaders/ui/ui.vert Primrose/shaders/ui/ui.frag
 	Primrose/shaders/accelerated/main.rgen Primrose/shaders/accelerated/main.rint
-	Primrose/shaders/accelerated/main.rchit Primrose/shaders/accelerated/main.rmiss
+	Primrose/shaders/accelerated/main.rahit Primrose/shaders/accelerated/main.rchit
+	Primrose/shaders/accelerated/main.rmiss
 
 	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/Primrose
 	COMMENT "Compiling shaders")
@@ -58,6 +61,7 @@ set(CMAKE_EXE_LINKER_FLAGS "-static")
 add_library(Primrose
 	Primrose/src/embed/main_rgen_spv.h
 	Primrose/src/embed/main_rint_spv.h
+	Primrose/src/embed/main_rahit_spv.h
 	Primrose/src/embed/main_rchit_spv.h
 	Primrose/src/embed/main_rmiss_spv.h
 	Primrose/src/embed/flat_vert_spv.h

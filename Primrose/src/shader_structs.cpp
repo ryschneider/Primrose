@@ -60,8 +60,8 @@ float Primrose::getSmallScale(glm::mat4 matrix) {
 
 glm::mat4 Primrose::transformMatrix(glm::vec3 translate, glm::vec3 scale, float rotAngle, glm::vec3 rotAxis) {
 	return glm::translate(translate)
-		   * glm::scale(scale)
-		   * glm::rotate(rotAngle, glm::normalize(rotAxis));
+		* glm::rotate(rotAngle, glm::normalize(rotAxis))
+		* glm::scale(scale);
 }
 
 namespace {

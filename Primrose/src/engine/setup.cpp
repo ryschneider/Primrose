@@ -573,8 +573,6 @@ void Primrose::initVulkan() {
 		createAcceleratedPipelineLayout();
 		createAcceleratedPipeline();
 		createShaderTable();
-		createBottomAccelerationStructure();
-		createTopAccelerationStructure();
 	} else {
 		createRasterPipelineLayout();
 		createRasterPipeline();
@@ -907,9 +905,12 @@ void Primrose::createRenderPass() {
 	colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
 	colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
 
-//	colorAttachment.initialLayout = vk::ImageLayout::eUndefined; // dont care what layout it has before rendering
-	colorAttachment.initialLayout = vk::ImageLayout::ePresentSrcKHR; // keep same layout between frames
-	// TODO ^ see if this or (loadOp = eLoad) affects performance, if so find a way to trace rays inside the render pass
+	if (rayAcceleration) {
+		colorAttachment.initialLayout = vk::ImageLayout::ePresentSrcKHR; // keep same layout between frames
+		// TODO ^ see if this or (loadOp = eLoad) affects performance, if so find a way to trace rays inside the render pass
+	} else {
+		colorAttachment.initialLayout = vk::ImageLayout::eUndefined; // dont care what layout it has before rendering
+	}
 	colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR; // want the image to be presentable after rendering
 
 	vk::AttachmentReference colorAttachmentRef{};

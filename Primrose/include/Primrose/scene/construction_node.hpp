@@ -22,6 +22,7 @@ namespace Primrose {
 		UnionNode(Node* parent);
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
+		std::pair<glm::vec3, glm::vec3> generateAabb() override;
 
 	private:
 		Operation foldOperations(uint i, uint j) override;
@@ -32,6 +33,7 @@ namespace Primrose {
 		IntersectionNode(Node* parent);
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
+		std::pair<glm::vec3, glm::vec3> generateAabb() override;
 
 	private:
 		Operation foldOperations(uint i, uint j) override;
@@ -42,6 +44,7 @@ namespace Primrose {
 		DifferenceNode(Node* parent);
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
+		std::pair<glm::vec3, glm::vec3> generateAabb() override;
 
 		std::set<Node*> subtractNodes;
 

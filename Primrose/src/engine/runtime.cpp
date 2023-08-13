@@ -56,16 +56,24 @@ void Primrose::recordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 
 	if (rayAcceleration) {
 		// descriptor sets
-		std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {
+		std::array<vk::WriteDescriptorSet, 4> descriptorWrites = {
 			vk::WriteDescriptorSet(VK_NULL_HANDLE, 0, 0, 1, vk::DescriptorType::eAccelerationStructureKHR),
-			vk::WriteDescriptorSet(VK_NULL_HANDLE, 1, 0, 1, vk::DescriptorType::eStorageImage)
+			vk::WriteDescriptorSet(VK_NULL_HANDLE, 1, 0, 1, vk::DescriptorType::eStorageImage),
+			vk::WriteDescriptorSet(VK_NULL_HANDLE, 2, 0, 1, vk::DescriptorType::eUniformBuffer),
+			vk::WriteDescriptorSet(VK_NULL_HANDLE, 3, 0, 1, vk::DescriptorType::eCombinedImageSampler)
 		};
 		vk::WriteDescriptorSetAccelerationStructureKHR accWrite(1, &topStructure);
 		descriptorWrites[0].pNext = &accWrite;
-
-		vk::DescriptorImageInfo imgInfo = vk::DescriptorImageInfo(VK_NULL_HANDLE,
+		vk::DescriptorImageInfo traceImgInfo = vk::DescriptorImageInfo(VK_NULL_HANDLE,
 			traceImageView, vk::ImageLayout::eGeneral);
-		descriptorWrites[1].pImageInfo = &imgInfo;
+		descriptorWrites[1].pImageInfo = &traceImgInfo;
+
+		vk::DescriptorBufferInfo ubInfo = vk::DescriptorBufferInfo(
+			currentFlight.uniformBuffer, 0, sizeof(MarchUniforms));
+		descriptorWrites[2].pBufferInfo = &ubInfo;
+		vk::DescriptorImageInfo texInfo = vk::DescriptorImageInfo(marchSampler, marchImageView,
+			vk::ImageLayout::eShaderReadOnlyOptimal);
+		descriptorWrites[3].pImageInfo = &texInfo;
 
 		commandBuffer.pushDescriptorSetKHR(vk::PipelineBindPoint::eRayTracingKHR,
 			mainPipelineLayout, 0, descriptorWrites);
