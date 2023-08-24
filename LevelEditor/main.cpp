@@ -35,13 +35,8 @@ void update(float dt) {
 	bool updatedScene = updateGui(mainScene, dt);
 	if (updatedScene) {
 		if (rayAcceleration) {
-			device.destroyAccelerationStructureKHR(topStructure);
-			device.destroyBuffer(topStructureBuffer);
-			device.freeMemory(topStructureMemory);
-			device.destroyAccelerationStructureKHR(aabbStructure);
-			device.destroyBuffer(aabbStructureBuffer);
-			device.freeMemory(aabbStructureMemory);
-			createAccelerationStructure(mainScene);
+//			destroyAcceleratedScene();
+//			generateAcceleratedScene(mainScene);
 		} else {
 			mainScene.generateUniforms();
 		}
@@ -159,11 +154,11 @@ int main() {
 	keyCallback = keyCb;
 
 	// load scene
-	mainScene.importScene("scenes/perftest.json");
-//	mainScene.importScene("scenes/test.json");
+//	mainScene.importScene("scenes/perftest.json");
+	mainScene.importScene("scenes/test.json");
 
 	if (rayAcceleration) {
-		createAccelerationStructure(mainScene);
+		generateAcceleratedScene(mainScene);
 	} else {
 		mainScene.generateUniforms();
 	}

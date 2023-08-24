@@ -22,6 +22,30 @@ bool ConstructionNode::createOperations(const std::vector<Primitive>& prims,
 	return lastChildIndex != -1;
 }
 
+namespace {
+	static std::string foldGlsl(std::vector<Node*> nodes, std::string operation) {
+		if (nodes.size() == 0) return "";
+		if (nodes.size() == 1) return nodes[0]->generateIntersectionGlsl();
+
+		std::string start = "";
+		std::string end = nodes[0]->generateIntersectionGlsl();
+		for (int i = 1; i < nodes.size(); ++i) {
+			start += fmt::format("{}(", operation);
+			end += fmt::format(", {})", nodes[i]->generateIntersectionGlsl());
+		}
+
+		return start + end;
+	}
+
+	static std::vector<Node*> toRaw(const std::vector<std::unique_ptr<Node>>& nodes) {
+		std::vector<Node*> rawNodes(nodes.size());
+		for (int i = 0; i < nodes.size(); ++i) {
+			rawNodes[i] = nodes[i].get();
+		}
+		return rawNodes;
+	}
+}
+
 UnionNode::UnionNode(Primrose::Node* parent) : ConstructionNode(parent) { name = "Union"; }
 Operation UnionNode::foldOperations(uint i, uint j) {
 	return Operation::Union(i, j);
@@ -33,6 +57,9 @@ void UnionNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper>& writer) 
 	writer.String("type");
 	writer.String("union");
 	Node::serialize(writer);
+}
+std::string UnionNode::generateIntersectionGlsl() {
+	return foldGlsl(toRaw(getChildren()), "union");
 }
 std::pair<glm::vec3, glm::vec3> UnionNode::generateAabb() {
 	glm::vec3 lesser(0);
@@ -57,6 +84,9 @@ void IntersectionNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper>& w
 	writer.String("type");
 	writer.String("intersection");
 	Node::serialize(writer);
+}
+std::string IntersectionNode::generateIntersectionGlsl() {
+	return foldGlsl(toRaw(getChildren()), "intersection");
 }
 std::pair<glm::vec3, glm::vec3> IntersectionNode::generateAabb() {
 	glm::vec3 lesser(0);
@@ -137,6 +167,25 @@ void DifferenceNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper>& wri
 		writer.EndArray();
 	}
 	Node::serialize(writer);
+}
+std::string DifferenceNode::generateIntersectionGlsl() {
+	std::vector<Node*> baseNodes;
+	std::vector<Node*> subNodes;
+	for (const auto& child : getChildren()) {
+		if (subtractNodes.contains(child.get())) {
+			subNodes.push_back(child.get());
+		} else {
+			baseNodes.push_back(child.get());
+		}
+	}
+
+	if (baseNodes.size() == 0) return "";
+	std::string baseGlsl = foldGlsl(baseNodes, "union");
+
+	if (subNodes.size() == 0) return baseGlsl;
+	std::string subGlsl = foldGlsl(subNodes, "union");
+
+	return fmt::format("difference({}, {})", baseGlsl, subGlsl);
 }
 std::pair<glm::vec3, glm::vec3> DifferenceNode::generateAabb() {
 	glm::vec3 baseLesser(0);

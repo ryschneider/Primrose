@@ -144,6 +144,10 @@ glm::mat4 RootNode::modelMatrix() {
 	return glm::mat4(1);
 }
 
+std::string RootNode::generateIntersectionGlsl() {
+	return "";
+}
+
 std::pair<glm::vec3, glm::vec3> RootNode::generateAabb() {
 	return {glm::vec3(0), glm::vec3(0)};
 }

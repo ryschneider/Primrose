@@ -24,18 +24,23 @@ float cubeSDF(vec3 p) { // side length 1
     // return length(max(abs(p) - 1, 0));
 }
 
-float torusSDF(vec3 p, float minorRadius) { // major radius 1
+float boxSDF(vec3 p, vec3 b) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.f)) + min(max(q.x, max(q.y, q.z)), 0.f);
+}
+
+float torusSDF(vec3 p, float majorRadius, float ringRadius) {
     // https://iquilezles.org/articles/distfunctions
-    return length(vec2(length(p.xz) - 1.f, p.y)) - minorRadius;
+    return length(vec2(length(p.xz) - majorRadius, p.y)) - ringRadius;
 }
 
-float lineSDF(vec3 p, float height) {
-    p.y -= clamp(p.y, -height, height);
-    return length(p) - 1;
+float lineSDF(vec3 p, float height, float radius) {
+    p.y -= clamp(p.y, 0.0, height);
+    return length(p) - radius;
 }
 
-float cylinderSDF(vec3 p) {
-    return length(p.xz) - 1; // distance from the centre of xz plane
+float cylinderSDF(vec3 p, float radius) {
+    return length(p.xz) - radius; // distance from the centre of xz plane
 }
 
 float prim1SDF(vec3 pos, float a) {
@@ -93,16 +98,16 @@ float prim3SDF(vec3 p) {
 float prim4SDF(vec3 p) {
     float c = 10;
     vec3 q = mod(p + 0.5*c, vec3(c)) - vec3(0.5*c);
-    return torusSDF(q, 0.3f);
+    return torusSDF(q, 1, 0.3f);
 }
 
 float primSDF(vec3 p, Primitive prim) {
     switch (prim.type) {
         case PRIM_SPHERE: return sphereSDF(p);
         case PRIM_BOX: return cubeSDF(p);
-        case PRIM_TORUS: return torusSDF(p, prim.a);
-        case PRIM_LINE: return lineSDF(p, prim.a);
-        case PRIM_CYLINDER: return cylinderSDF(p);
+        case PRIM_TORUS: return torusSDF(p, 1, prim.a);
+        case PRIM_LINE: return lineSDF(p, prim.a, 1);
+        case PRIM_CYLINDER: return cylinderSDF(p, 1);
         case PRIM_P1: return prim1SDF(p, prim.a);
         case PRIM_P2: return prim2SDF(p, prim.a);
         case PRIM_P3: return prim3SDF(p);

@@ -14,6 +14,7 @@ namespace Primrose {
 
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override = 0;
 
+		std::string generateIntersectionGlsl() override = 0;
 		std::pair<glm::vec3, glm::vec3> generateAabb() override = 0;
 
 		std::vector<Primitive> extractPrims() override;
@@ -35,6 +36,7 @@ namespace Primrose {
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
+		std::string generateIntersectionGlsl() override;
 		std::pair<glm::vec3, glm::vec3> generateAabb() override;
 
 		float radius;
@@ -52,6 +54,7 @@ namespace Primrose {
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
+		std::string generateIntersectionGlsl() override;
 		std::pair<glm::vec3, glm::vec3> generateAabb() override;
 
 		glm::vec3 size;
@@ -69,6 +72,7 @@ namespace Primrose {
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
+		std::string generateIntersectionGlsl() override;
 		std::pair<glm::vec3, glm::vec3> generateAabb() override;
 
 		float ringRadius;
@@ -87,6 +91,7 @@ namespace Primrose {
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
+		std::string generateIntersectionGlsl() override;
 		std::pair<glm::vec3, glm::vec3> generateAabb() override;
 
 		float height;
@@ -105,6 +110,7 @@ namespace Primrose {
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
+		std::string generateIntersectionGlsl() override;
 		std::pair<glm::vec3, glm::vec3> generateAabb() override;
 
 		float radius;

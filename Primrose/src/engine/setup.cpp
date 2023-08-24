@@ -303,7 +303,7 @@ void Primrose::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
 	device.bindBufferMemory(*buffer, *bufferMemory, 0); // bind memory to buffer
 }
 
-void Primrose::writeToDevice(vk::DeviceMemory memory, void* data, size_t size, size_t offset) {
+void Primrose::writeToDevice(vk::DeviceMemory memory, const void* data, size_t size, size_t offset) {
 	void* dst = device.mapMemory(memory, offset, size);
 	memcpy(dst, data, size);
 	device.unmapMemory(memory);
@@ -571,8 +571,6 @@ void Primrose::initVulkan() {
 
 	if (rayAcceleration) {
 		createAcceleratedPipelineLayout();
-		createAcceleratedPipeline();
-		createShaderTable();
 	} else {
 		createRasterPipelineLayout();
 		createRasterPipeline();

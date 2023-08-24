@@ -33,6 +33,7 @@ namespace Primrose {
 		virtual glm::mat4 modelMatrix();
 		bool shouldHide();
 
+		virtual std::string generateIntersectionGlsl() = 0;
 		virtual std::pair<glm::vec3, glm::vec3> generateAabb() = 0;
 
 		virtual void accept(NodeVisitor* visitor) = 0;
@@ -73,6 +74,8 @@ namespace Primrose {
 		bool createOperations(const std::vector<Primitive>& prims, const std::vector<Transformation>& transforms,
 			std::vector<Operation>& ops) override;
 		glm::mat4 modelMatrix() override;
+
+		std::string generateIntersectionGlsl() override;
 		std::pair<glm::vec3, glm::vec3> generateAabb() override;
 
 		bool isDescendantOf(Primrose::Node *ancestor) override;

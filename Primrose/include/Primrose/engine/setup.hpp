@@ -136,7 +136,7 @@ namespace Primrose {
 		vk::DeviceMemory* memory, bool deviceAddressFlag = false);
 	void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
 		vk::Buffer* buffer, vk::DeviceMemory* bufferMemory, bool deviceAddressFlag = false);
-	void writeToDevice(vk::DeviceMemory memory, void* data, size_t size, size_t offset = 0);
+	void writeToDevice(vk::DeviceMemory memory, const void* data, size_t size, size_t offset = 0);
 
 	void transitionImageLayout(vk::Image image, vk::CommandBuffer cmd,
 	vk::ImageLayout oldLayout, vk::AccessFlags oldAccess, vk::PipelineStageFlags oldStage,

@@ -5,10 +5,9 @@
 
 namespace Primrose {
 	void createAcceleratedPipelineLayout();
-	void createAcceleratedPipeline();
-	void createShaderTable();
 
-	void createAccelerationStructure(Scene& scene);
+	void generateAcceleratedScene(Scene& scene);
+	void destroyAcceleratedScene();
 }
 
 #endif

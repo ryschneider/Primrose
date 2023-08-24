@@ -17,3 +17,4 @@
 * [RTX best practices](https://developer.nvidia.com/blog/rtx-best-practices/)
 * [Ray Tracing Gems I (More conceptual)](https://www.realtimerendering.com/raytracinggems/unofficial_RayTracingGems_v1.9.pdf)
 * [Ray Tracing Gems II (More specific to graphics APIs like Vulkan)](https://link.springer.com/content/pdf/10.1007/978-1-4842-7185-8.pdf)
+* [Shader Binding Table Article](https://www.willusher.io/graphics/2019/11/20/the-sbt-three-ways)

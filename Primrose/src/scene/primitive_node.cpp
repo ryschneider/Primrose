@@ -57,6 +57,15 @@ bool PrimitiveNode::createOperations(const std::vector<Primitive>& prims,
 }
 
 
+namespace {
+	static std::string glmToGlsl(glm::mat4 matrix) {
+		return fmt::format("mat4({},{},{},{}, {},{},{},{}, {},{},{},{}, {},{},{},{})",
+			matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3],
+			matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][3],
+			matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][3],
+			matrix[3][0], matrix[3][1], matrix[3][2], matrix[3][3]);
+	}
+}
 
 SphereNode::SphereNode(Primrose::Node* parent, float radius) : PrimitiveNode(parent), radius(radius) {
 	name = "Sphere";
@@ -83,6 +92,9 @@ void SphereNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer)
 }
 Primitive SphereNode::toPrimitive() {
 	return Primitive::Sphere();
+}
+std::string SphereNode::generateIntersectionGlsl() {
+	return fmt::format("sphereSDF({} * p, {})", glmToGlsl(glm::inverse(modelMatrix())), radius);
 }
 std::pair<glm::vec3, glm::vec3> SphereNode::generateAabb() {
 	std::vector<glm::vec3> verts = {
@@ -135,6 +147,10 @@ void BoxNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
 Primitive BoxNode::toPrimitive() {
 	return Primitive::Box();
 }
+std::string BoxNode::generateIntersectionGlsl() {
+	return fmt::format("boxSDF({} * p, vec3({}, {}, {}))", glmToGlsl(glm::inverse(modelMatrix())),
+		size.x, size.y, size.z);
+}
 std::pair<glm::vec3, glm::vec3> BoxNode::generateAabb() {
 	std::vector<glm::vec3> verts = {
 		{-1, -1, -1}, {-1, -1, +1},
@@ -184,6 +200,9 @@ void TorusNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) 
 }
 Primitive TorusNode::toPrimitive() {
 	return Primitive::Torus(ringRadius / majorRadius);
+}
+std::string TorusNode::generateIntersectionGlsl() {
+	return fmt::format("torusSDF({} * p, {}, {})", glmToGlsl(glm::inverse(modelMatrix())), majorRadius, ringRadius);
 }
 std::pair<glm::vec3, glm::vec3> TorusNode::generateAabb() {
 	float r = (ringRadius / majorRadius) + 1;
@@ -236,6 +255,9 @@ void LineNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
 Primitive LineNode::toPrimitive() {
 	return Primitive::Line(height*0.5 / radius);
 }
+std::string LineNode::generateIntersectionGlsl() {
+	return fmt::format("lineSDF({} * p, {}, {})", glmToGlsl(glm::inverse(modelMatrix())), height, radius);
+}
 std::pair<glm::vec3, glm::vec3> LineNode::generateAabb() {
 	float h = height*0.5 / radius;
 	std::vector<glm::vec3> verts = {
@@ -283,6 +305,9 @@ void CylinderNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &write
 }
 Primitive CylinderNode::toPrimitive() {
 	return Primitive::Cylinder();
+}
+std::string CylinderNode::generateIntersectionGlsl() {
+	return fmt::format("cylinderSDF({} * p, {})", glmToGlsl(glm::inverse(modelMatrix())), radius);
 }
 std::pair<glm::vec3, glm::vec3> CylinderNode::generateAabb() {
 	float b = 1000; // arbitrary large number

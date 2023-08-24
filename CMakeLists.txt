@@ -104,6 +104,7 @@ target_link_libraries(Primrose C:/dev/lib_mingw/libglfw3.a)
 target_link_libraries(Primrose C:/VulkanSDK/1.3.250.0/Lib/vulkan-1.lib)
 target_link_libraries(Primrose C:/dev/lib_mingw/libfreetype.a)
 target_link_libraries(Primrose C:/dev/lib_mingw/libfmt.a)
+target_link_libraries(Primrose C:/dev/lib_mingw/libshaderc.a)
 
 
 

@@ -1,9 +1,32 @@
 #version 460 core
 #extension GL_EXT_ray_tracing : require
 
-void main() {
-//	vec3 orig = gl_WorldRayOriginEXT;
-//	vec3 dir = gl_WorldRayDirectionEXT;
+uint MAX_MARCHES = 50;
 
-	reportIntersectionEXT(0, 0);
+float MAX_DIST = 100;
+float HIT_MARGIN = 0.001;
+
+float sdf(vec3 p) {
+	vec3 c = vec3(2, 2, 2);
+	vec3 q = mod(p+0.5*c,c)-0.5*c;
+	return length(q) - 0.5;
+}
+
+void main() {
+	vec3 pos = gl_WorldRayOriginEXT;
+	vec3 dir = gl_WorldRayDirectionEXT;
+
+	float d;
+	float t = 0;
+
+	for (int m = 0; m < MAX_MARCHES; ++m) {
+		d = sdf(pos);
+
+		if (abs(d) <= HIT_MARGIN && t > gl_RayTminEXT) break;
+		if (t > MAX_DIST) return;
+
+		pos += dir * d;
+	}
+
+	reportIntersectionEXT(t, 0);
 }
