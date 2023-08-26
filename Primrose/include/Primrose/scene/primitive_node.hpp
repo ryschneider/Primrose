@@ -10,8 +10,6 @@ namespace Primrose {
 	public:
 		using UnionNode::UnionNode;
 
-		glm::mat4 modelMatrix() override = 0;
-
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override = 0;
 
 		std::string generateIntersectionGlsl() override = 0;
@@ -32,7 +30,6 @@ namespace Primrose {
 		SphereNode(Node* parent, float radius);
 
 		std::string toString(std::string prefix = "") override;
-		glm::mat4 modelMatrix() override;
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
@@ -50,7 +47,6 @@ namespace Primrose {
 		BoxNode(Node* parent, glm::vec3 size);
 
 		std::string toString(std::string prefix = "") override;
-		glm::mat4 modelMatrix() override;
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
@@ -68,7 +64,6 @@ namespace Primrose {
 		TorusNode(Node* parent, float ringRadius, float majorRadius);
 
 		std::string toString(std::string prefix = "") override;
-		glm::mat4 modelMatrix() override;
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
@@ -87,7 +82,6 @@ namespace Primrose {
 		LineNode(Node* parent, float height, float radius);
 
 		std::string toString(std::string prefix = "") override;
-		glm::mat4 modelMatrix() override;
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
@@ -106,7 +100,6 @@ namespace Primrose {
 		CylinderNode(Node* parent, float radius);
 
 		std::string toString(std::string prefix = "") override;
-		glm::mat4 modelMatrix() override;
 		void accept(NodeVisitor* visitor) override;
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 

@@ -56,7 +56,6 @@ bool PrimitiveNode::createOperations(const std::vector<Primitive>& prims,
 	return true;
 }
 
-
 namespace {
 	static std::string glmToGlsl(glm::mat4 matrix) {
 		return fmt::format("mat4({},{},{},{}, {},{},{},{}, {},{},{},{}, {},{},{},{})",
@@ -67,22 +66,44 @@ namespace {
 	}
 }
 
-SphereNode::SphereNode(Primrose::Node* parent, float radius) : PrimitiveNode(parent), radius(radius) {
-	name = "Sphere";
+typedef glm::vec3 VEC3; // so we can refer to VEC3 in defines
+// https://stackoverflow.com/a/23400746/21743746
+#define LPAREN (
+#define RPAREN )
+#define COMMA ,
+#define EXPAND(...) __VA_ARGS__
+#define SPLIT_float LPAREN float COMMA
+#define SPLIT_VEC3 LPAREN VEC3 COMMA
+#define SPLIT(macro, x) EXPAND(macro SPLIT_##x RPAREN)
+#define LEFT(a, b) a
+#define RIGHT_(a, b) b
+#define TYPEOF(x) SPLIT(LEFT, x)
+#define NAMEOF(x) SPLIT(RIGHT_, x)
+
+#define FOR_EACH_1(macro, x) macro(x, 1)
+#define FOR_EACH_2(macro, x, ...) macro(x, 2) FOR_EACH_1(macro, __VA_ARGS__)
+#define FOR_EACH(N, macro, ...) FOR_EACH_##N(macro, __VA_ARGS__)
+#define XSTR(x) #x
+#define STR(x) XSTR(x)
+
+// to string
+#define TOSTR_VEC3(v) fmt::format("({}, {}, {})", v.x, v.y, v.z)
+#define TOSTR_float(x) x
+#define _TOSTR(t, x) TOSTR_##t (x)
+#define TOSTR(x, i) SPLIT(_TOSTR, x) ,
+// other
+#define INITIALIZE(x, i) this->NAMEOF(x) = NAMEOF(x);
+#define EQUALS(x, i) STR(NAMEOF(x)) "={}"
+#define DEF_PRIMITIVE(Type, N, ...) \
+Type##Node::Type##Node(Primrose::Node* parent, ## __VA_ARGS__) \
+	: PrimitiveNode(parent) { name = #Type; FOR_EACH(N, INITIALIZE, __VA_ARGS__) } \
+void Type##Node::accept(NodeVisitor* visitor) { visitor->visit(this); } \
+std::string Type##Node::toString(std::string prefix) { \
+	return fmt::format("{}{}/sphere(" FOR_EACH(N, EQUALS, __VA_ARGS__) "){}", prefix, name, \
+		FOR_EACH(N, TOSTR, __VA_ARGS__) Node::toString()); \
 }
-std::string SphereNode::toString(std::string prefix) {
-	return fmt::format("{}{}/sphere({}){}", prefix, name, radius, Node::toString());
-}
-glm::mat4 SphereNode::modelMatrix() {
-	glm::mat4 matrix = getParent()->modelMatrix();
-	matrix = glm::translate(matrix, translate);
-	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	matrix = glm::scale(matrix, scale * radius);
-	return matrix;
-}
-void SphereNode::accept(NodeVisitor* visitor) {
-	visitor->visit(this);
-}
+
+DEF_PRIMITIVE(Sphere, 1, float radius)
 void SphereNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
 	writer.String("type");
 	writer.String("sphere");
@@ -116,23 +137,7 @@ std::pair<glm::vec3, glm::vec3> SphereNode::generateAabb() {
 	return {lesser, greater};
 }
 
-
-BoxNode::BoxNode(Node* parent, glm::vec3 size) : PrimitiveNode(parent), size(size) {
-	name = "Box";
-}
-std::string BoxNode::toString(std::string prefix) {
-	return fmt::format("{}{}/box(({}, {}, {})){}", prefix, name, size.x, size.y, size.z, Node::toString());
-}
-glm::mat4 BoxNode::modelMatrix() {
-	glm::mat4 matrix = getParent()->modelMatrix();
-	matrix = glm::translate(matrix, translate);
-	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	matrix = glm::scale(matrix, scale * size);
-	return matrix;
-}
-void BoxNode::accept(NodeVisitor* visitor) {
-	visitor->visit(this);
-}
+DEF_PRIMITIVE(Box, 1, VEC3 size)
 void BoxNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
 	writer.String("type");
 	writer.String("box");
@@ -172,23 +177,7 @@ std::pair<glm::vec3, glm::vec3> BoxNode::generateAabb() {
 }
 
 
-TorusNode::TorusNode(Node* parent, float ringRadius, float majorRadius)
-	: PrimitiveNode(parent), ringRadius(ringRadius), majorRadius(majorRadius) {
-	name = "Torus";
-}
-std::string TorusNode::toString(std::string prefix) {
-	return fmt::format("{}{}/torus({}, {}){}", prefix, name, ringRadius, majorRadius, Node::toString());
-}
-glm::mat4 TorusNode::modelMatrix() {
-	glm::mat4 matrix = getParent()->modelMatrix();
-	matrix = glm::translate(matrix, translate);
-	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	matrix = glm::scale(matrix, scale * majorRadius);
-	return matrix;
-}
-void TorusNode::accept(NodeVisitor* visitor) {
-	visitor->visit(this);
-}
+DEF_PRIMITIVE(Torus, 2, float ringRadius, float majorRadius)
 void TorusNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
 	writer.String("type");
 	writer.String("torus");
@@ -226,23 +215,7 @@ std::pair<glm::vec3, glm::vec3> TorusNode::generateAabb() {
 }
 
 
-LineNode::LineNode(Node* parent, float height, float radius)
-	: PrimitiveNode(parent), height(height), radius(radius) {
-	name = "Line";
-}
-std::string LineNode::toString(std::string prefix) {
-	return fmt::format("{}{}/line({}, {}){}", prefix, name, height, radius, Node::toString());
-}
-glm::mat4 LineNode::modelMatrix() {
-	glm::mat4 matrix = getParent()->modelMatrix();
-	matrix = glm::translate(matrix, translate);
-	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	matrix = glm::scale(matrix, scale * radius);
-	return matrix;
-}
-void LineNode::accept(NodeVisitor* visitor) {
-	visitor->visit(this);
-}
+DEF_PRIMITIVE(Line, 2, float height, float radius)
 void LineNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
 	writer.String("type");
 	writer.String("line");
@@ -280,22 +253,7 @@ std::pair<glm::vec3, glm::vec3> LineNode::generateAabb() {
 }
 
 
-CylinderNode::CylinderNode(Node* parent, float radius) : PrimitiveNode(parent), radius(radius) {
-	name = "Cylinder";
-}
-std::string CylinderNode::toString(std::string prefix) {
-	return fmt::format("{}{}/cylinder({}){}", prefix, name, radius, Node::toString());
-}
-glm::mat4 CylinderNode::modelMatrix() {
-	glm::mat4 matrix = getParent()->modelMatrix();
-	matrix = glm::translate(matrix, translate);
-	matrix = glm::rotate(matrix, glm::radians(angle), axis);
-	matrix = glm::scale(matrix, scale * radius);
-	return matrix;
-}
-void CylinderNode::accept(NodeVisitor* visitor) {
-	visitor->visit(this);
-}
+DEF_PRIMITIVE(Cylinder, 1, float radius)
 void CylinderNode::serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
 	writer.String("type");
 	writer.String("cylinder");
