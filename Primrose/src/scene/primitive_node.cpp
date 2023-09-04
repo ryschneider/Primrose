@@ -116,19 +116,10 @@ Primitive SphereNode::toPrimitive() {
 std::string SphereNode::generateIntersectionGlsl() {
 	return fmt::format("sphereSDF({} * p, {})", glmToGlsl(glm::inverse(modelMatrix())), radius);
 }
-std::pair<glm::vec3, glm::vec3> SphereNode::generateAabb() {
-	// aabb without matrix applied
-	glm::vec3 lesser = glm::vec3(-radius);
-	glm::vec3 greater = glm::vec3(radius);
-
-	// get appropriate matrix
-	glm::mat4 matrix = modelMatrix();
-	glm::vec3 scale = getScale(matrix);
-	if (scale.x == scale.y && scale.y == scale.z) { // uniform scale, so rotation has no impact on aabb
-		matrix = transformMatrix(getTranslate(matrix), getScale(matrix), 0, glm::vec3(1)); // remove rotation
-	}
-
-	return extendAabb(lesser, greater, matrix);
+AABB SphereNode::generateAabb() {
+	AABB aabb = AABB::fromPoints({-glm::vec3(radius), glm::vec3(radius)});
+	aabb.applyTransform(modelMatrix());
+	return aabb;
 }
 
 BoxNode::BoxNode(Primrose::Node *parent, glm::vec3 size) : PrimitiveNode(parent) {
@@ -158,24 +149,10 @@ std::string BoxNode::generateIntersectionGlsl() {
 	return fmt::format("boxSDF({} * p, vec3({}, {}, {}))", glmToGlsl(glm::inverse(modelMatrix())),
 		size.x, size.y, size.z);
 }
-std::pair<glm::vec3, glm::vec3> BoxNode::generateAabb() {
-	std::vector<glm::vec3> verts = {
-		{-1, -1, -1}, {-1, -1, +1},
-		{-1, +1, -1}, {-1, +1, +1},
-		{+1, -1, -1}, {+1, -1, +1},
-		{+1, +1, -1}, {+1, +1, +1}
-	};
-
-	auto[lesser, greater] = UnionNode::generateAabb();
-	glm::mat4 matrix = modelMatrix();
-	for (auto& v : verts) {
-		v = matrix * glm::vec4(v, 1);
-		lesser.x = std::min(lesser.x, v.x); greater.x = std::max(greater.x, v.x);
-		lesser.y = std::min(lesser.y, v.y); greater.y = std::max(greater.y, v.y);
-		lesser.z = std::min(lesser.z, v.z); greater.z = std::max(greater.z, v.z);
-	}
-
-	return {lesser, greater};
+AABB BoxNode::generateAabb() {
+	AABB aabb = AABB::fromPoints({-0.5f * size, 0.5f * size});
+	aabb.applyTransform(modelMatrix());
+	return aabb;
 }
 
 
@@ -204,25 +181,10 @@ Primitive TorusNode::toPrimitive() {
 std::string TorusNode::generateIntersectionGlsl() {
 	return fmt::format("torusSDF({} * p, {}, {})", glmToGlsl(glm::inverse(modelMatrix())), majorRadius, ringRadius);
 }
-std::pair<glm::vec3, glm::vec3> TorusNode::generateAabb() {
-	float r = (ringRadius / majorRadius) + 1;
-	std::vector<glm::vec3> verts = {
-		{0, 0, r}, {0, 0, -r},
-		{0, r, 0}, {0, -r, 0},
-		{r, 0, 0}, {-r, 0, 0}
-	};
-
-	auto[lesser, greater] = UnionNode::generateAabb();
-	glm::mat4 matrix = modelMatrix();
-	matrix = transformMatrix(getTranslate(matrix), getScale(matrix), 0, glm::vec3(1)); // ignore rotation
-	for (auto& v : verts) {
-		v = matrix * glm::vec4(v, 1);
-		lesser.x = std::min(lesser.x, v.x); greater.x = std::max(greater.x, v.x);
-		lesser.y = std::min(lesser.y, v.y); greater.y = std::max(greater.y, v.y);
-		lesser.z = std::min(lesser.z, v.z); greater.z = std::max(greater.z, v.z);
-	}
-
-	return {lesser, greater};
+AABB TorusNode::generateAabb() {
+	AABB aabb = AABB::fromPoints({-glm::vec3(majorRadius + ringRadius), glm::vec3(majorRadius + ringRadius)});
+	aabb.applyTransform(modelMatrix());
+	return aabb;
 }
 
 
@@ -251,25 +213,10 @@ Primitive LineNode::toPrimitive() {
 std::string LineNode::generateIntersectionGlsl() {
 	return fmt::format("lineSDF({} * p, {}, {})", glmToGlsl(glm::inverse(modelMatrix())), height, radius);
 }
-std::pair<glm::vec3, glm::vec3> LineNode::generateAabb() {
-	float h = height*0.5 / radius;
-	std::vector<glm::vec3> verts = {
-		{-1, -h, -1}, {-1, -h, +1},
-		{-1, +h, -1}, {-1, +h, +1},
-		{+1, -h, -1}, {+1, -h, +1},
-		{+1, +h, -1}, {+1, +h, +1}
-	};
-
-	auto[lesser, greater] = UnionNode::generateAabb();
-	glm::mat4 matrix = modelMatrix();
-	for (auto& v : verts) {
-		v = matrix * glm::vec4(v, 1);
-		lesser.x = std::min(lesser.x, v.x); greater.x = std::max(greater.x, v.x);
-		lesser.y = std::min(lesser.y, v.y); greater.y = std::max(greater.y, v.y);
-		lesser.z = std::min(lesser.z, v.z); greater.z = std::max(greater.z, v.z);
-	}
-
-	return {lesser, greater};
+AABB LineNode::generateAabb() {
+	AABB aabb = AABB::fromPoints({-glm::vec3(radius, height*0.5, radius), glm::vec3(radius, height*0.5, radius)});
+	aabb.applyTransform(modelMatrix());
+	return aabb;
 }
 
 
@@ -294,23 +241,8 @@ Primitive CylinderNode::toPrimitive() {
 std::string CylinderNode::generateIntersectionGlsl() {
 	return fmt::format("cylinderSDF({} * p, {})", glmToGlsl(glm::inverse(modelMatrix())), radius);
 }
-std::pair<glm::vec3, glm::vec3> CylinderNode::generateAabb() {
-	float b = 1000; // arbitrary large number
-	std::vector<glm::vec3> verts = {
-		{-1, -b, -1}, {-1, -b, +1},
-		{-1, +b, -1}, {-1, +b, +1},
-		{+1, -b, -1}, {+1, -b, +1},
-		{+1, +b, -1}, {+1, +b, +1}
-	};
-
-	auto[lesser, greater] = UnionNode::generateAabb();
-	glm::mat4 matrix = modelMatrix();
-	for (auto& v : verts) {
-		v = matrix * glm::vec4(v, 1);
-		lesser.x = std::min(lesser.x, v.x); greater.x = std::max(greater.x, v.x);
-		lesser.y = std::min(lesser.y, v.y); greater.y = std::max(greater.y, v.y);
-		lesser.z = std::min(lesser.z, v.z); greater.z = std::max(greater.z, v.z);
-	}
-
-	return {lesser, greater};
+AABB CylinderNode::generateAabb() {
+	AABB aabb = AABB::fromPoints({-glm::vec3(radius, 1000, radius), glm::vec3(radius, 1000, radius)});
+	aabb.applyTransform(modelMatrix());
+	return aabb;
 }

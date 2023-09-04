@@ -323,8 +323,8 @@ void Primrose::generateAcceleratedScene(Scene& scene) {
 	for (const auto& node : scene.root.getChildren()) {
 //		std::string sdfCode = fmt::format("float sdf(vec3 p) {{ return {}; }}", node->generateIntersectionGlsl());
 
-		auto[l, g] = node->generateAabb();
-		aabbData.push_back(vk::AabbPositionsKHR(l.x, l.y, l.z, g.x, g.y, g.z));
+		AABB aabb = node->generateAabb();
+		aabbData.push_back(aabb.toVkStruct());
 	}
 
 	// generate intersection shaders

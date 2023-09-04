@@ -5,6 +5,16 @@
 #include "node.hpp"
 #include "construction_node.hpp"
 
+#define PRIM_OVERRIDES \
+public: \
+std::string toString(std::string prefix = "") override; \
+void accept(NodeVisitor* visitor) override; \
+void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override; \
+std::string generateIntersectionGlsl() override; \
+AABB generateAabb() override; \
+private: \
+Primitive toPrimitive() override;
+
 namespace Primrose {
 	class PrimitiveNode : public UnionNode {
 	public:
@@ -13,7 +23,7 @@ namespace Primrose {
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override = 0;
 
 		std::string generateIntersectionGlsl() override = 0;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override = 0;
+		AABB generateAabb() override = 0;
 
 		std::vector<Primitive> extractPrims() override;
 		std::vector<Transformation> extractTransforms() override;
@@ -25,91 +35,36 @@ namespace Primrose {
 		virtual Primitive toPrimitive() = 0;
 	};
 
-	class SphereNode : public PrimitiveNode {
+	class SphereNode : public PrimitiveNode { PRIM_OVERRIDES
 	public:
 		SphereNode(Node* parent, float radius);
-
-		std::string toString(std::string prefix = "") override;
-		void accept(NodeVisitor* visitor) override;
-		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
-
-		std::string generateIntersectionGlsl() override;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override;
-
 		float radius;
-
-	private:
-		Primitive toPrimitive() override;
 	};
 
-	class BoxNode : public PrimitiveNode {
+	class BoxNode : public PrimitiveNode { PRIM_OVERRIDES
 	public:
 		BoxNode(Node* parent, glm::vec3 size);
-
-		std::string toString(std::string prefix = "") override;
-		void accept(NodeVisitor* visitor) override;
-		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
-
-		std::string generateIntersectionGlsl() override;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override;
-
 		glm::vec3 size;
-
-	private:
-		Primitive toPrimitive() override;
 	};
 
-	class TorusNode : public PrimitiveNode {
+	class TorusNode : public PrimitiveNode { PRIM_OVERRIDES
 	public:
 		TorusNode(Node* parent, float ringRadius, float majorRadius);
-
-		std::string toString(std::string prefix = "") override;
-		void accept(NodeVisitor* visitor) override;
-		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
-
-		std::string generateIntersectionGlsl() override;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override;
-
 		float ringRadius;
 		float majorRadius;
-
-	private:
-		Primitive toPrimitive() override;
 	};
 
-	class LineNode : public PrimitiveNode {
+	class LineNode : public PrimitiveNode { PRIM_OVERRIDES
 	public:
 		LineNode(Node* parent, float height, float radius);
-
-		std::string toString(std::string prefix = "") override;
-		void accept(NodeVisitor* visitor) override;
-		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
-
-		std::string generateIntersectionGlsl() override;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override;
-
 		float height;
 		float radius;
-
-	private:
-		Primitive toPrimitive() override;
 	};
 
-	class CylinderNode : public PrimitiveNode {
+	class CylinderNode : public PrimitiveNode { PRIM_OVERRIDES
 	public:
 		CylinderNode(Node* parent, float radius);
-
-		std::string toString(std::string prefix = "") override;
-		void accept(NodeVisitor* visitor) override;
-		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
-
-		std::string generateIntersectionGlsl() override;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override;
-
 		float radius;
-
-	private:
-		Primitive toPrimitive() override;
 	};
 }
 

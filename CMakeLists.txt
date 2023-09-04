@@ -82,16 +82,22 @@ add_library(Primrose
 
 	Primrose/src/state.cpp Primrose/include/Primrose/state.hpp
 	Primrose/src/shader_structs.cpp Primrose/include/Primrose/shader_structs.hpp
+	Primrose/src/log.cpp Primrose/include/Primrose/log.hpp
 
 	Primrose/src/scene/scene.cpp Primrose/include/Primrose/scene/scene.hpp
 	Primrose/src/scene/node.cpp Primrose/include/Primrose/scene/node.hpp
 	Primrose/src/scene/primitive_node.cpp Primrose/include/Primrose/scene/primitive_node.hpp
 	Primrose/src/scene/construction_node.cpp Primrose/include/Primrose/scene/construction_node.hpp
+	Primrose/src/scene/aabb.cpp Primrose/include/Primrose/scene/aabb.hpp
 
 	Primrose/include/Primrose/core.hpp
 	Primrose/include/Primrose/scene/node_visitor.hpp
 
-	Primrose/src/log.cpp Primrose/include/Primrose/log.hpp)
+	Primrose/src/scene/primitives/sphere_node.cpp Primrose/src/scene/primitives/box_node.cpp
+	Primrose/src/scene/primitives/torus_node.cpp Primrose/src/scene/primitives/line_node.cpp
+	Primrose/src/scene/primitives/cylinder_node.cpp
+
+	)
 
 target_include_directories(Primrose SYSTEM PUBLIC C:/dev/include)
 target_include_directories(Primrose SYSTEM PUBLIC C:/VulkanSDK/1.3.250.0/Include)
@@ -132,8 +138,7 @@ add_executable(LevelEditor
 	LevelEditor/fps_counter.cpp LevelEditor/fps_counter.hpp
 	LevelEditor/gui.cpp LevelEditor/gui.hpp
 
-	LevelEditor/main.cpp
-	)
+	LevelEditor/main.cpp)
 target_include_directories(LevelEditor SYSTEM PRIVATE ${IMGUI_DIR})
 target_include_directories(LevelEditor SYSTEM PRIVATE ${TINYFD_DIR})
 target_link_libraries(LevelEditor LINK_PUBLIC Primrose)

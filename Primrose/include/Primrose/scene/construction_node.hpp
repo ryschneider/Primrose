@@ -24,7 +24,7 @@ namespace Primrose {
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
 		std::string generateIntersectionGlsl() override;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override;
+		AABB generateAabb() override;
 
 	private:
 		Operation foldOperations(uint i, uint j) override;
@@ -37,7 +37,7 @@ namespace Primrose {
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
 		std::string generateIntersectionGlsl() override;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override;
+		AABB generateAabb() override;
 
 	private:
 		Operation foldOperations(uint i, uint j) override;
@@ -50,7 +50,7 @@ namespace Primrose {
 		void serialize(rapidjson::Writer<rapidjson::OStreamWrapper> &writer) override;
 
 		std::string generateIntersectionGlsl() override;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override;
+		AABB generateAabb() override;
 
 		std::set<Node*> subtractNodes;
 

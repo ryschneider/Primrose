@@ -148,8 +148,8 @@ std::string RootNode::generateIntersectionGlsl() {
 	return "";
 }
 
-std::pair<glm::vec3, glm::vec3> RootNode::generateAabb() {
-	return {glm::vec3(0), glm::vec3(0)};
+AABB RootNode::generateAabb() {
+	return AABB();
 }
 
 bool Node::shouldHide() {

@@ -2,6 +2,7 @@
 #define PRIMROSE_NODE_HPP
 
 #include "../shader_structs.hpp"
+#include "aabb.hpp"
 
 #include <variant>
 #include <vector>
@@ -34,7 +35,7 @@ namespace Primrose {
 		bool shouldHide();
 
 		virtual std::string generateIntersectionGlsl() = 0;
-		virtual std::pair<glm::vec3, glm::vec3> generateAabb() = 0;
+		virtual AABB generateAabb() = 0;
 
 		virtual void accept(NodeVisitor* visitor) = 0;
 
@@ -76,7 +77,7 @@ namespace Primrose {
 		glm::mat4 modelMatrix() override;
 
 		std::string generateIntersectionGlsl() override;
-		std::pair<glm::vec3, glm::vec3> generateAabb() override;
+		AABB generateAabb() override;
 
 		bool isDescendantOf(Primrose::Node *ancestor) override;
 
