@@ -147,9 +147,11 @@ namespace {
 
 		vk::DeviceAddress aabbDataBufferAddress = device.getBufferAddress(vk::BufferDeviceAddressInfo(aabbDataBuffer));
 
-		std::vector<vk::AccelerationStructureGeometryKHR> geometries;
 		std::vector<vk::AccelerationStructureBuildRangeInfoKHR> buildRanges;
 		std::vector<uint32_t> primitiveCounts;
+
+		// geometry per aabb
+		std::vector<vk::AccelerationStructureGeometryKHR> geometries;
 		for (int i = 0; i < aabbData.size(); ++i) {
 			vk::AccelerationStructureGeometryKHR geom{};
 			geom.geometryType = vk::GeometryTypeKHR::eAabbs;
@@ -325,6 +327,10 @@ void Primrose::generateAcceleratedScene(Scene& scene) {
 
 		AABB aabb = node->generateAabb();
 		aabbData.push_back(aabb.toVkStruct());
+
+		log(fmt::format("{}: min({}, {}, {}), max({}, {}, {})", node->name,
+			aabbData.back().minX, aabbData.back().minY, aabbData.back().minZ,
+			aabbData.back().maxX, aabbData.back().maxY, aabbData.back().maxZ));
 	}
 
 	// generate intersection shaders
@@ -332,6 +338,8 @@ void Primrose::generateAcceleratedScene(Scene& scene) {
 		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize),
 		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize),
 		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize),
+		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize),
+		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize)
 	};
 
 	// create pipeline
@@ -351,6 +359,8 @@ void Primrose::generateAcceleratedScene(Scene& scene) {
 }
 
 void Primrose::destroyAcceleratedScene() {
+	device.waitIdle();
+
 	device.destroyAccelerationStructureKHR(topStructure);
 	device.destroyBuffer(topStructureBuffer);
 	device.freeMemory(topStructureMemory);

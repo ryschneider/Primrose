@@ -30,11 +30,8 @@ vec3 hsv2rgb(vec3 c)
 }
 
 void main() {
-//	vec2 screenPos = vec2(gl_LaunchIDEXT.xy) / vec2(gl_LaunchSizeEXT.xy);
-//	screenPos.x = mod(screenPos.x + push.time*0.1, 1.0);
-//	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(screenPos, (sin(push.time)+1)*0.5, 1));
-
 	vec2 screenXY = vec2(gl_LaunchIDEXT.xy) / vec2(gl_LaunchSizeEXT.xy) * 2 - 1;
+	screenXY.y = -screenXY.y;
 
 	const vec3 forward = u.camDir;
 	const vec3 right = normalize(cross(u.camUp, forward));

@@ -8,6 +8,7 @@
 #include "player_movement.hpp"
 #include "fps_counter.hpp"
 #include "gui.hpp"
+#include "Primrose/scene/primitive_node.hpp"
 
 const char* APP_NAME = "Level Editor";
 const unsigned int APP_VERSION = 001'000'000;
@@ -35,8 +36,8 @@ void update(float dt) {
 	bool updatedScene = updateGui(mainScene, dt);
 	if (updatedScene) {
 		if (rayAcceleration) {
-//			destroyAcceleratedScene();
-//			generateAcceleratedScene(mainScene);
+			destroyAcceleratedScene();
+			generateAcceleratedScene(mainScene);
 		} else {
 			mainScene.generateUniforms();
 		}
@@ -156,6 +157,15 @@ int main() {
 	// load scene
 //	mainScene.importScene("scenes/perftest.json");
 	mainScene.importScene("scenes/test.json");
+
+//	Node* sphere = new SphereNode(reinterpret_cast<Node*>(&mainScene.root), 0.1);
+//	sphere->translate = glm::vec3(0, 0, 5);
+//
+//	Node* sphere2 = new SphereNode(reinterpret_cast<Node*>(&mainScene.root), 0.1);
+//	sphere2->translate = glm::vec3(0.5, 0, 5);
+//
+//	Node* sphere3 = new SphereNode(reinterpret_cast<Node*>(&mainScene.root), 0.1);
+//	sphere3->translate = glm::vec3(-0.5, 0, 5);
 
 	if (rayAcceleration) {
 		generateAcceleratedScene(mainScene);
