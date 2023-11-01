@@ -13,3 +13,9 @@
     * Reduce cost of sampling for rough surfaces
 * VK_KHR_pipeline_library
   * Faster for having tons of shaders in one ray tracing pipeline
+* Noise texture sampling
+  * One large, smooth texture
+    * Smooth means it can be compressed - large region represented without too much memory
+  * One smaller, more detailed, repeating texture
+    * Smaller details won't be noticed repeating, higher detail & continuous
+  * Then have a one-to-one mapping with the first texture, and a repeating mapping with the second, overlayed to give the illusion of high-detail continuous noise
