@@ -119,20 +119,29 @@ namespace Primrose {
 		}
 	};
 
+	struct ModelAttributes {
+		glm::mat4 invMatrix;
+		float invScale;
+		glm::vec3 aabbMin;
+		glm::vec3 aabbMax;
+	};
+
 	struct MarchUniforms {
-		alignas(16) glm::vec3 camPos;
-		alignas(16) glm::vec3 camDir = glm::vec3(0, 0, 1);
-		alignas(16) glm::vec3 camUp = glm::vec3(0, 1, 0);
-		alignas(4) float screenHeight;
+		glm::vec3 camPos = glm::vec3(0);
+		glm::vec3 camDir = glm::vec3(0, 0, 1);
+		glm::vec3 camUp = glm::vec3(0, 1, 0);
+		float screenHeight;
 
-		alignas(4) float focalLength;
-		alignas(4) float invZoom;
+		float focalLength;
+		float invZoom;
 
-		alignas(4) uint numOperations;
+		ModelAttributes attributes[100];
+		uint geometryAttributeOffset[100];
 
-		alignas(16) Operation operations[100];
-		alignas(16) Primitive primitives[100];
-		alignas(16) Transformation transformations[100];
+		uint numOperations;
+		Operation operations[100];
+		Primitive primitives[100];
+		Transformation transformations[100];
 
 		std::string toString();
 	};

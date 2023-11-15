@@ -1,32 +1,152 @@
 #version 460 core
 #extension GL_EXT_ray_tracing : require
+#extension GL_EXT_scalar_block_layout : require
 
-uint MAX_MARCHES = 50;
+#include "../structs.glsl"
 
-float MAX_DIST = 100;
-float HIT_MARGIN = 0.001;
+hitAttributeEXT vec3 normal;
+
+layout(binding = 2, scalar) uniform Block {
+	MarchUniforms uniforms;
+} uniformBlock;
+#define u uniformBlock.uniforms
+#define attr u.attributes[u.geometryAttributeOffset[gl_GeometryIndexEXT] + gl_PrimitiveID]
+
+layout(push_constant) uniform PushConstant {
+	float time;
+} push;
+
+const uint MAX_MARCHES = 50;
+const float HIT_MARGIN = 0.001;
+const float NORMAL_EPS = 0.0001f; // small epsilon for normal calculations
+
+//float spheres(vec3 p) {
+//	vec3 c = vec3(0.5);
+//	vec3 q = mod(p + 0.5*c, c) - 0.5*c;
+//	return length(q) - 0.2;
+//}
+
+float sphere(vec3 p, float r) {
+	return length(p) - r;
+}
+
+vec3 repeat(vec3 p, vec3 s) {
+	return p - s*round(p/s);
+}
+
+vec3 twist(vec3 p, float k) {
+	float c = cos(k * p.y);
+	float s = sin(k * p.y);
+	mat2 m = mat2(c, -s, s, c);
+	vec3 q = vec3(m * p.xz, p.y);
+	return q;
+}
+
+float torus(vec3 p, float majorRadius, float ringRadius) {
+	vec2 q = vec2(length(p.xy) - majorRadius, p.z);
+	return length(q) - ringRadius;
+}
+
+float box(vec3 p, vec3 b)  {
+	vec3 q = abs(p) - b;
+	return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+
+float thick(float d, float r) {
+	return d - r;
+}
+
+float unionof(float d1, float d2) {
+	return min(d1, d2);
+}
+
+float intersection(float d1, float d2) {
+	return max(d1, d2);
+}
+
+float subtract(float d1, float d2) {
+	return max(-d1, d2);
+}
+
+vec3 translate(vec3 p, vec3 v) {
+	return p + v;
+}
+
+float edge(float d, float thickness) {
+	return abs(d) - thickness;
+}
+
+float plane(vec3 p, vec3 normal, float h) {
+	return dot(p, normal) + h;
+}
 
 float sdf(vec3 p) {
-	vec3 c = vec3(2, 2, 2);
-	vec3 q = mod(p+0.5*c,c)-0.5*c;
-	return length(q) - 0.5;
+//	return sphere(repeat(p, vec3(0.5)), 0.2);
+//	return torus(twist(p, 5.0), 1, 0.3);
+//	return box(p, vec3(0.5, 1, 0.8));
+//	return smoothing(box(twist(p, sin(push.time*0.5)*5), vec3(0.2, 0.2, 1)), 0.05);
+
+//	return thick(sphere(repeat(twist(p, sin(push.time*0.5)), vec3(0.2)), 0.05), 0.04);
+//	return unionof(
+//		intersection(
+//			sphere(repeat(twist(p, sin(push.time*0.5)), vec3(0.2)), 0.05),
+//			box(p, (attr.aabbMax - attr.aabbMin)*0.5 - vec3(0.1))
+//		),
+//		edge(box(p, (attr.aabbMax - attr.aabbMin)*0.5 + vec3(0, 1, 0)), 0.5)
+//	);
+
+	return torus(p, 5, 1);
+}
+
+//float sdf(vec3 p) {
+//	return length(p) - 0.5;
+//}
+
+vec3 getNormal(vec3 p, float d) {
+	return normalize(vec3(
+		 sdf(p + vec3(NORMAL_EPS, 0.f, 0.f)),
+		 sdf(p + vec3(0.f, NORMAL_EPS, 0.f)),
+		 sdf(p + vec3(0.f, 0.f, NORMAL_EPS))
+	) - d);
 }
 
 void main() {
-	vec3 pos = gl_WorldRayOriginEXT;
-	vec3 dir = gl_WorldRayDirectionEXT;
+//	ModelAttributes attr = u.attributes[u.geometryAttributeOffset[gl_GeometryIndexEXT] + gl_PrimitiveID];
 
+	// calculate aabb intersection and t range
+	// https://medium.com/@bromanz/another-view-on-the-classic-ray-aabb-intersection-algorithm-for-bvh-traversal-41125138b525
+	vec3 invD = 1 / gl_WorldRayDirectionEXT;
+	vec3 t0s = (attr.aabbMin - gl_WorldRayOriginEXT) * invD;
+	vec3 t1s = (attr.aabbMax - gl_WorldRayOriginEXT) * invD;
+	vec3 tsmaller = min(t0s, t1s);
+	vec3 tbigger  = max(t0s, t1s);
+	float tmin = max(tsmaller[0], max(tsmaller[1], tsmaller[2]));
+	float tmax = min(tbigger[0], min(tbigger[1], tbigger[2]));
+//	// ignore aabb intersection
+//	float tmin = 0;
+//	float tmax = gl_RayTmaxEXT;
+
+	// march algorithm
 	float d;
 	float t = 0;
+	float trange = (tmax - tmin) * attr.invScale;
+
+	vec3 pos = (attr.invMatrix * vec4(gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT*tmin, 1)).xyz;
+	vec3 dir = normalize((attr.invMatrix * vec4(gl_WorldRayDirectionEXT, 0)).xyz);
 
 	for (int m = 0; m < MAX_MARCHES; ++m) {
 		d = sdf(pos);
+		t += d;
 
-		if (abs(d) <= HIT_MARGIN && t > gl_RayTminEXT) break;
-		if (t > MAX_DIST) return;
+		if (t > trange) {
+			reportIntersectionEXT(0, 1);
+			return;
+		};
+		if (d <= HIT_MARGIN && t > gl_RayTminEXT) break;
 
 		pos += dir * d;
 	}
 
-	reportIntersectionEXT(t, 0);
+	normal = getNormal(pos, d);
+	reportIntersectionEXT(tmin + t, 0);
 }

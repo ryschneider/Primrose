@@ -8,6 +8,7 @@
 #include "embed/main_rchit_spv.h"
 #include "embed/main_rmiss_spv.h"
 #include "scene/scene.hpp"
+#include "state.hpp"
 
 #include <vulkan/vulkan.hpp>
 #include <stdexcept>
@@ -124,7 +125,8 @@ namespace {
 	}
 
 	static void createBottomAccelerationStructure(std::vector<vk::AabbPositionsKHR> aabbData,
-		vk::AccelerationStructureKHR* blas, vk::Buffer* blasBuffer, vk::DeviceMemory* blasMemory) {
+		std::vector<ModelAttributes> aabbAttributes, vk::AccelerationStructureKHR* blas,
+		vk::Buffer* blasBuffer, vk::DeviceMemory* blasMemory) {
 
 		log("Creating bottom-level acceleration structure");
 
@@ -136,14 +138,6 @@ namespace {
 			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
 			&aabbDataBuffer, &aabbDataMemory, true);
 		writeToDevice(aabbDataMemory, aabbData.data(), aabbData.size() * sizeof(vk::AabbPositionsKHR));
-//
-//		// build/create info structures
-//		vk::AccelerationStructureGeometryKHR geom{};
-//		geom.geometryType = vk::GeometryTypeKHR::eAabbs;
-//		geom.geometry.aabbs = vk::AccelerationStructureGeometryAabbsDataKHR(
-//			vk::DeviceOrHostAddressConstKHR(device.getBufferAddress(vk::BufferDeviceAddressInfo(aabbDataBuffer))),
-//			sizeof(vk::AabbPositionsKHR));
-//		geom.flags = vk::GeometryFlagBitsKHR::eNoDuplicateAnyHitInvocation;
 
 		vk::DeviceAddress aabbDataBufferAddress = device.getBufferAddress(vk::BufferDeviceAddressInfo(aabbDataBuffer));
 
@@ -152,14 +146,19 @@ namespace {
 
 		// geometry per aabb
 		std::vector<vk::AccelerationStructureGeometryKHR> geometries;
+		unsigned int attributeOffset = 0;
 		for (int i = 0; i < aabbData.size(); ++i) {
 			vk::AccelerationStructureGeometryKHR geom{};
 			geom.geometryType = vk::GeometryTypeKHR::eAabbs;
+			geom.flags = vk::GeometryFlagBitsKHR::eNoDuplicateAnyHitInvocation;
 			geom.geometry.aabbs = vk::AccelerationStructureGeometryAabbsDataKHR(
 				vk::DeviceOrHostAddressConstKHR(aabbDataBufferAddress), sizeof(vk::AabbPositionsKHR));
-//			geom.flags = vk::GeometryFlagBitsKHR::eNoDuplicateAnyHitInvocation;
 
 			geometries.push_back(geom);
+
+			uniforms.geometryAttributeOffset[geometries.size()-1] = attributeOffset;
+			uniforms.attributes[attributeOffset] = aabbAttributes[i];
+			attributeOffset += 1;
 
 			buildRanges.push_back(vk::AccelerationStructureBuildRangeInfoKHR(1, sizeof(vk::AabbPositionsKHR)*i, 0, 0));
 			primitiveCounts.push_back(1);
@@ -308,9 +307,9 @@ void Primrose::createAcceleratedPipelineLayout() {
 		vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eStorageImage, 1,
 			vk::ShaderStageFlagBits::eRaygenKHR),
 		vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eUniformBuffer, 1,
-			vk::ShaderStageFlagBits::eRaygenKHR),
+			vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eIntersectionKHR),
 		vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eCombinedImageSampler, 1,
-			vk::ShaderStageFlagBits::eRaygenKHR),
+			{}),
 	};
 	vk::DescriptorSetLayoutCreateInfo descLayoutInfo(
 		vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR, bindings);
@@ -322,11 +321,17 @@ void Primrose::createAcceleratedPipelineLayout() {
 
 void Primrose::generateAcceleratedScene(Scene& scene) {
 	std::vector<vk::AabbPositionsKHR> aabbData;
+	std::vector<ModelAttributes> aabbAttributes;
 	for (const auto& node : scene.root.getChildren()) {
 //		std::string sdfCode = fmt::format("float sdf(vec3 p) {{ return {}; }}", node->generateIntersectionGlsl());
 
 		AABB aabb = node->generateAabb();
 		aabbData.push_back(aabb.toVkStruct());
+
+		glm::mat4 modelMatrix = node->modelMatrix();
+		aabbAttributes.push_back(ModelAttributes(
+			glm::inverse(modelMatrix), 1.f / getSmallScale(modelMatrix),
+			aabb.getMin(), aabb.getMax()));
 
 		log(fmt::format("{}: min({}, {}, {}), max({}, {}, {})", node->name,
 			aabbData.back().minX, aabbData.back().minY, aabbData.back().minZ,
@@ -354,7 +359,7 @@ void Primrose::generateAcceleratedScene(Scene& scene) {
 	createShaderTable(intersectionShaders.size() + 2);
 
 	// create acceleration structure
-	createBottomAccelerationStructure(aabbData, &aabbStructure, &aabbStructureBuffer, &aabbStructureMemory);
+	createBottomAccelerationStructure(aabbData, aabbAttributes, &aabbStructure, &aabbStructureBuffer, &aabbStructureMemory);
 	createTopAccelerationStructure(aabbStructure, &topStructure, &topStructureBuffer, &topStructureMemory);
 }
 

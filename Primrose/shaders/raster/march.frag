@@ -95,7 +95,7 @@ vec3 mapNormal(Hit hit) {
 		map(hit.pos.xyz + vec3(NORMAL_EPS, 0.f, 0.f)),
 		map(hit.pos.xyz + vec3(0.f, NORMAL_EPS, 0.f)),
 		map(hit.pos.xyz + vec3(0.f, 0.f, NORMAL_EPS))
-	) - hit.d);;
+	) - hit.d);
 }
 
 Hit march(Ray ray) {
@@ -192,13 +192,13 @@ void renderMaterial(Hit hit, Bounce bounce, inout vec3 color) {
 
 // main
 void main() {
-	const vec3 forward = u.camDir;
-	const vec3 right = normalize(cross(u.camUp, forward));
+	const vec3 forward = u.camDir.xyz;
+	const vec3 right = normalize(cross(u.camUp.xyz, forward));
 	const vec3 up = cross(forward, right);
 
-	vec3 focalPos = u.camPos - u.focalLength*forward;
+	vec3 focalPos = u.camPos.xyz - u.focalLength*forward;
 
-	vec3 fragPos = u.camPos
+	vec3 fragPos = u.camPos.xyz
 		+ (screenXY.x*right + screenXY.y*u.screenHeight*up) * u.invZoom;
 	
 	Ray ray = Ray(fragPos, normalize(fragPos - focalPos));

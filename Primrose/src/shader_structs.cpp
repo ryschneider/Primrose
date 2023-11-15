@@ -43,7 +43,7 @@ namespace Primrose {
 }
 
 glm::vec3 Primrose::getTranslate(glm::mat4 transform) {
-	return glm::vec3(transform[3]);
+	return transform[3];
 }
 
 glm::vec3 Primrose::getScale(glm::mat4 transform) {

@@ -22,7 +22,7 @@ void updateFps() {
 	float time = glfwGetTime();
 
 	if (time - lastTime > 1) {
-		int newFps = frames / (float)(time - lastTime);
+		int newFps = frames / static_cast<float>(time - lastTime);
 
 		if (newFps != fps) {
 			fps = newFps;

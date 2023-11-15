@@ -772,11 +772,14 @@ void Primrose::createLogicalDevice() {
 	createInfo.ppEnabledExtensionNames = extensions.data();
 	createInfo.pEnabledFeatures = &features;
 
+	vk::PhysicalDeviceScalarBlockLayoutFeatures blockFeatures(VK_TRUE);
 	vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rtFeatures(VK_TRUE);
 	vk::PhysicalDeviceBufferDeviceAddressFeatures addressFeatures(VK_TRUE);
 	vk::PhysicalDeviceAccelerationStructureFeaturesKHR asFeatures(VK_TRUE);
+
+	createInfo.pNext = &blockFeatures;
 	if (rayAcceleration) {
-		createInfo.pNext = &rtFeatures;
+		blockFeatures.pNext = &rtFeatures;
 		rtFeatures.pNext = &addressFeatures;
 		addressFeatures.pNext = &asFeatures;
 	};

@@ -22,10 +22,12 @@ namespace Primrose {
 	class AABB {
 	public:
 		AABB();
-
 		static AABB fromPoint(glm::vec3 p);
 		static AABB fromPoints(std::vector<glm::vec3> points);
 		static AABB fromLocalPoints(std::vector<glm::vec3> points, glm::mat4 modelMatrix);
+
+		const glm::vec3& getMin();
+		const glm::vec3& getMax();
 
 		bool isEmpty();
 

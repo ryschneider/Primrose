@@ -4,6 +4,8 @@
 #include "payload.glsl"
 layout(location = 0) rayPayloadInEXT Payload payload;
 
+hitAttributeEXT vec3 normal;
+
 void main() {
-	payload.color = vec3(1, 0, 0);
+	payload.color = abs(normal);
 }

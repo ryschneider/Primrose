@@ -6,5 +6,8 @@ layout(location = 0) rayPayloadInEXT Payload payload;
 
 void main() {
 	payload.hits += 1;
-	ignoreIntersectionEXT;
+
+	if (gl_HitKindEXT == 1) {
+		ignoreIntersectionEXT;
+	}
 }

@@ -35,6 +35,9 @@ AABB AABB::fromLocalPoints(std::vector<glm::vec3> points, glm::mat4 modelMatrix)
 	return aabb;
 }
 
+const glm::vec3& AABB::getMin() { return min; }
+const glm::vec3& AABB::getMax() { return max; }
+
 bool AABB::isEmpty() {
 	return glm::all(glm::isnan(min)) || glm::all(glm::isnan(max));
 }

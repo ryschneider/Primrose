@@ -39,14 +39,28 @@ struct PointLight {
 	float intensity;
 };
 
+struct ModelAttributes {
+	mat4 invMatrix;
+	float invScale;
+	vec3 aabbMin;
+	vec3 aabbMax;
+};
+
 struct MarchUniforms {
 	vec3 camPos;
 	vec3 camDir;
 	vec3 camUp;
+
 	float screenHeight;
 
 	float focalLength;
 	float invZoom;
+
+	ModelAttributes attributes[100];
+	uint geometryAttributeOffset[100];
+
+//	// pre-computed
+//	vec3 camPosRcp;
 
 	uint numOperations;
 	Operation operations[100];

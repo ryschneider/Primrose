@@ -83,7 +83,7 @@ void mouseOrbitCb(float xpos, float ypos, bool refocused) {
 
 			glm::vec3 newPos = glm::rotate(uniforms.camPos - pivot, pitch, right) + pivot;
 
-			if (abs(glm::dot(glm::normalize(pivot - newPos), uniforms.camUp)) < 0.999) {
+			if (abs(glm::dot(glm::normalize(pivot -newPos), uniforms.camUp)) < 0.999) {
 				uniforms.camPos = newPos; // if direction isnt too vertical
 			}
 			uniforms.camPos = glm::rotate(uniforms.camPos - pivot, yaw, uniforms.camUp) + pivot;
@@ -139,6 +139,7 @@ void keyCb(int key, int action, int mods) {
 	guiKeyCb(key, action, mods);
 }
 
+#include <glm/gtx/string_cast.hpp>
 int main() {
 	setup(APP_NAME, APP_VERSION);
 
@@ -172,9 +173,6 @@ int main() {
 	} else {
 		mainScene.generateUniforms();
 	}
-
-//	std::cout << uniforms.toString() << std::endl;
-
 //	initFps();
 
 	run(update);
