@@ -153,6 +153,7 @@ namespace Primrose {
 	void endSingleTimeCommandBuffer(vk::CommandBuffer cmdBuffer);
 
 	vk::ShaderModule createShaderModule(const uint32_t* code, size_t length);
+	vk::ShaderModule compileShaderModule(const char* code);
 }
 
 #endif

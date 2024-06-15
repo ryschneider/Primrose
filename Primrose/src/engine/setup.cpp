@@ -12,6 +12,7 @@
 #include <GLFW/glfw3.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
+#include <shaderc/shaderc.hpp>
 
 #include <cmath>
 #include <iostream>
@@ -478,6 +479,10 @@ vk::ShaderModule Primrose::createShaderModule(const uint32_t* code, size_t lengt
 	info.pCode = code;
 
 	return device.createShaderModule(info); // TODO just inline everywhere
+}
+
+vk::ShaderModule Primrose::compileShaderModule(const char* code) {
+
 }
 
 

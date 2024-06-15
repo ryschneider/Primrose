@@ -101,7 +101,11 @@ namespace {
 
 		memcpy(dst, handles.data(), handleSize); // copy raygen group
 		memcpy(dst + prog, handles.data() + handleSize, handleSize); // copy miss group
-		memcpy(dst + 2*prog, handles.data() + 2*handleSize, tableSize - 2*handleSize); // copy hit groups
+		for (int i = 0; i < numGroups - 4; ++i) { // each intersection shader
+			memcpy(dst + (2 + 3*i)*prog, handles.data() + 2*handleSize, 2*handleSize); // copy ahit/chit handles
+			memcpy(dst + (4 + 3*i)*prog, handles.data() + (4 + i)*handleSize, handleSize); // copy int handle
+		}
+//		memcpy(dst + 2*prog, handles.data() + 2*handleSize, tableSize - 2*handleSize); // copy hit groups
 
 //		for (int i = 0; i < numGroups; ++i) {
 //			uint8_t* src = handles.data() + (i * rtProperties.shaderGroupHandleSize);
@@ -322,30 +326,31 @@ void Primrose::createAcceleratedPipelineLayout() {
 void Primrose::generateAcceleratedScene(Scene& scene) {
 	std::vector<vk::AabbPositionsKHR> aabbData;
 	std::vector<ModelAttributes> aabbAttributes;
+	std::vector<vk::ShaderModule> intersectionShaders;
+
 	for (const auto& node : scene.root.getChildren()) {
 //		std::string sdfCode = fmt::format("float sdf(vec3 p) {{ return {}; }}", node->generateIntersectionGlsl());
 
+		// generate aabb
 		AABB aabb = node->generateAabb();
 		aabbData.push_back(aabb.toVkStruct());
 
+		// aabb attributes to be passed to shader
 		glm::mat4 modelMatrix = node->modelMatrix();
 		aabbAttributes.push_back(ModelAttributes(
 			glm::inverse(modelMatrix), 1.f / getSmallScale(modelMatrix),
 			aabb.getMin(), aabb.getMax()));
 
+		// add intersection shader
+		intersectionShaders.push_back(
+			createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize));
+
 		log(fmt::format("{}: min({}, {}, {}), max({}, {}, {})", node->name,
 			aabbData.back().minX, aabbData.back().minY, aabbData.back().minZ,
 			aabbData.back().maxX, aabbData.back().maxY, aabbData.back().maxZ));
 	}
-
-	// generate intersection shaders
-	std::vector<vk::ShaderModule> intersectionShaders = {
-		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize),
-		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize),
-		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize),
-		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize),
-		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize)
-	};
+	intersectionShaders.push_back(
+		createShaderModule(reinterpret_cast<uint32_t*>(mainRintSpvData), mainRintSpvSize));
 
 	// create pipeline
 	createAcceleratedPipeline(intersectionShaders);
